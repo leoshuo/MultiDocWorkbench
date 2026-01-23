@@ -137,6 +137,7 @@ document-workspace/
 | `SERVE_DIST` | 是否服务静态文件 | false |
 
 > `QWEN_API_KEY` 还支持命令行 `--api-key=...` 或运行时 `POST /api/config/api-key` 设置；不知道的项可留空，现场变更方式见 `docs/DOCKER_DEPLOY.md`。
+> 注意：`.env` 仅用于本地/部署环境，勿提交到 Git；如已泄露请及时更换密钥。
 
 ## 核心文档
 

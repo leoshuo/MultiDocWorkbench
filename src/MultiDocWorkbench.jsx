@@ -1877,9 +1877,9 @@ function MultiDocWorkbench({ onSwitch }) {
         } else {
           try {
             // ========== 与后管端保持一致：大模型智能处理 ==========
-            // 使用外层已定义的 llmScript
-            const aiGuidance = llmScript?.aiGuidance || '';
-            const specialRequirements = llmScript?.specialRequirements || '';
+            // 从 llmScript 或 meta 中获取 AI 指导（兼容多种存储位置）
+            const aiGuidance = llmScript?.aiGuidance || meta?.aiGuidance || '';
+            const specialRequirements = llmScript?.specialRequirements || meta?.specialRequirements || '';
             
             // 跟踪是否成功使用了大模型
             let usedLLM = false;
@@ -2114,8 +2114,9 @@ ${inputText}
           }
 
           // ========== 与后管端完全一致：将 AI 指导添加到 instructions 中 ==========
-          const aiGuidance = llmScript?.aiGuidance || '';
-          const specialRequirements = llmScript?.specialRequirements || '';
+          // 从 llmScript 或 meta 中获取 AI 指导（兼容多种存储位置）
+          const aiGuidance = llmScript?.aiGuidance || meta?.aiGuidance || '';
+          const specialRequirements = llmScript?.specialRequirements || meta?.specialRequirements || '';
           
           // 关键：aiGuidance 追加到 instructions 中，而不是作为 systemPrompt
           if (precipitationMode === 'llm' && (aiGuidance || specialRequirements)) {
@@ -2153,29 +2154,75 @@ ${specialRequirements || '无'}`;
             const allSections = tpl?.sections || [];
             let picked = [];
 
+            // 方法1：使用 targetSectionsDetail 中的标题定位（先精确匹配，再模糊匹配）
             const detailsToUse = targetSectionsDetail.length > 0 ? targetSectionsDetail : llmTargetSectionsDetail;
             if (detailsToUse.length > 0) {
               picked = detailsToUse.map(detail => {
+                // 精确匹配
                 let found = allSections.find(s => s.title === detail.title);
+                // ID匹配
                 if (!found && detail.id) found = allSections.find(s => s.id === detail.id);
+                // 模糊匹配（处理"二级标题「xxx」"格式）
+                if (!found && detail.title) {
+                  const bracketMatch = detail.title.match(/[「『]([^」』]+)[」』]/);
+                  const cleanTitle = bracketMatch ? bracketMatch[1] : detail.title;
+                  found = allSections.find(s => 
+                    s.title === cleanTitle || 
+                    s.title?.includes(cleanTitle) || 
+                    cleanTitle?.includes(s.title)
+                  );
+                }
                 return found;
               }).filter(Boolean);
             }
 
+            // 方法2：使用 selectedSectionTitles 定位（先精确匹配，再模糊匹配）
             if (picked.length === 0 && selectedTitles.length > 0) {
+              // 精确匹配
               picked = selectedTitles.map(title => allSections.find(s => s.title === title)).filter(Boolean);
+              
+              // 如果精确匹配失败，尝试模糊匹配（处理"二级标题「xxx」"格式）
+              if (picked.length === 0) {
+                picked = selectedTitles.map(title => {
+                  // 提取「」内的标题
+                  const bracketMatch = title.match(/[「『]([^」』]+)[」』]/);
+                  const cleanTitle = bracketMatch ? bracketMatch[1] : title;
+                  // 尝试多种匹配方式
+                  return allSections.find(s => 
+                    s.title === cleanTitle || 
+                    s.title?.includes(cleanTitle) || 
+                    cleanTitle?.includes(s.title)
+                  );
+                }).filter(Boolean);
+              }
             }
 
+            // 方法3：使用 selectedSectionIds 定位（兼容旧记录）
             if (picked.length === 0 && selectedIds.length > 0) {
               picked = allSections.filter(s => selectedIds.includes(s.id));
             }
 
+            // 方法4：使用 llmScript 中的 targetTitle 匹配
             if (picked.length === 0 && llmScript?.targetTitle) {
-              const found = allSections.find(s => s.title?.includes(llmScript.targetTitle) || llmScript.targetTitle?.includes(s.title));
+              // 先清理 targetTitle（处理"二级标题「xxx」"格式）
+              const bracketMatch = llmScript.targetTitle.match(/[「『]([^」』]+)[」』]/);
+              const cleanTargetTitle = bracketMatch ? bracketMatch[1] : llmScript.targetTitle;
+              const found = allSections.find(s => 
+                s.title === cleanTargetTitle ||
+                s.title?.includes(cleanTargetTitle) || 
+                cleanTargetTitle?.includes(s.title)
+              );
               if (found) picked = [found];
             }
 
             if (picked.length === 0) {
+              console.error('[dispatch replay] 无法定位目标大纲标题', { 
+                selectedTitles, 
+                selectedIds, 
+                targetSectionsDetail,
+                llmTargetTitle: llmScript?.targetTitle,
+                availableTitles: allSections.map(s => s.title)
+              });
               throw new Error('无法定位目标大纲标题，请确保大纲中存在对应标题');
             }
 

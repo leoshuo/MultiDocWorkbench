@@ -415,6 +415,8 @@ services:
 
 如果有本地部署的大模型（如 ChatGLM、Qwen 等），创建 `.env` 文件：
 
+> 注意：`.env` 为本地私密配置文件，请勿提交到 Git。
+
 ```bash
 cd /opt/document-workspace
 
