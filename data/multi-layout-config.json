@@ -1,0 +1,36 @@
+{
+  "layoutSize": {
+    "width": 1590.98388671875,
+    "height": 800
+  },
+  "panelPositions": {
+    "sources-panel": {
+      "left": 0,
+      "top": 0,
+      "width": 297,
+      "height": 778
+    },
+    "chat-panel": {
+      "left": 315,
+      "top": 0,
+      "width": 1257,
+      "height": 779
+    },
+    "studio-panel": {
+      "left": 1240,
+      "top": 50,
+      "width": 704,
+      "height": 706
+    }
+  },
+  "panelTitles": {
+    "sources-panel": "来源",
+    "chat-panel": "对话",
+    "studio-panel": "Studio"
+  },
+  "panelVisibility": {
+    "sources-panel": true,
+    "chat-panel": true,
+    "studio-panel": false
+  }
+}

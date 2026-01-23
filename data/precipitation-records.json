@@ -1,0 +1,1064 @@
+[
+  {
+    "id": "沉淀_23",
+    "name": "上传文档",
+    "createdAt": 1768902213334,
+    "precipitationMode": "llm",
+    "sections": [
+      {
+        "id": "sec_1768902211738_1",
+        "action": "添加文档",
+        "content": "已上传文档：10月14日网安总队晨会要报3-网安总队（输入）.txt\n输入：上传文件：10月14日网安总队晨会要报3-网安总队（输入）.txt\n动作：上传为新文档\n输出摘要：已上传文档：10月14日网安总队晨会要报3-网安总队（输入）.txt\n记录位置：docs_list\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1768902211738,\"buttonAction\":\"add_doc\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"add_doc\",\"precipitationMode\":\"llm\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"selectedDocName\":\"\",\"docId\":\"\",\"inputs\":[{\"kind\":\"upload_file\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"contextSummary\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"sourceType\":\"upload_file\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"docs_list\",\"sectionTitle\":\"\"}],\"outputs\":{\"summary\":\"已上传文档：10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"usedModel\":\"\",\"status\":\"done\"},\"process\":\"上传为新文档\",\"context\":{\"sceneId\":\"scene_1768902194451\"}}",
+        "requirements": {
+          "inputSource": "optional",
+          "actionExecution": "optional",
+          "executionSummary": "optional",
+          "recordLocation": "optional"
+        }
+      },
+      {
+        "id": "sec_1768902211751_2",
+        "action": "添加文档",
+        "content": "已上传文档：公交总队（输入）.txt\n输入：上传文件：公交总队（输入）.txt\n动作：上传为新文档\n输出摘要：已上传文档：公交总队（输入）.txt\n记录位置：docs_list\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1768902211750,\"buttonAction\":\"add_doc\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"add_doc\",\"precipitationMode\":\"llm\",\"docName\":\"公交总队（输入）.txt\",\"selectedDocName\":\"\",\"docId\":\"\",\"inputs\":[{\"kind\":\"upload_file\",\"docName\":\"公交总队（输入）.txt\",\"contextSummary\":\"公交总队（输入）.txt\",\"sourceType\":\"upload_file\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"docs_list\",\"sectionTitle\":\"\"}],\"outputs\":{\"summary\":\"已上传文档：公交总队（输入）.txt\",\"usedModel\":\"\",\"status\":\"done\"},\"process\":\"上传为新文档\",\"context\":{\"sceneId\":\"scene_1768902194451\"}}",
+        "requirements": {
+          "inputSource": "optional",
+          "actionExecution": "optional",
+          "executionSummary": "optional",
+          "recordLocation": "optional"
+        }
+      },
+      {
+        "id": "sec_1768902211762_3",
+        "action": "添加文档",
+        "content": "已上传文档：无人机数据--素材（输入）.txt\n输入：上传文件：无人机数据--素材（输入）.txt\n动作：上传为新文档\n输出摘要：已上传文档：无人机数据--素材（输入）.txt\n记录位置：docs_list\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1768902211761,\"buttonAction\":\"add_doc\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"add_doc\",\"precipitationMode\":\"llm\",\"docName\":\"无人机数据--素材（输入）.txt\",\"selectedDocName\":\"\",\"docId\":\"\",\"inputs\":[{\"kind\":\"upload_file\",\"docName\":\"无人机数据--素材（输入）.txt\",\"contextSummary\":\"无人机数据--素材（输入）.txt\",\"sourceType\":\"upload_file\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"docs_list\",\"sectionTitle\":\"\"}],\"outputs\":{\"summary\":\"已上传文档：无人机数据--素材（输入）.txt\",\"usedModel\":\"\",\"status\":\"done\"},\"process\":\"上传为新文档\",\"context\":{\"sceneId\":\"scene_1768902194451\"}}",
+        "requirements": {
+          "inputSource": "optional",
+          "actionExecution": "optional",
+          "executionSummary": "optional",
+          "recordLocation": "optional"
+        }
+      },
+      {
+        "id": "sec_1768902211775_4",
+        "action": "添加文档",
+        "content": "已上传文档：主任版文档（输出）.txt\n输入：上传文件：主任版文档（输出）.txt\n动作：上传为新文档\n输出摘要：已上传文档：主任版文档（输出）.txt\n记录位置：docs_list\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1768902211774,\"buttonAction\":\"add_doc\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"add_doc\",\"precipitationMode\":\"llm\",\"docName\":\"主任版文档（输出）.txt\",\"selectedDocName\":\"\",\"docId\":\"\",\"inputs\":[{\"kind\":\"upload_file\",\"docName\":\"主任版文档（输出）.txt\",\"contextSummary\":\"主任版文档（输出）.txt\",\"sourceType\":\"upload_file\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"docs_list\",\"sectionTitle\":\"\"}],\"outputs\":{\"summary\":\"已上传文档：主任版文档（输出）.txt\",\"usedModel\":\"\",\"status\":\"done\"},\"process\":\"上传为新文档\",\"context\":{\"sceneId\":\"scene_1768902194451\"}}",
+        "requirements": {
+          "inputSource": "optional",
+          "actionExecution": "optional",
+          "executionSummary": "optional",
+          "recordLocation": "optional"
+        }
+      }
+    ]
+  },
+  {
+    "id": "沉淀_24",
+    "name": "使用历史大纲",
+    "title": "使用历史大纲",
+    "createdAt": 1769006124139,
+    "precipitationMode": "llm",
+    "sections": [
+      {
+        "id": "sec_1769006088532_1",
+        "action": "点击了历史大纲选取",
+        "content": "操作记录：恢复历史大纲：主任版\n动作：恢复历史大纲：主任版\n输出摘要：已恢复大纲：主任版\n记录位置：outline_panel\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769006088530,\"buttonAction\":\"restore_history_outline\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"restore_history_outline\",\"precipitationMode\":\"llm\",\"docName\":\"\",\"selectedDocName\":\"\",\"docId\":\"\",\"outlineId\":\"outline_1768480803912\",\"outlineTitle\":\"主任版\",\"targetSectionIds\":[],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"点击了历史大纲选取\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_panel\",\"sectionTitle\":\"\"}],\"outputs\":{\"summary\":\"已恢复大纲：主任版\",\"usedModel\":\"\",\"status\":\"done\",\"targetSections\":[]},\"process\":\"恢复历史大纲：主任版\",\"context\":{\"sceneId\":\"scene_1768914518374\",\"loadedDocs\":[{\"id\":\"90d34e53-a07c-431b-841d-7711408e142a\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"8c54fcb6-1a5c-4389-9b03-91398e5fca78\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"556f2db3-31cb-4a8b-a8fa-a637b9f003c3\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"52c5d923-8f43-4c96-98e4-21c38e342c3f\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":false,\"outlineSectionsCount\":0,\"outlineSectionTitles\":[],\"timestamp\":1769006088530}}",
+        "requirements": {
+          "inputSource": "optional",
+          "actionExecution": "optional",
+          "executionSummary": "optional",
+          "recordLocation": "optional"
+        },
+        "llmScript": null,
+        "originalScript": {
+          "action": "点击了历史大纲选取",
+          "content": "操作记录：恢复历史大纲：主任版\n动作：恢复历史大纲：主任版\n输出摘要：已恢复大纲：主任版\n记录位置：outline_panel\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769006088530,\"buttonAction\":\"restore_history_outline\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"restore_history_outline\",\"precipitationMode\":\"llm\",\"docName\":\"\",\"selectedDocName\":\"\",\"docId\":\"\",\"outlineId\":\"outline_1768480803912\",\"outlineTitle\":\"主任版\",\"targetSectionIds\":[],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"点击了历史大纲选取\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_panel\",\"sectionTitle\":\"\"}],\"outputs\":{\"summary\":\"已恢复大纲：主任版\",\"usedModel\":\"\",\"status\":\"done\",\"targetSections\":[]},\"process\":\"恢复历史大纲：主任版\",\"context\":{\"sceneId\":\"scene_1768914518374\",\"loadedDocs\":[{\"id\":\"90d34e53-a07c-431b-841d-7711408e142a\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"8c54fcb6-1a5c-4389-9b03-91398e5fca78\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"556f2db3-31cb-4a8b-a8fa-a637b9f003c3\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"52c5d923-8f43-4c96-98e4-21c38e342c3f\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":false,\"outlineSectionsCount\":0,\"outlineSectionTitles\":[],\"timestamp\":1769006088530}}"
+        },
+        "lastReplayStatus": null,
+        "lastReplayMode": null,
+        "lastReplayTime": null,
+        "lastReplayError": null
+      }
+    ],
+    "structuredScript": "【沉淀脚本】\n\n=== 步骤 1: 点击了历史大纲选取 ===\n【操作类型】restore_history_outline\n【大纲名称】主任版\n【执行结果】已恢复大纲：主任版\n【当前环境】已加载 4 个文档\n\n---\n提示: 点击「AI 智能优化」可将上述内容转化为更通用的结构化脚本",
+    "accumulatedRequirements": "",
+    "optimizeCount": 0,
+    "summary": "",
+    "replayGuidance": "",
+    "supportsScriptFallback": true
+  },
+  {
+    "id": "沉淀_27",
+    "name": "晨会要报摘要信息提取与优化（姓名提取版）",
+    "title": "晨会要报摘要信息提取与优化（姓名提取版）",
+    "createdAt": 1769104392581,
+    "precipitationMode": "llm",
+    "sections": [
+      {
+        "id": "sec_1769104348897_1",
+        "action": "填入摘要",
+        "content": "- 类型: insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】”  \n- 目标标题: 一、调度督导方面  \n- AI指导: 在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"填入摘要\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"{{当前文档}}\",\"contextSummary\":\"{{当前文档}}\",\"sourceType\":\"selection\",\"textExcerpt\":\"{{选中内容}}\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"{{当前文档}}\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897}}\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary  \\n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary  \\n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"precipitationMode\":\"llm\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"contextSummary\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"sourceType\":\"selection\",\"textExcerpt\":\"副总队长 杨立华\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \\n- 脚本回退参数: {\\\"v\\\":1,\\\"ts\\\":1769104348897,\\\"buttonAction\\\":\\\"insert_to_summary\\\",\\\"buttonLabel\\\":\\\"\\\",\\\"buttonId\\\":\\\"\\\",\\\"type\\\":\\\"insert_to_summary\\\",\\\"precipitationMode\\\":\\\"llm\\\",\\\"docName\\\":\\\"{{当前文档}}\\\",\\\"selectedDocName\\\":\\\"\\\",\\\"docId\\\":\\\"f6628ff0\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897},\"targetTitle\":\"一、调度督导方面\",\"contentDescription\":\"需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"contextBefore\":\"“内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"contextAfter\":\"“每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"generatedByLLM\":true,\"generatedAt\":1769104392581}",
+        "requirements": {
+          "inputSource": "optional",
+          "actionExecution": "optional",
+          "executionSummary": "optional",
+          "recordLocation": "optional"
+        },
+        "meta": {
+          "v": 1,
+          "ts": 1769104348897,
+          "buttonAction": "insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "buttonLabel": "",
+          "buttonId": "",
+          "type": "insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "precipitationMode": "llm",
+          "docName": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+          "selectedDocName": "",
+          "docId": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+          "outlineId": "",
+          "outlineTitle": "",
+          "targetSectionIds": [
+            "2"
+          ],
+          "targetSectionId": "",
+          "targetSectionTitle": "",
+          "intentDescription": "将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "expectedResult": "",
+          "record": "",
+          "source": "",
+          "inputs": [
+            {
+              "kind": "selection",
+              "docName": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+              "contextSummary": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+              "sourceType": "selection",
+              "textExcerpt": "副总队长 杨立华",
+              "textLength": 8,
+              "contextBefore": "内部     网络安全保卫总队（情报信息中心）",
+              "contextAfter": "每日晨会要报\r\n\r\n第XXX期\r\n\r\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\r\n\r\n【敏感活动情况】............."
+            },
+            {
+              "kind": "outline_selected",
+              "docName": "",
+              "contextSummary": "已选标题：1条",
+              "sourceType": "outline_selected"
+            }
+          ],
+          "inputKind": "",
+          "inputSourceType": "",
+          "destinations": [
+            {
+              "kind": "outline_section_summary_batch",
+              "sectionTitle": "一、调度督导方面",
+              "count": 1
+            }
+          ],
+          "outputs": {
+            "summary": "已写入摘要：1 个标题（字数：8）",
+            "usedModel": "",
+            "outputContent": "",
+            "edits": [],
+            "status": "done",
+            "targetSections": [
+              {
+                "id": "2",
+                "title": "一、调度督导方面",
+                "level": 2,
+                "hadContentBefore": true
+              }
+            ],
+            "generatedSections": []
+          },
+          "process": "将内容预览中框选的文本追加到已勾选标题的摘要",
+          "actionDescription": "",
+          "instructions": "",
+          "promptContent": "",
+          "inputSourceDesc": "",
+          "outputTargetDesc": "",
+          "inputContent": "",
+          "targetSectionsDetail": [],
+          "aiGuidance": "在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0",
+          "specialRequirements": "无",
+          "afterSection": null,
+          "newSection": null,
+          "targetSection": null,
+          "removedSections": [],
+          "context": {
+            "sceneId": "scene_1769066488387",
+            "loadedDocs": [
+              {
+                "id": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+                "name": "10月14日网安总队晨会要报3-网安总队（输入）.txt"
+              },
+              {
+                "id": "aaa1bdec-4775-4f04-a2a3-39c787475ecb",
+                "name": "公交总队（输入）.txt"
+              },
+              {
+                "id": "15043ddb-50b9-4131-8bf4-34d2b972a746",
+                "name": "无人机数据--素材（输入）.txt"
+              },
+              {
+                "id": "d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4",
+                "name": "主任版文档（输出）.txt"
+              }
+            ],
+            "loadedDocsCount": 4,
+            "hasOutline": true,
+            "outlineSectionsCount": 11,
+            "outlineSectionTitles": [
+              "每日“三清三个一批”清查整治工作情况",
+              "一、调度督导方面",
+              "二、具体清查情况",
+              "全局共盘查核录人员XX.X万人、车辆X.XX万辆",
+              "盘查核录留置涉访标签人员XXXX人",
+              "前XX小时，全局在社会面共救助流浪乞讨人员X人",
+              "人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人",
+              "整改取缔重点出租房屋XXX处",
+              "罚款处罚违法出租人XXX人、X.X万元",
+              "大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件"
+            ],
+            "timestamp": 1769104348897
+          },
+          "targetTitle": "一、调度督导方面",
+          "contentDescription": "需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "contextBefore": "“内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "contextAfter": "“每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "generatedByLLM": true,
+          "generatedAt": 1769104392581
+        },
+        "llmScript": {
+          "title": "填入摘要（去职称处理）",
+          "type": "insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "description": "将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "condition": "用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "contentDescription": "需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "contextBefore": "“内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "contextAfter": "“每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "targetTitle": "一、调度督导方面",
+          "aiGuidance": "在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0",
+          "inputSource": "",
+          "outputTarget": "",
+          "specialRequirements": "无",
+          "structuredScriptContent": "- 类型: insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】”  \n- 目标标题: 一、调度督导方面  \n- AI指导: 在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"填入摘要\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"{{当前文档}}\",\"contextSummary\":\"{{当前文档}}\",\"sourceType\":\"selection\",\"textExcerpt\":\"{{选中内容}}\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"{{当前文档}}\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897}}",
+          "rawContent": "- 类型: insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】”  \n- 目标标题: 一、调度督导方面  \n- AI指导: 在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"填入摘要\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"{{当前文档}}\",\"contextSummary\":\"{{当前文档}}\",\"sourceType\":\"selection\",\"textExcerpt\":\"{{选中内容}}\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"{{当前文档}}\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897}}",
+          "actionDescription": "将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+          "instructions": "",
+          "promptContent": "",
+          "inputKind": "",
+          "inputSourceType": "",
+          "inputSourceDesc": "",
+          "inputContent": "",
+          "inputContentExcerpt": "",
+          "inputContentIsReference": true,
+          "inputs": [
+            {
+              "kind": "selection",
+              "docName": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+              "contextSummary": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+              "sourceType": "selection",
+              "textExcerpt": "副总队长 杨立华",
+              "textLength": 8,
+              "contextBefore": "内部     网络安全保卫总队（情报信息中心）",
+              "contextAfter": "每日晨会要报\r\n\r\n第XXX期\r\n\r\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\r\n\r\n【敏感活动情况】............."
+            },
+            {
+              "kind": "outline_selected",
+              "docName": "",
+              "contextSummary": "已选标题：1条",
+              "sourceType": "outline_selected"
+            }
+          ],
+          "targetSectionsDetail": [],
+          "selectedSectionIds": [],
+          "selectedSectionTitles": [],
+          "outlineSegmentsMeta": [],
+          "destinations": [
+            {
+              "kind": "outline_section_summary_batch",
+              "sectionTitle": "一、调度督导方面",
+              "count": 1
+            }
+          ],
+          "outputs": {
+            "summary": "已写入摘要：1 个标题（字数：8）",
+            "usedModel": "",
+            "outputContent": "",
+            "edits": [],
+            "status": "done",
+            "targetSections": [
+              {
+                "id": "2",
+                "title": "一、调度督导方面",
+                "level": 2,
+                "hadContentBefore": true
+              }
+            ],
+            "generatedSections": []
+          },
+          "outputContent": "",
+          "outputTargetDesc": "",
+          "afterSection": null,
+          "newSection": null,
+          "targetSection": null,
+          "removedSections": [],
+          "generatedSections": [],
+          "docName": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+          "selectedDocName": "",
+          "originalScriptContent": "- 类型: insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】”  \n- 目标标题: 一、调度督导方面  \n- AI指导: 在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"填入摘要\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"{{当前文档}}\",\"contextSummary\":\"{{当前文档}}\",\"sourceType\":\"selection\",\"textExcerpt\":\"{{选中内容}}\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"{{当前文档}}\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897}}\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary  \\n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary  \\n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"precipitationMode\":\"llm\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"contextSummary\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"sourceType\":\"selection\",\"textExcerpt\":\"副总队长 杨立华\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \\n- 脚本回退参数: {\\\"v\\\":1,\\\"ts\\\":1769104348897,\\\"buttonAction\\\":\\\"insert_to_summary\\\",\\\"buttonLabel\\\":\\\"\\\",\\\"buttonId\\\":\\\"\\\",\\\"type\\\":\\\"insert_to_summary\\\",\\\"precipitationMode\\\":\\\"llm\\\",\\\"docName\\\":\\\"{{当前文档}}\\\",\\\"selectedDocName\\\":\\\"\\\",\\\"docId\\\":\\\"f6628ff0\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897},\"targetTitle\":\"一、调度督导方面\",\"contentDescription\":\"需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"contextBefore\":\"“内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"contextAfter\":\"“每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"generatedByLLM\":true,\"generatedAt\":1769104392581}",
+          "originalScriptRawContent": "操作记录：将内容预览中框选的文本追加到已勾选标题的摘要\n输入：选区：10月14日网安总队晨会要报3-网安总队（输入）.txt 区间：0-0；已选标题：0条\n动作：将内容预览中框选的文本追加到已勾选标题的摘要\n输出摘要：已写入摘要：1 个标题（字数：8）\n记录位置：摘要写入：1条\n\n操作记录\n- 二级标题：一、调度督导方面\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"填入摘要\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"contextSummary\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"sourceType\":\"selection\",\"textExcerpt\":\"副总队长 杨立华\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897}}",
+          "replayMeta": {
+            "v": 1,
+            "ts": 1769104348897,
+            "buttonAction": "insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "buttonLabel": "",
+            "buttonId": "",
+            "type": "insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "precipitationMode": "llm",
+            "docName": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+            "selectedDocName": "",
+            "docId": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+            "outlineId": "",
+            "outlineTitle": "",
+            "targetSectionIds": [
+              "2"
+            ],
+            "targetSectionId": "",
+            "targetSectionTitle": "",
+            "intentDescription": "将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "expectedResult": "",
+            "record": "",
+            "source": "",
+            "inputs": [
+              {
+                "kind": "selection",
+                "docName": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+                "contextSummary": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+                "sourceType": "selection",
+                "textExcerpt": "副总队长 杨立华",
+                "textLength": 8,
+                "contextBefore": "内部     网络安全保卫总队（情报信息中心）",
+                "contextAfter": "每日晨会要报\r\n\r\n第XXX期\r\n\r\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\r\n\r\n【敏感活动情况】............."
+              },
+              {
+                "kind": "outline_selected",
+                "docName": "",
+                "contextSummary": "已选标题：1条",
+                "sourceType": "outline_selected"
+              }
+            ],
+            "inputKind": "",
+            "inputSourceType": "",
+            "destinations": [
+              {
+                "kind": "outline_section_summary_batch",
+                "sectionTitle": "一、调度督导方面",
+                "count": 1
+              }
+            ],
+            "outputs": {
+              "summary": "已写入摘要：1 个标题（字数：8）",
+              "usedModel": "",
+              "outputContent": "",
+              "edits": [],
+              "status": "done",
+              "targetSections": [
+                {
+                  "id": "2",
+                  "title": "一、调度督导方面",
+                  "level": 2,
+                  "hadContentBefore": true
+                }
+              ],
+              "generatedSections": []
+            },
+            "process": "将内容预览中框选的文本追加到已勾选标题的摘要",
+            "actionDescription": "",
+            "instructions": "",
+            "promptContent": "",
+            "inputSourceDesc": "",
+            "outputTargetDesc": "",
+            "inputContent": "",
+            "targetSectionsDetail": [],
+            "aiGuidance": "在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0",
+            "specialRequirements": "无",
+            "afterSection": null,
+            "newSection": null,
+            "targetSection": null,
+            "removedSections": [],
+            "context": {
+              "sceneId": "scene_1769066488387",
+              "loadedDocs": [
+                {
+                  "id": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+                  "name": "10月14日网安总队晨会要报3-网安总队（输入）.txt"
+                },
+                {
+                  "id": "aaa1bdec-4775-4f04-a2a3-39c787475ecb",
+                  "name": "公交总队（输入）.txt"
+                },
+                {
+                  "id": "15043ddb-50b9-4131-8bf4-34d2b972a746",
+                  "name": "无人机数据--素材（输入）.txt"
+                },
+                {
+                  "id": "d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4",
+                  "name": "主任版文档（输出）.txt"
+                }
+              ],
+              "loadedDocsCount": 4,
+              "hasOutline": true,
+              "outlineSectionsCount": 11,
+              "outlineSectionTitles": [
+                "每日“三清三个一批”清查整治工作情况",
+                "一、调度督导方面",
+                "二、具体清查情况",
+                "全局共盘查核录人员XX.X万人、车辆X.XX万辆",
+                "盘查核录留置涉访标签人员XXXX人",
+                "前XX小时，全局在社会面共救助流浪乞讨人员X人",
+                "人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人",
+                "整改取缔重点出租房屋XXX处",
+                "罚款处罚违法出租人XXX人、X.X万元",
+                "大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件"
+              ],
+              "timestamp": 1769104348897
+            },
+            "targetTitle": "一、调度督导方面",
+            "contentDescription": "需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "contextBefore": "“内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "contextAfter": "“每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "generatedByLLM": true,
+            "generatedAt": 1769104392581
+          }
+        },
+        "originalScript": {
+          "action": "填入摘要",
+          "content": "- 类型: insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】”  \n- 目标标题: 一、调度督导方面  \n- AI指导: 在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"填入摘要\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"{{当前文档}}\",\"contextSummary\":\"{{当前文档}}\",\"sourceType\":\"selection\",\"textExcerpt\":\"{{选中内容}}\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"{{当前文档}}\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897}}\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary  \\n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary  \\n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"precipitationMode\":\"llm\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \\n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \\n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"contextSummary\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"sourceType\":\"selection\",\"textExcerpt\":\"副总队长 杨立华\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \\n- 脚本回退参数: {\\\"v\\\":1,\\\"ts\\\":1769104348897,\\\"buttonAction\\\":\\\"insert_to_summary\\\",\\\"buttonLabel\\\":\\\"\\\",\\\"buttonId\\\":\\\"\\\",\\\"type\\\":\\\"insert_to_summary\\\",\\\"precipitationMode\\\":\\\"llm\\\",\\\"docName\\\":\\\"{{当前文档}}\\\",\\\"selectedDocName\\\":\\\"\\\",\\\"docId\\\":\\\"f6628ff0\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897},\"targetTitle\":\"一、调度督导方面\",\"contentDescription\":\"需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \\n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"contextBefore\":\"“内部     网络安全保卫总队（情报信息中心）”  \\n- 后文特征: “每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"contextAfter\":\"“每日晨会要报\\\\r\\\\n\\\\r\\\\n第XXX期\\\\r\\\\n\\\\r\\\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\\\r\\\\n\\\\r\\\\n\",\"generatedByLLM\":true,\"generatedAt\":1769104392581}",
+          "meta": {
+            "v": 1,
+            "ts": 1769104348897,
+            "buttonAction": "insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "buttonLabel": "",
+            "buttonId": "",
+            "type": "insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "precipitationMode": "llm",
+            "docName": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+            "selectedDocName": "",
+            "docId": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+            "outlineId": "",
+            "outlineTitle": "",
+            "targetSectionIds": [
+              "2"
+            ],
+            "targetSectionId": "",
+            "targetSectionTitle": "",
+            "intentDescription": "将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "expectedResult": "",
+            "record": "",
+            "source": "",
+            "inputs": [
+              {
+                "kind": "selection",
+                "docName": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+                "contextSummary": "10月14日网安总队晨会要报3-网安总队（输入）.txt",
+                "sourceType": "selection",
+                "textExcerpt": "副总队长 杨立华",
+                "textLength": 8,
+                "contextBefore": "内部     网络安全保卫总队（情报信息中心）",
+                "contextAfter": "每日晨会要报\r\n\r\n第XXX期\r\n\r\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\r\n\r\n【敏感活动情况】............."
+              },
+              {
+                "kind": "outline_selected",
+                "docName": "",
+                "contextSummary": "已选标题：1条",
+                "sourceType": "outline_selected"
+              }
+            ],
+            "inputKind": "",
+            "inputSourceType": "",
+            "destinations": [
+              {
+                "kind": "outline_section_summary_batch",
+                "sectionTitle": "一、调度督导方面",
+                "count": 1
+              }
+            ],
+            "outputs": {
+              "summary": "已写入摘要：1 个标题（字数：8）",
+              "usedModel": "",
+              "outputContent": "",
+              "edits": [],
+              "status": "done",
+              "targetSections": [
+                {
+                  "id": "2",
+                  "title": "一、调度督导方面",
+                  "level": 2,
+                  "hadContentBefore": true
+                }
+              ],
+              "generatedSections": []
+            },
+            "process": "将内容预览中框选的文本追加到已勾选标题的摘要",
+            "actionDescription": "",
+            "instructions": "",
+            "promptContent": "",
+            "inputSourceDesc": "",
+            "outputTargetDesc": "",
+            "inputContent": "",
+            "targetSectionsDetail": [],
+            "aiGuidance": "在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0",
+            "specialRequirements": "无",
+            "afterSection": null,
+            "newSection": null,
+            "targetSection": null,
+            "removedSections": [],
+            "context": {
+              "sceneId": "scene_1769066488387",
+              "loadedDocs": [
+                {
+                  "id": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+                  "name": "10月14日网安总队晨会要报3-网安总队（输入）.txt"
+                },
+                {
+                  "id": "aaa1bdec-4775-4f04-a2a3-39c787475ecb",
+                  "name": "公交总队（输入）.txt"
+                },
+                {
+                  "id": "15043ddb-50b9-4131-8bf4-34d2b972a746",
+                  "name": "无人机数据--素材（输入）.txt"
+                },
+                {
+                  "id": "d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4",
+                  "name": "主任版文档（输出）.txt"
+                }
+              ],
+              "loadedDocsCount": 4,
+              "hasOutline": true,
+              "outlineSectionsCount": 11,
+              "outlineSectionTitles": [
+                "每日“三清三个一批”清查整治工作情况",
+                "一、调度督导方面",
+                "二、具体清查情况",
+                "全局共盘查核录人员XX.X万人、车辆X.XX万辆",
+                "盘查核录留置涉访标签人员XXXX人",
+                "前XX小时，全局在社会面共救助流浪乞讨人员X人",
+                "人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人",
+                "整改取缔重点出租房屋XXX处",
+                "罚款处罚违法出租人XXX人、X.X万元",
+                "大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件"
+              ],
+              "timestamp": 1769104348897
+            },
+            "targetTitle": "一、调度督导方面",
+            "contentDescription": "需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "contextBefore": "“内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "contextAfter": "“每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n",
+            "generatedByLLM": true,
+            "generatedAt": 1769104392581
+          },
+          "rawContent": "操作记录：将内容预览中框选的文本追加到已勾选标题的摘要\n输入：选区：10月14日网安总队晨会要报3-网安总队（输入）.txt 区间：0-0；已选标题：0条\n动作：将内容预览中框选的文本追加到已勾选标题的摘要\n输出摘要：已写入摘要：1 个标题（字数：8）\n记录位置：摘要写入：1条\n\n操作记录\n- 二级标题：一、调度督导方面\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"填入摘要\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"contextSummary\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\",\"sourceType\":\"selection\",\"textExcerpt\":\"副总队长 杨立华\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897}}"
+        },
+        "lastReplayStatus": null,
+        "lastReplayMode": null,
+        "lastReplayTime": null,
+        "lastReplayError": null
+      }
+    ],
+    "structuredScript": "【沉淀名称】晨会要报摘要信息提取与优化（姓名提取版）  \n【流程概述】从输入文档中提取指定内容并追加到大纲摘要，同时去除职称仅保留姓名  \n\n=== 执行步骤 ===  \n\n[步骤1] 填入摘要（去职称处理）  \n- 类型: insert_to_summary  \n- 描述: 将当前文档中选中的文本内容提取，并去除其中的职务/职称信息后，仅保留姓名，追加至已勾选的大纲二级标题对应的摘要中  \n- 条件: 用户已在内容预览中框选目标文本，且大纲中至少有一个标题被选中  \n- 内容描述: 需提取的文本为人员姓名及可能附带的职务信息（如“副总队长 杨立华”），需识别并过滤职务部分，仅保留真实姓名  \n- 前文特征: “内部     网络安全保卫总队（情报信息中心）”  \n- 后文特征: “每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】”  \n- 目标标题: 一、调度督导方面  \n- AI指导: 在插入摘要前，先分析选中文本是否包含职务+姓名结构；若是，则使用命名实体识别或规则匹配方式剥离职务信息，仅保留汉字姓名部分；确保输出仅为纯姓名字符串  \n- 脚本回退参数: {\"v\":1,\"ts\":1769104348897,\"buttonAction\":\"insert_to_summary\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"insert_to_summary\",\"precipitationMode\":\"llm\",\"docName\":\"{{当前文档}}\",\"selectedDocName\":\"\",\"docId\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[\"2\"],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"填入摘要\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"selection\",\"docName\":\"{{当前文档}}\",\"contextSummary\":\"{{当前文档}}\",\"sourceType\":\"selection\",\"textExcerpt\":\"{{选中内容}}\",\"textLength\":8,\"contextBefore\":\"内部     网络安全保卫总队（情报信息中心）\",\"contextAfter\":\"每日晨会要报\\r\\n\\r\\n第XXX期\\r\\n\\r\\n北京市公安局网络安全保卫总队（情报信息中心）编     XXXX年XX月XX日\\r\\n\\r\\n【敏感活动情况】.............\"},{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"已选标题：1条\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"\",\"inputSourceType\":\"\",\"destinations\":[{\"kind\":\"outline_section_summary_batch\",\"sectionTitle\":\"一、调度督导方面\",\"count\":1}],\"outputs\":{\"summary\":\"已写入摘要：1 个标题（字数：8）\",\"usedModel\":\"\",\"outputContent\":\"\",\"edits\":[],\"status\":\"done\",\"targetSections\":[{\"id\":\"2\",\"title\":\"一、调度督导方面\",\"level\":2,\"hadContentBefore\":true}],\"generatedSections\":[]},\"process\":\"将内容预览中框选的文本追加到已勾选标题的摘要\",\"actionDescription\":\"\",\"instructions\":\"\",\"promptContent\":\"\",\"inputSourceDesc\":\"\",\"outputTargetDesc\":\"\",\"inputContent\":\"\",\"targetSectionsDetail\":[],\"aiGuidance\":\"\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"{{当前文档}}\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104348897}}  \n\n=== Replay 指导 ===  \n执行时应优先识别用户选区内的文本结构，若包含“职务 + 姓名”格式（如“副总队长 杨立华”），则自动剥离非姓名成分，仅保留连续汉字姓名。对于不含职务的纯姓名可直接通过。建议结合上下文定位和正则模式辅助判断，确保姓名提取准确率。当AI处理结果不确定时，应回退至原始脚本参数进行确定性插入操作。  \n\n=== 脚本回退说明 ===  \n如AI模型在去除职称环节出现偏差或失败，可忽略新增的“去职称”逻辑，直接使用【脚本回退参数】中的原始记录执行原生“插入摘要”操作，以保证流程可还原、可重放。原始行为仍保留在参数中，支持完全一致的 Replay 回溯。",
+    "accumulatedRequirements": "把职称去掉，只保留姓名",
+    "optimizeCount": 1,
+    "summary": "从输入文档中提取指定内容并追加到大纲摘要，同时去除职称仅保留姓名",
+    "replayGuidance": "",
+    "supportsScriptFallback": true
+  },
+  {
+    "id": "沉淀_28",
+    "name": "扩写摘要5句话",
+    "title": "扩写摘要5句话",
+    "createdAt": 1769104561602,
+    "precipitationMode": "llm",
+    "sections": [
+      {
+        "id": "sec_1769104550296_1",
+        "action": "执行指令",
+        "content": "=== 步骤 1: 执行指令 ===\n【操作类型】dispatch\n【动作描述】对已勾选大纲标题的内容执行指令「扩写摘要5句话」\n【指令内容】扩写摘要5句话\n【输入来源】已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\n【输入内容】【片段1】\n全面开展人员车辆盘查与风险处置\n【目标位置】共 1 个标题：\n  1. 二级标题标题「二、具体清查情况」\n     原内容：全面开展人员车辆盘查与风险处置\n【输出目标】大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\n【输出编辑】共 1 处修改：\n  1. 字段: summary\n     新值: \n【AI指导】根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\n【当前环境】已加载 4 个文档\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104550295,\"buttonAction\":\"dispatch\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"dispatch\",\"precipitationMode\":\"llm\",\"docName\":\"\",\"selectedDocName\":\"\",\"docId\":\"\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"执行指令\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"outline_summaries\",\"inputSourceType\":\"outline_summaries\",\"destinations\":[{\"kind\":\"dispatch_result\",\"sectionTitle\":\"\"},\"文档处理/大纲配置（按 edits 写回1处）\"],\"outputs\":{\"summary\":\"本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。\",\"usedModel\":true,\"detailExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...\",\"outputContent\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"outputContentExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"edits\":[{\"sectionId\":\"3\",\"field\":\"summary\",\"newValueExcerpt\":\"\"}],\"editsCount\":1,\"status\":\"done\",\"targetSections\":[],\"generatedSections\":[]},\"process\":\"执行指令：扩写摘要5句话\",\"actionDescription\":\"对已勾选大纲标题的内容执行指令「扩写摘要5句话」\",\"instructions\":\"扩写摘要5句话\",\"promptContent\":\"扩写摘要5句话\",\"inputSourceDesc\":\"已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\",\"outputTargetDesc\":\"大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\",\"inputContent\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"inputContentExcerpt\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"targetSectionsDetail\":[{\"id\":\"3\",\"level\":2,\"levelText\":\"二级标题\",\"title\":\"二、具体清查情况\",\"originalSummary\":\"全面开展人员车辆盘查与风险处置\",\"originalHint\":\"分项列明清查核心数据，突出重点人群和违法行为。\",\"found\":true}],\"aiGuidance\":\"根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104550295},\"targetTitle\":\"大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\",\"contentDescription\":\"\",\"contextBefore\":\"\",\"contextAfter\":\"\",\"generatedByLLM\":true,\"generatedAt\":1769104561602}",
+        "requirements": {
+          "inputSource": "optional",
+          "actionExecution": "optional",
+          "executionSummary": "optional",
+          "recordLocation": "optional"
+        },
+        "meta": {
+          "v": 1,
+          "ts": 1769104550295,
+          "buttonAction": "dispatch",
+          "buttonLabel": "",
+          "buttonId": "",
+          "type": "dispatch",
+          "precipitationMode": "llm",
+          "docName": "",
+          "selectedDocName": "",
+          "docId": "",
+          "outlineId": "",
+          "outlineTitle": "",
+          "targetSectionIds": [],
+          "targetSectionId": "",
+          "targetSectionTitle": "",
+          "intentDescription": "执行指令",
+          "expectedResult": "",
+          "record": "",
+          "source": "",
+          "inputs": [
+            {
+              "kind": "outline_selected",
+              "docName": "",
+              "contextSummary": "",
+              "sourceType": "outline_selected"
+            }
+          ],
+          "inputKind": "outline_summaries",
+          "inputSourceType": "outline_summaries",
+          "destinations": [
+            {
+              "kind": "dispatch_result",
+              "sectionTitle": ""
+            },
+            "文档处理/大纲配置（按 edits 写回1处）"
+          ],
+          "outputs": {
+            "summary": "本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。",
+            "usedModel": true,
+            "detailExcerpt": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...",
+            "outputContent": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+            "outputContentExcerpt": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+            "edits": [
+              {
+                "sectionId": "3",
+                "field": "summary",
+                "newValueExcerpt": ""
+              }
+            ],
+            "editsCount": 1,
+            "status": "done",
+            "targetSections": [],
+            "generatedSections": []
+          },
+          "process": "执行指令：扩写摘要5句话",
+          "actionDescription": "对已勾选大纲标题的内容执行指令「扩写摘要5句话」",
+          "instructions": "扩写摘要5句话",
+          "promptContent": "扩写摘要5句话",
+          "inputSourceDesc": "已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容",
+          "outputTargetDesc": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+          "inputContent": "【片段1】\n全面开展人员车辆盘查与风险处置",
+          "inputContentExcerpt": "【片段1】\n全面开展人员车辆盘查与风险处置",
+          "targetSectionsDetail": [
+            {
+              "id": "3",
+              "level": 2,
+              "levelText": "二级标题",
+              "title": "二、具体清查情况",
+              "originalSummary": "全面开展人员车辆盘查与风险处置",
+              "originalHint": "分项列明清查核心数据，突出重点人群和违法行为。",
+              "found": true
+            }
+          ],
+          "aiGuidance": "根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。",
+          "specialRequirements": "无",
+          "afterSection": null,
+          "newSection": null,
+          "targetSection": null,
+          "removedSections": [],
+          "context": {
+            "sceneId": "scene_1769066488387",
+            "loadedDocs": [
+              {
+                "id": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+                "name": "10月14日网安总队晨会要报3-网安总队（输入）.txt"
+              },
+              {
+                "id": "aaa1bdec-4775-4f04-a2a3-39c787475ecb",
+                "name": "公交总队（输入）.txt"
+              },
+              {
+                "id": "15043ddb-50b9-4131-8bf4-34d2b972a746",
+                "name": "无人机数据--素材（输入）.txt"
+              },
+              {
+                "id": "d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4",
+                "name": "主任版文档（输出）.txt"
+              }
+            ],
+            "loadedDocsCount": 4,
+            "hasOutline": true,
+            "outlineSectionsCount": 11,
+            "outlineSectionTitles": [
+              "每日“三清三个一批”清查整治工作情况",
+              "一、调度督导方面",
+              "二、具体清查情况",
+              "全局共盘查核录人员XX.X万人、车辆X.XX万辆",
+              "盘查核录留置涉访标签人员XXXX人",
+              "前XX小时，全局在社会面共救助流浪乞讨人员X人",
+              "人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人",
+              "整改取缔重点出租房屋XXX处",
+              "罚款处罚违法出租人XXX人、X.X万元",
+              "大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件"
+            ],
+            "timestamp": 1769104550295
+          },
+          "targetTitle": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+          "contentDescription": "",
+          "contextBefore": "",
+          "contextAfter": "",
+          "generatedByLLM": true,
+          "generatedAt": 1769104561602
+        },
+        "llmScript": {
+          "title": "执行指令",
+          "type": "dispatch",
+          "description": "对已勾选大纲标题的内容执行指令「扩写摘要5句话」",
+          "condition": "",
+          "contentDescription": "",
+          "contextBefore": "",
+          "contextAfter": "",
+          "targetTitle": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+          "aiGuidance": "根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。",
+          "inputSource": "已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容",
+          "outputTarget": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+          "specialRequirements": "无",
+          "structuredScriptContent": "=== 步骤 1: 执行指令 ===\n【操作类型】dispatch\n【动作描述】对已勾选大纲标题的内容执行指令「扩写摘要5句话」\n【指令内容】扩写摘要5句话\n【输入来源】已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\n【输入内容】【片段1】\n全面开展人员车辆盘查与风险处置\n【目标位置】共 1 个标题：\n  1. 二级标题标题「二、具体清查情况」\n     原内容：全面开展人员车辆盘查与风险处置\n【输出目标】大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\n【输出编辑】共 1 处修改：\n  1. 字段: summary\n     新值: \n【AI指导】根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\n【当前环境】已加载 4 个文档",
+          "rawContent": "【操作类型】dispatch\n【动作描述】对已勾选大纲标题的内容执行指令「扩写摘要5句话」\n【指令内容】扩写摘要5句话\n【输入来源】已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\n【输入内容】【片段1】\n全面开展人员车辆盘查与风险处置\n【目标位置】共 1 个标题：\n  1. 二级标题标题「二、具体清查情况」\n     原内容：全面开展人员车辆盘查与风险处置\n【输出目标】大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\n【输出编辑】共 1 处修改：\n  1. 字段: summary\n     新值: \n【AI指导】根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\n【当前环境】已加载 4 个文档",
+          "actionDescription": "对已勾选大纲标题的内容执行指令「扩写摘要5句话」",
+          "instructions": "扩写摘要5句话",
+          "promptContent": "扩写摘要5句话",
+          "inputKind": "outline_summaries",
+          "inputSourceType": "outline_summaries",
+          "inputSourceDesc": "已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容",
+          "inputContent": "【片段1】\n全面开展人员车辆盘查与风险处置",
+          "inputContentExcerpt": "【片段1】\n全面开展人员车辆盘查与风险处置",
+          "inputContentIsReference": true,
+          "inputs": [
+            {
+              "kind": "outline_selected",
+              "docName": "",
+              "contextSummary": "",
+              "sourceType": "outline_selected"
+            }
+          ],
+          "targetSectionsDetail": [
+            {
+              "id": "3",
+              "level": 2,
+              "levelText": "二级标题",
+              "title": "二、具体清查情况",
+              "originalSummary": "全面开展人员车辆盘查与风险处置",
+              "originalHint": "分项列明清查核心数据，突出重点人群和违法行为。",
+              "found": true
+            }
+          ],
+          "selectedSectionIds": [],
+          "selectedSectionTitles": [],
+          "outlineSegmentsMeta": [],
+          "destinations": [
+            {
+              "kind": "dispatch_result",
+              "sectionTitle": ""
+            },
+            "文档处理/大纲配置（按 edits 写回1处）"
+          ],
+          "outputs": {
+            "summary": "本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。",
+            "usedModel": true,
+            "detailExcerpt": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...",
+            "outputContent": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+            "outputContentExcerpt": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+            "edits": [
+              {
+                "sectionId": "3",
+                "field": "summary",
+                "newValueExcerpt": ""
+              }
+            ],
+            "editsCount": 1,
+            "status": "done",
+            "targetSections": [],
+            "generatedSections": []
+          },
+          "outputContent": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+          "outputTargetDesc": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+          "afterSection": null,
+          "newSection": null,
+          "targetSection": null,
+          "removedSections": [],
+          "generatedSections": [],
+          "docName": "",
+          "selectedDocName": "",
+          "originalScriptContent": "=== 步骤 1: 执行指令 ===\n【操作类型】dispatch\n【动作描述】对已勾选大纲标题的内容执行指令「扩写摘要5句话」\n【指令内容】扩写摘要5句话\n【输入来源】已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\n【输入内容】【片段1】\n全面开展人员车辆盘查与风险处置\n【目标位置】共 1 个标题：\n  1. 二级标题标题「二、具体清查情况」\n     原内容：全面开展人员车辆盘查与风险处置\n【输出目标】大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\n【输出编辑】共 1 处修改：\n  1. 字段: summary\n     新值: \n【AI指导】根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\n【当前环境】已加载 4 个文档\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104550295,\"buttonAction\":\"dispatch\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"dispatch\",\"precipitationMode\":\"llm\",\"docName\":\"\",\"selectedDocName\":\"\",\"docId\":\"\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"执行指令\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"outline_summaries\",\"inputSourceType\":\"outline_summaries\",\"destinations\":[{\"kind\":\"dispatch_result\",\"sectionTitle\":\"\"},\"文档处理/大纲配置（按 edits 写回1处）\"],\"outputs\":{\"summary\":\"本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。\",\"usedModel\":true,\"detailExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...\",\"outputContent\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"outputContentExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"edits\":[{\"sectionId\":\"3\",\"field\":\"summary\",\"newValueExcerpt\":\"\"}],\"editsCount\":1,\"status\":\"done\",\"targetSections\":[],\"generatedSections\":[]},\"process\":\"执行指令：扩写摘要5句话\",\"actionDescription\":\"对已勾选大纲标题的内容执行指令「扩写摘要5句话」\",\"instructions\":\"扩写摘要5句话\",\"promptContent\":\"扩写摘要5句话\",\"inputSourceDesc\":\"已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\",\"outputTargetDesc\":\"大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\",\"inputContent\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"inputContentExcerpt\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"targetSectionsDetail\":[{\"id\":\"3\",\"level\":2,\"levelText\":\"二级标题\",\"title\":\"二、具体清查情况\",\"originalSummary\":\"全面开展人员车辆盘查与风险处置\",\"originalHint\":\"分项列明清查核心数据，突出重点人群和违法行为。\",\"found\":true}],\"aiGuidance\":\"根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104550295},\"targetTitle\":\"大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\",\"contentDescription\":\"\",\"contextBefore\":\"\",\"contextAfter\":\"\",\"generatedByLLM\":true,\"generatedAt\":1769104561602}",
+          "originalScriptRawContent": "操作记录：执行指令：扩写摘要5句话\n输入：已选标题：0条\n动作：执行指令：扩写摘要5句话\n输出摘要：本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。\n记录位置：指令结果；文档处理/大纲配置（按 edits 写回1处）\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104550295,\"buttonAction\":\"dispatch\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"dispatch\",\"precipitationMode\":\"llm\",\"docName\":\"\",\"selectedDocName\":\"\",\"docId\":\"\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"执行指令\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"outline_summaries\",\"inputSourceType\":\"outline_summaries\",\"destinations\":[{\"kind\":\"dispatch_result\",\"sectionTitle\":\"\"},\"文档处理/大纲配置（按 edits 写回1处）\"],\"outputs\":{\"summary\":\"本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。\",\"usedModel\":true,\"detailExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...\",\"outputContent\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"outputContentExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"edits\":[{\"sectionId\":\"3\",\"field\":\"summary\",\"newValueExcerpt\":\"\"}],\"editsCount\":1,\"status\":\"done\",\"targetSections\":[],\"generatedSections\":[]},\"process\":\"执行指令：扩写摘要5句话\",\"actionDescription\":\"对已勾选大纲标题的内容执行指令「扩写摘要5句话」\",\"instructions\":\"扩写摘要5句话\",\"promptContent\":\"扩写摘要5句话\",\"inputSourceDesc\":\"已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\",\"outputTargetDesc\":\"大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\",\"inputContent\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"inputContentExcerpt\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"targetSectionsDetail\":[{\"id\":\"3\",\"level\":2,\"levelText\":\"二级标题\",\"title\":\"二、具体清查情况\",\"originalSummary\":\"全面开展人员车辆盘查与风险处置\",\"originalHint\":\"分项列明清查核心数据，突出重点人群和违法行为。\",\"found\":true}],\"aiGuidance\":\"根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104550295}}",
+          "replayMeta": {
+            "v": 1,
+            "ts": 1769104550295,
+            "buttonAction": "dispatch",
+            "buttonLabel": "",
+            "buttonId": "",
+            "type": "dispatch",
+            "precipitationMode": "llm",
+            "docName": "",
+            "selectedDocName": "",
+            "docId": "",
+            "outlineId": "",
+            "outlineTitle": "",
+            "targetSectionIds": [],
+            "targetSectionId": "",
+            "targetSectionTitle": "",
+            "intentDescription": "执行指令",
+            "expectedResult": "",
+            "record": "",
+            "source": "",
+            "inputs": [
+              {
+                "kind": "outline_selected",
+                "docName": "",
+                "contextSummary": "",
+                "sourceType": "outline_selected"
+              }
+            ],
+            "inputKind": "outline_summaries",
+            "inputSourceType": "outline_summaries",
+            "destinations": [
+              {
+                "kind": "dispatch_result",
+                "sectionTitle": ""
+              },
+              "文档处理/大纲配置（按 edits 写回1处）"
+            ],
+            "outputs": {
+              "summary": "本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。",
+              "usedModel": true,
+              "detailExcerpt": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...",
+              "outputContent": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+              "outputContentExcerpt": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+              "edits": [
+                {
+                  "sectionId": "3",
+                  "field": "summary",
+                  "newValueExcerpt": ""
+                }
+              ],
+              "editsCount": 1,
+              "status": "done",
+              "targetSections": [],
+              "generatedSections": []
+            },
+            "process": "执行指令：扩写摘要5句话",
+            "actionDescription": "对已勾选大纲标题的内容执行指令「扩写摘要5句话」",
+            "instructions": "扩写摘要5句话",
+            "promptContent": "扩写摘要5句话",
+            "inputSourceDesc": "已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容",
+            "outputTargetDesc": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+            "inputContent": "【片段1】\n全面开展人员车辆盘查与风险处置",
+            "inputContentExcerpt": "【片段1】\n全面开展人员车辆盘查与风险处置",
+            "targetSectionsDetail": [
+              {
+                "id": "3",
+                "level": 2,
+                "levelText": "二级标题",
+                "title": "二、具体清查情况",
+                "originalSummary": "全面开展人员车辆盘查与风险处置",
+                "originalHint": "分项列明清查核心数据，突出重点人群和违法行为。",
+                "found": true
+              }
+            ],
+            "aiGuidance": "根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。",
+            "specialRequirements": "无",
+            "afterSection": null,
+            "newSection": null,
+            "targetSection": null,
+            "removedSections": [],
+            "context": {
+              "sceneId": "scene_1769066488387",
+              "loadedDocs": [
+                {
+                  "id": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+                  "name": "10月14日网安总队晨会要报3-网安总队（输入）.txt"
+                },
+                {
+                  "id": "aaa1bdec-4775-4f04-a2a3-39c787475ecb",
+                  "name": "公交总队（输入）.txt"
+                },
+                {
+                  "id": "15043ddb-50b9-4131-8bf4-34d2b972a746",
+                  "name": "无人机数据--素材（输入）.txt"
+                },
+                {
+                  "id": "d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4",
+                  "name": "主任版文档（输出）.txt"
+                }
+              ],
+              "loadedDocsCount": 4,
+              "hasOutline": true,
+              "outlineSectionsCount": 11,
+              "outlineSectionTitles": [
+                "每日“三清三个一批”清查整治工作情况",
+                "一、调度督导方面",
+                "二、具体清查情况",
+                "全局共盘查核录人员XX.X万人、车辆X.XX万辆",
+                "盘查核录留置涉访标签人员XXXX人",
+                "前XX小时，全局在社会面共救助流浪乞讨人员X人",
+                "人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人",
+                "整改取缔重点出租房屋XXX处",
+                "罚款处罚违法出租人XXX人、X.X万元",
+                "大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件"
+              ],
+              "timestamp": 1769104550295
+            },
+            "targetTitle": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+            "contentDescription": "",
+            "contextBefore": "",
+            "contextAfter": "",
+            "generatedByLLM": true,
+            "generatedAt": 1769104561602
+          }
+        },
+        "originalScript": {
+          "action": "执行指令",
+          "content": "=== 步骤 1: 执行指令 ===\n【操作类型】dispatch\n【动作描述】对已勾选大纲标题的内容执行指令「扩写摘要5句话」\n【指令内容】扩写摘要5句话\n【输入来源】已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\n【输入内容】【片段1】\n全面开展人员车辆盘查与风险处置\n【目标位置】共 1 个标题：\n  1. 二级标题标题「二、具体清查情况」\n     原内容：全面开展人员车辆盘查与风险处置\n【输出目标】大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\n【输出编辑】共 1 处修改：\n  1. 字段: summary\n     新值: \n【AI指导】根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\n【当前环境】已加载 4 个文档\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104550295,\"buttonAction\":\"dispatch\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"dispatch\",\"precipitationMode\":\"llm\",\"docName\":\"\",\"selectedDocName\":\"\",\"docId\":\"\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"执行指令\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"outline_summaries\",\"inputSourceType\":\"outline_summaries\",\"destinations\":[{\"kind\":\"dispatch_result\",\"sectionTitle\":\"\"},\"文档处理/大纲配置（按 edits 写回1处）\"],\"outputs\":{\"summary\":\"本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。\",\"usedModel\":true,\"detailExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...\",\"outputContent\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"outputContentExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"edits\":[{\"sectionId\":\"3\",\"field\":\"summary\",\"newValueExcerpt\":\"\"}],\"editsCount\":1,\"status\":\"done\",\"targetSections\":[],\"generatedSections\":[]},\"process\":\"执行指令：扩写摘要5句话\",\"actionDescription\":\"对已勾选大纲标题的内容执行指令「扩写摘要5句话」\",\"instructions\":\"扩写摘要5句话\",\"promptContent\":\"扩写摘要5句话\",\"inputSourceDesc\":\"已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\",\"outputTargetDesc\":\"大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\",\"inputContent\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"inputContentExcerpt\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"targetSectionsDetail\":[{\"id\":\"3\",\"level\":2,\"levelText\":\"二级标题\",\"title\":\"二、具体清查情况\",\"originalSummary\":\"全面开展人员车辆盘查与风险处置\",\"originalHint\":\"分项列明清查核心数据，突出重点人群和违法行为。\",\"found\":true}],\"aiGuidance\":\"根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104550295},\"targetTitle\":\"大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\",\"contentDescription\":\"\",\"contextBefore\":\"\",\"contextAfter\":\"\",\"generatedByLLM\":true,\"generatedAt\":1769104561602}",
+          "meta": {
+            "v": 1,
+            "ts": 1769104550295,
+            "buttonAction": "dispatch",
+            "buttonLabel": "",
+            "buttonId": "",
+            "type": "dispatch",
+            "precipitationMode": "llm",
+            "docName": "",
+            "selectedDocName": "",
+            "docId": "",
+            "outlineId": "",
+            "outlineTitle": "",
+            "targetSectionIds": [],
+            "targetSectionId": "",
+            "targetSectionTitle": "",
+            "intentDescription": "执行指令",
+            "expectedResult": "",
+            "record": "",
+            "source": "",
+            "inputs": [
+              {
+                "kind": "outline_selected",
+                "docName": "",
+                "contextSummary": "",
+                "sourceType": "outline_selected"
+              }
+            ],
+            "inputKind": "outline_summaries",
+            "inputSourceType": "outline_summaries",
+            "destinations": [
+              {
+                "kind": "dispatch_result",
+                "sectionTitle": ""
+              },
+              "文档处理/大纲配置（按 edits 写回1处）"
+            ],
+            "outputs": {
+              "summary": "本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。",
+              "usedModel": true,
+              "detailExcerpt": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...",
+              "outputContent": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+              "outputContentExcerpt": "该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。",
+              "edits": [
+                {
+                  "sectionId": "3",
+                  "field": "summary",
+                  "newValueExcerpt": ""
+                }
+              ],
+              "editsCount": 1,
+              "status": "done",
+              "targetSections": [],
+              "generatedSections": []
+            },
+            "process": "执行指令：扩写摘要5句话",
+            "actionDescription": "对已勾选大纲标题的内容执行指令「扩写摘要5句话」",
+            "instructions": "扩写摘要5句话",
+            "promptContent": "扩写摘要5句话",
+            "inputSourceDesc": "已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容",
+            "outputTargetDesc": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+            "inputContent": "【片段1】\n全面开展人员车辆盘查与风险处置",
+            "inputContentExcerpt": "【片段1】\n全面开展人员车辆盘查与风险处置",
+            "targetSectionsDetail": [
+              {
+                "id": "3",
+                "level": 2,
+                "levelText": "二级标题",
+                "title": "二、具体清查情况",
+                "originalSummary": "全面开展人员车辆盘查与风险处置",
+                "originalHint": "分项列明清查核心数据，突出重点人群和违法行为。",
+                "found": true
+              }
+            ],
+            "aiGuidance": "根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。",
+            "specialRequirements": "无",
+            "afterSection": null,
+            "newSection": null,
+            "targetSection": null,
+            "removedSections": [],
+            "context": {
+              "sceneId": "scene_1769066488387",
+              "loadedDocs": [
+                {
+                  "id": "f6628ff0-3a46-4c02-b49a-87da5ee641ed",
+                  "name": "10月14日网安总队晨会要报3-网安总队（输入）.txt"
+                },
+                {
+                  "id": "aaa1bdec-4775-4f04-a2a3-39c787475ecb",
+                  "name": "公交总队（输入）.txt"
+                },
+                {
+                  "id": "15043ddb-50b9-4131-8bf4-34d2b972a746",
+                  "name": "无人机数据--素材（输入）.txt"
+                },
+                {
+                  "id": "d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4",
+                  "name": "主任版文档（输出）.txt"
+                }
+              ],
+              "loadedDocsCount": 4,
+              "hasOutline": true,
+              "outlineSectionsCount": 11,
+              "outlineSectionTitles": [
+                "每日“三清三个一批”清查整治工作情况",
+                "一、调度督导方面",
+                "二、具体清查情况",
+                "全局共盘查核录人员XX.X万人、车辆X.XX万辆",
+                "盘查核录留置涉访标签人员XXXX人",
+                "前XX小时，全局在社会面共救助流浪乞讨人员X人",
+                "人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人",
+                "整改取缔重点出租房屋XXX处",
+                "罚款处罚违法出租人XXX人、X.X万元",
+                "大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件"
+              ],
+              "timestamp": 1769104550295
+            },
+            "targetTitle": "大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区",
+            "contentDescription": "",
+            "contextBefore": "",
+            "contextAfter": "",
+            "generatedByLLM": true,
+            "generatedAt": 1769104561602
+          },
+          "rawContent": "操作记录：执行指令：扩写摘要5句话\n输入：已选标题：0条\n动作：执行指令：扩写摘要5句话\n输出摘要：本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。\n记录位置：指令结果；文档处理/大纲配置（按 edits 写回1处）\n\n__REPLAY_META__\n{\"v\":1,\"ts\":1769104550295,\"buttonAction\":\"dispatch\",\"buttonLabel\":\"\",\"buttonId\":\"\",\"type\":\"dispatch\",\"precipitationMode\":\"llm\",\"docName\":\"\",\"selectedDocName\":\"\",\"docId\":\"\",\"outlineId\":\"\",\"outlineTitle\":\"\",\"targetSectionIds\":[],\"targetSectionId\":\"\",\"targetSectionTitle\":\"\",\"intentDescription\":\"执行指令\",\"expectedResult\":\"\",\"record\":\"\",\"source\":\"\",\"inputs\":[{\"kind\":\"outline_selected\",\"docName\":\"\",\"contextSummary\":\"\",\"sourceType\":\"outline_selected\"}],\"inputKind\":\"outline_summaries\",\"inputSourceType\":\"outline_summaries\",\"destinations\":[{\"kind\":\"dispatch_result\",\"sectionTitle\":\"\"},\"文档处理/大纲配置（按 edits 写回1处）\"],\"outputs\":{\"summary\":\"本片段强调对人员和车辆实施全面盘查，并同步开展风险识别、评估与现场处置，旨在提升公共安全防控能力。\",\"usedModel\":true,\"detailExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据...\",\"outputContent\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"outputContentExcerpt\":\"该措施要求执勤力量覆盖重点区域与时段，采用标准化流程对进出人员及车辆进行身份核验、物品检查与行为观察；结合智能识别系统辅助判断异常特征；建立分级响应机制，对高风险目标即时启动协同处置预案；所有盘查数据实时上传至指挥平台，支撑动态研判与决策优化。\",\"edits\":[{\"sectionId\":\"3\",\"field\":\"summary\",\"newValueExcerpt\":\"\"}],\"editsCount\":1,\"status\":\"done\",\"targetSections\":[],\"generatedSections\":[]},\"process\":\"执行指令：扩写摘要5句话\",\"actionDescription\":\"对已勾选大纲标题的内容执行指令「扩写摘要5句话」\",\"instructions\":\"扩写摘要5句话\",\"promptContent\":\"扩写摘要5句话\",\"inputSourceDesc\":\"已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\",\"outputTargetDesc\":\"大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\",\"inputContent\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"inputContentExcerpt\":\"【片段1】\\n全面开展人员车辆盘查与风险处置\",\"targetSectionsDetail\":[{\"id\":\"3\",\"level\":2,\"levelText\":\"二级标题\",\"title\":\"二、具体清查情况\",\"originalSummary\":\"全面开展人员车辆盘查与风险处置\",\"originalHint\":\"分项列明清查核心数据，突出重点人群和违法行为。\",\"found\":true}],\"aiGuidance\":\"根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\",\"specialRequirements\":\"无\",\"afterSection\":null,\"newSection\":null,\"targetSection\":null,\"removedSections\":[],\"context\":{\"sceneId\":\"scene_1769066488387\",\"loadedDocs\":[{\"id\":\"f6628ff0-3a46-4c02-b49a-87da5ee641ed\",\"name\":\"10月14日网安总队晨会要报3-网安总队（输入）.txt\"},{\"id\":\"aaa1bdec-4775-4f04-a2a3-39c787475ecb\",\"name\":\"公交总队（输入）.txt\"},{\"id\":\"15043ddb-50b9-4131-8bf4-34d2b972a746\",\"name\":\"无人机数据--素材（输入）.txt\"},{\"id\":\"d5bccb5f-9b5e-4a0c-9b49-a32832aea3b4\",\"name\":\"主任版文档（输出）.txt\"}],\"loadedDocsCount\":4,\"hasOutline\":true,\"outlineSectionsCount\":11,\"outlineSectionTitles\":[\"每日“三清三个一批”清查整治工作情况\",\"一、调度督导方面\",\"二、具体清查情况\",\"全局共盘查核录人员XX.X万人、车辆X.XX万辆\",\"盘查核录留置涉访标签人员XXXX人\",\"前XX小时，全局在社会面共救助流浪乞讨人员X人\",\"人口基层总队牵动各分局共检查出租房屋X.X万间，核查流动人口XX.X万人\",\"整改取缔重点出租房屋XXX处\",\"罚款处罚违法出租人XXX人、X.X万元\",\"大额处罚XX件，较为突出的是西城处罚X件、海淀处罚X件\"],\"timestamp\":1769104550295}}"
+        },
+        "lastReplayStatus": null,
+        "lastReplayMode": null,
+        "lastReplayTime": null,
+        "lastReplayError": null
+      }
+    ],
+    "structuredScript": "【沉淀脚本】\n\n=== 步骤 1: 执行指令 ===\n【操作类型】dispatch\n【动作描述】对已勾选大纲标题的内容执行指令「扩写摘要5句话」\n【指令内容】扩写摘要5句话\n【输入来源】已勾选的大纲（二级标题「二、具体清查情况」）的摘要内容\n【输入内容】【片段1】\n全面开展人员车辆盘查与风险处置\n【目标位置】共 1 个标题：\n  1. 二级标题标题「二、具体清查情况」\n     原内容：全面开展人员车辆盘查与风险处置\n【输出目标】大纲配置（二级标题「二、具体清查情况」的摘要）、结果展示区\n【输出编辑】共 1 处修改：\n  1. 字段: summary\n     新值: \n【AI指导】根据指令「扩写摘要5句话」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。\n【当前环境】已加载 4 个文档\n\n---\n提示: 点击「AI 智能优化」可将上述内容转化为更通用的结构化脚本",
+    "accumulatedRequirements": "",
+    "optimizeCount": 0,
+    "summary": "",
+    "replayGuidance": "",
+    "supportsScriptFallback": true
+  }
+]

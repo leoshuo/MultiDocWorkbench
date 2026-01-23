@@ -1,0 +1,111 @@
+[
+  {
+    "id": "btn_outline_extract",
+    "kind": "outline_extract",
+    "label": "全文大纲抽取",
+    "enabled": true,
+    "prompt": "请输出 JSON 数组：\n\n[\n  {\"id\":\"...\",\"title\":\"标题\",\"summary\":\"不超过20字的摘要\",\"hint\":\"提示\",\"level\":1-4}\n]\n\n要求：\n- level 只取 1/2/3/4，默认 1\n- title 必填\n- summary 不超过20字\n- hint 为1-2句\n- 只输出 JSON\n\n输入：\n{{text}}",
+    "io": [
+      {
+        "id": "io_default_1",
+        "enabled": true,
+        "dataSource": "preview",
+        "output": "titles",
+        "target": "title"
+      },
+      {
+        "id": "io_default_2",
+        "enabled": true,
+        "dataSource": "preview",
+        "output": "summaries",
+        "target": "summary"
+      }
+    ],
+    "precipitationMode": "llm"
+  },
+  {
+    "id": "btn_outline_slot_1",
+    "kind": "outline_action",
+    "label": "",
+    "enabled": false,
+    "prompt": "请输出 JSON：\n- summary: 简要摘要\n- detail: 详细说明\n- edits: [{sectionId, field:'title'|'summary', content}]\n只输出 JSON。",
+    "io": [
+      {
+        "id": "io_outline_slot_1",
+        "enabled": true,
+        "dataSource": "preview",
+        "output": "summaries",
+        "target": "summary"
+      }
+    ],
+    "precipitationMode": "llm"
+  },
+  {
+    "id": "btn_outline_slot_2",
+    "kind": "outline_action",
+    "label": "",
+    "enabled": false,
+    "prompt": "请输出 JSON：\n- summary: 简要摘要\n- detail: 详细说明\n- edits: [{sectionId, field:'title'|'summary', content}]\n只输出 JSON。",
+    "io": [
+      {
+        "id": "io_outline_slot_2",
+        "enabled": true,
+        "dataSource": "preview",
+        "output": "summaries",
+        "target": "summary"
+      }
+    ],
+    "precipitationMode": "llm"
+  },
+  {
+    "id": "btn_outline_slot_3",
+    "kind": "outline_action",
+    "label": "",
+    "enabled": false,
+    "prompt": "请输出 JSON：\n- summary: 简要摘要\n- detail: 详细说明\n- edits: [{sectionId, field:'title'|'summary', content}]\n只输出 JSON。",
+    "io": [
+      {
+        "id": "io_outline_slot_3",
+        "enabled": true,
+        "dataSource": "preview",
+        "output": "summaries",
+        "target": "summary"
+      }
+    ],
+    "precipitationMode": "llm"
+  },
+  {
+    "id": "btn_dispatch",
+    "kind": "dispatch",
+    "label": "执行指令",
+    "enabled": true,
+    "prompt": "请输出 JSON：\n- summary: 简要摘要\n- detail: 详细说明\n- edits: [{sectionId, field:'title'|'summary', content}]\n只输出 JSON。",
+    "io": [
+      {
+        "id": "io_dispatch_1",
+        "enabled": true,
+        "dataSource": "preview",
+        "output": "summaries",
+        "target": "summary"
+      }
+    ],
+    "precipitationMode": "llm"
+  },
+  {
+    "id": "btn_final_generate",
+    "kind": "final_generate",
+    "label": "最终文档生成",
+    "enabled": true,
+    "prompt": "请输出 Markdown 格式的最终文档。",
+    "io": [
+      {
+        "id": "io_final_1",
+        "enabled": true,
+        "dataSource": "preview",
+        "output": "summaries",
+        "target": "summary"
+      }
+    ],
+    "precipitationMode": "llm"
+  }
+]

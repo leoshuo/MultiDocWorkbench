@@ -1,0 +1,48 @@
+{
+  "activeButtons": [
+    {
+      "id": "btn_guardian_1768449575024",
+      "kind": "outline_extract",
+      "label": "全文大纲抽取",
+      "enabled": true,
+      "prompt": "请基于以下内容抽取提纲（节点数量不限），输出 JSON 数组：\n[\n  {\"id\":\"...\",\"title\":\"原文中的标题（尽量保持原样）\",\"summary\":\"一句摘要（<=20字）\",\"hint\":\"写作提示\",\"level\":1-3}\n]\n要求：\n- level 基于语义判断：1/2/3，不必强制均衡（无法确定默认 1）\n- title 覆盖核心结构，顺序合理，尽量直接采用原文标题文本\n- summary 为该标题下一句话摘要（<=20字）\n- hint 给出该章节写作提示（1-2 句）\n- 避免将普通段落或列表项误判为标题；若标题过多可合并从属项到上级，保持精简\n- 不要输出多余文本\n\n内容：\n{{text}}",
+      "dataSource": "preview",
+      "outputTarget": "summary",
+      "io": [
+        {
+          "id": "io_default_1",
+          "enabled": true,
+          "dataSource": "preview",
+          "output": "titles",
+          "target": "title"
+        },
+        {
+          "id": "io_default_2",
+          "enabled": true,
+          "dataSource": "preview",
+          "output": "summaries",
+          "target": "summary"
+        }
+      ]
+    },
+    {
+      "id": "btn_input_upload_file",
+      "kind": "upload_file",
+      "label": "上传文件",
+      "x": 373,
+      "y": 359,
+      "width": 100,
+      "height": 36,
+      "enabled": true,
+      "style": {
+        "fontSize": 14,
+        "color": "#1e293b",
+        "backgroundColor": "transparent",
+        "fontWeight": 500,
+        "borderColor": "#e2e8f0",
+        "borderWidth": 1,
+        "borderRadius": 6
+      }
+    }
+  ]
+}

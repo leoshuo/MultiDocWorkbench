@@ -1,0 +1,21 @@
+{
+  "buttons": [
+    {
+      "id": "app_btn_daily_merge",
+      "label": "日报合并写作（主任版）",
+      "groupIds": [
+        "group_1768902336403"
+      ]
+    },
+    {
+      "id": "app_btn_competitor_report",
+      "label": "竞品分析报告写作",
+      "groupIds": []
+    },
+    {
+      "id": "app_btn_custom_write",
+      "label": "自定义写作",
+      "groupIds": []
+    }
+  ]
+}

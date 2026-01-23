@@ -1,0 +1,460 @@
+<div className="card fixed processing-card">
+      <div className="processing-topbar">
+        <div className="processing-toprow">
+          <div className="actions" style={{ justifyContent: 'flex-start', gap: '6px' }}>
+            <button
+              type="button"
+              className={`ghost tab-btn ${processingTab === 'outline' ? 'active' : ''}`}
+              onClick={() => setProcessingTab('outline')}
+            >
+              大纲模式
+            </button>
+          </div>
+          <div className="actions tabs-right" style={{ justifyContent: 'flex-end', gap: '6px' }}>
+            <button
+              type="button"
+              className={`ghost tab-btn ${processingTab === 'records' ? 'active' : ''}`}
+              onClick={() => setProcessingTab('records')}
+            >
+              操作记录
+            </button>
+            <button
+              type="button"
+              className={`ghost tab-btn ${processingTab === 'config' ? 'active' : ''}`}
+              onClick={() => setProcessingTab('config')}
+            >
+              个性化按钮
+            </button>
+          </div>
+        </div>
+
+        {processingTab === 'outline' ? (
+          <div className="processing-subbar">
+            {llmButtons
+              .filter((b) => b.enabled)
+              .map((b) => {
+                if (b.kind !== 'outline_extract') return null;
+                return (
+                  <button key={b.id} className="ghost small" onClick={() => autoTemplate(b)} disabled={loading}>
+                    {(b.label || '全文大纲抽取').toString()}
+                  </button>
+                );
+              })}
+            <button className="ghost small" type="button" onClick={() => void clearOutlineTemplate()} disabled={loading}>
+              清除
+            </button>
+            {outlineSlotButtons.map((b) => (
+              <button
+                key={b.id}
+                className={`ghost small slot-btn ${b.enabled ? '' : 'placeholder'}`}
+                type="button"
+                onClick={() => void runOutlineSlotButton(b)}
+                disabled={loading || !b.enabled}
+                title={b.enabled ? (b.label || '').toString() : '待配置'}
+              >
+                {(b.label || '').toString() || '\u00A0'}
+              </button>
+            ))}
+            {Array.from({ length: Math.max(0, 3 - outlineSlotButtons.length) }).map((_, idx) => (
+              <button
+                key={`outline_slot_placeholder_${idx + 1}`}
+                className="ghost small slot-btn placeholder"
+                type="button"
+                disabled
+                title="待配置"
+              >
+                {'\u00A0'}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {showConfig ? (
+        <div className="config-panel">
+          <div className="card-head" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div className="section-title">按钮配置</div>
+              <div className="hint">可新增/编辑/删除；关闭则在大纲模式隐藏该按钮。</div>
+            </div>
+            <button className="ghost small" type="button" onClick={addLlmButton}>
+              新增
+            </button>
+          </div>
+
+          <div className="sections" style={{ gap: 10 }}>
+            {llmButtons.length === 0 ? (
+              <div className="hint">暂无按钮</div>
+            ) : (
+              llmButtons.map((b, idx) => (
+                <div key={b.id} className="section" style={{ background: '#fff' }}>
+                  <div className="section-head" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span className="pill muted">{idx + 1}</span>
+                      <span>{b.label || '按钮'}</span>
+                      <span className={`status ${b.enabled ? 'filled' : 'empty'}`}>{b.enabled ? '启用' : '关闭'}</span>
+                    </div>
+                    <div className="section-actions" style={{ gap: 8 }}>
+                      <label className="inline-check" style={{ gap: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!b.enabled}
+                          onChange={(e) => toggleLlmButtonEnabled(b.id, e.target.checked)}
+                        />
+                        <span className="hint">启用</span>
+                      </label>
+                      <button className="ghost small" type="button" onClick={() => startEditLlmButton(b)}>
+                        编辑
+                      </button>
+                      <button className="ghost small" type="button" onClick={() => deleteLlmButton(b.id)}>
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {buttonDraft ? (
+            <div className="section" style={{ background: '#fff' }}>
+              <div className="section-title">编辑：{buttonDraft.label || '按钮'}</div>
+              <div className="sections" style={{ gap: 10 }}>
+                <label className="form-row">
+                  按钮名称
+                  <input
+                    value={buttonDraft.label || ''}
+                    onChange={(e) => setButtonDraft((p) => ({ ...p, label: e.target.value }))}
+                  />
+                </label>
+
+                <div className="link-row">
+                  <label className="form-row" style={{ minWidth: 120 }}>
+                    启用
+                    <select
+                      value={buttonDraft.enabled ? 'on' : 'off'}
+                      onChange={(e) => setButtonDraft((p) => ({ ...p, enabled: e.target.value === 'on' }))}
+                    >
+                      <option value="on">开启</option>
+                      <option value="off">关闭</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="section" style={{ background: '#fff' }}>
+                  <div className="card-head" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div className="section-title">数据源与输出</div>
+                      <div className="hint">可新增/删除多条规则，用于分别配置“标题”的输出方式。</div>
+                    </div>
+                    <button className="ghost small" type="button" onClick={addIoRuleToDraft}>
+                      新增一行
+                    </button>
+                  </div>
+                  <div className="sections" style={{ gap: 8 }}>
+                    {normalizeIoRows(buttonDraft?.io, {
+                      dataSource: buttonDraft?.dataSource,
+                      outputTarget: buttonDraft?.outputTarget,
+                    }).map((r, idx) => (
+                      <div key={r.id} className="link-row io-config-row" style={{ alignItems: 'center' }}>
+                        <span className="pill muted">{idx + 1}</span>
+                        <label className="inline-check" style={{ gap: 6 }}>
+                          <input
+                            type="checkbox"
+                            checked={!!r.enabled}
+                            onChange={(e) => updateIoRuleInDraft(r.id, { enabled: e.target.checked })}
+                          />
+                          <span className="hint">启用</span>
+                        </label>
+                        <label className="form-row" style={{ minWidth: 220 }}>
+                          数据源
+                          <select
+                            value={r.dataSource}
+                            onChange={(e) => updateIoRuleInDraft(r.id, { dataSource: e.target.value })}
+                          >
+                            <option value="preview">内容预览（当前文本框）</option>
+                            <option value="selected_doc">资源列表选中文档（已保存内容）</option>
+                          </select>
+                        </label>
+                        <label className="form-row" style={{ minWidth: 140 }}>
+                          输出内容
+                          <select
+                            value={r.output}
+                            onChange={(e) => updateIoRuleInDraft(r.id, { output: e.target.value })}
+                          >
+                            <option value="titles">标题</option>
+                            <option value="summaries">摘要</option>
+                          </select>
+                        </label>
+                        <label className="form-row" style={{ minWidth: 160 }}>
+                          展示位置
+                          <select
+                            value={r.target}
+                            onChange={(e) => updateIoRuleInDraft(r.id, { target: e.target.value })}
+                          >
+                            <option value="title">标题</option>
+                            <option value="summary">摘要</option>
+                          </select>
+                        </label>
+                        <button className="ghost small" type="button" onClick={() => deleteIoRuleFromDraft(r.id)}>
+                          删除行
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="form-row">
+                  <div className="link-row" style={{ alignItems: 'center' }}>
+                    <span>
+                      提示词（支持 <code>{'{{text}}'}</code> 占位符）
+                    </span>
+                    <button
+                      className="ghost small"
+                      type="button"
+                      onClick={optimizePromptDraft}
+                      disabled={isOptimizingPrompt || !((buttonDraft.prompt || '').toString().trim())}
+                    >
+                      {isOptimizingPrompt ? '优化中…' : 'AI 自动优化'}
+                    </button>
+                  </div>
+                  <textarea
+                    rows={8}
+                    value={buttonDraft.prompt || ''}
+                    onChange={(e) => setButtonDraft((p) => ({ ...p, prompt: e.target.value }))}
+                  />
+                </label>
+                <div className="section-actions" style={{ justifyContent: 'flex-end' }}>
+                  <button className="ghost small" type="button" onClick={cancelEditLlmButton}>
+                    取消
+                  </button>
+                  <button className="ghost small" type="button" onClick={saveLlmButtonDraft}>
+                    保存并生效
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : !showRecords ? (
+          <>
+            <div className="sections outline-scroll outline-tree">{outlineTree.map(renderOutlineNode)}</div>
+            {finalGenerateCfg?.enabled ? (
+              <div className="processing-bottombar">
+                <button
+                  className="ghost final-btn"
+                  type="button"
+                  onClick={() => void openFinalPreview()}
+                  disabled={finalizing || loading}
+                >
+                  {(finalGenerateCfg.label || '最终文档生成').toString()}
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="sections history-scroll">
+            {deposits.length === 0 && <p className="hint">暂无沉淀记录</p>}
+            <div className="history-toolbar">
+              <div className="actions" style={{ gap: 6 }}>
+                <button
+                  className="ghost small"
+                  type="button"
+                  onClick={() => void batchReplaySelectedDeposits()}
+                  disabled={batchReplayRunning || !Object.keys(selectedDepositIds || {}).some((k) => selectedDepositIds[k])}
+                >
+                  批量 Replay
+                </button>
+                <label className="inline-check" style={{ gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    disabled={deposits.length === 0}
+                    checked={
+                      deposits.length > 0 &&
+                      Object.keys(selectedDepositIds || {}).filter((k) => selectedDepositIds[k]).length === deposits.length
+                    }
+                    onChange={(e) => (e.target.checked ? selectAllDeposits() : clearDepositSelection())}
+                  />
+                  <span className="hint">全选</span>
+                </label>
+                <button
+                  className="ghost small"
+                  type="button"
+                  onClick={deleteSelectedDeposits}
+                  disabled={!Object.keys(selectedDepositIds || {}).some((k) => selectedDepositIds[k])}
+                >
+                  删除选中
+                </button>
+                <button
+                  className="ghost small"
+                  type="button"
+                  onClick={clearDepositSelection}
+                  disabled={!Object.keys(selectedDepositIds || {}).some((k) => selectedDepositIds[k])}
+                >
+                  清空选择
+                </button>
+              </div>
+              <span className="pill muted">
+                {Object.keys(selectedDepositIds || {}).filter((k) => selectedDepositIds[k]).length}/{deposits.length}
+              </span>
+            </div>
+            {deposits.map((dep, idx) => (
+              <div key={dep.id} className="section">
+                <div className="section-head" style={{ justifyContent: 'space-between' }}>
+                  <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <label className="inline-check" style={{ gap: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={!!selectedDepositIds?.[dep.id]}
+                        onChange={(e) => toggleDepositSelected(dep.id, e.target.checked)}
+                      />
+                    </label>
+                    <span className="pill muted">{idx + 1}</span>
+                    {depositEditing[`${dep.id}||name`] !== undefined ? (
+                      <>
+                        <input
+                          value={depositEditing[`${dep.id}||name`]}
+                          onChange={(e) => startEditDeposit(dep.id, 'name', e.target.value)}
+                          style={{ minWidth: 180 }}
+                        />
+                        <button className="ghost xsmall" type="button" onClick={() => applyDepositName(dep.id)}>
+                          保存
+                        </button>
+                        <button className="ghost xsmall" type="button" onClick={() => cancelEditDeposit(dep.id, 'name')}>
+                          取消
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span>{dep.name || dep.id}</span>
+                        <span className="meta">{dep.id}</span>
+                        <button
+                          className="ghost xsmall"
+                          type="button"
+                          onClick={() => startEditDeposit(dep.id, 'name', dep.name || dep.id)}
+                        >
+                          编辑名称
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <div className="section-actions" style={{ gap: 6 }}>
+                    <button
+                      className="ghost xsmall"
+                      type="button"
+                      onClick={() => void replayDeposit(dep.id)}
+                      disabled={!!replayState?.[dep.id]?.running}
+                    >
+                      Reply
+                    </button>
+                    {expandedLogs[dep.id] ? (
+                      <>
+                        <button className="ghost xsmall" type="button" onClick={() => setAllDepositSectionsExpanded(dep.id, false)}>
+                          收起全部 section
+                        </button>
+                        <button className="ghost xsmall" type="button" onClick={() => setAllDepositSectionsExpanded(dep.id, true)}>
+                          展开全部 section
+                        </button>
+                      </>
+                    ) : null}
+                    <button className="ghost xsmall" type="button" onClick={() => deleteDepositsByIds([dep.id])}>
+                      删除
+                    </button>
+                    <button
+                      className="ghost xsmall"
+                      type="button"
+                      onClick={() => setExpandedLogs((prev) => ({ ...prev, [dep.id]: !prev[dep.id] }))}
+                    >
+                      {expandedLogs[dep.id] ? '收起' : '展开'}
+                    </button>
+                  </div>
+                </div>
+                {expandedLogs[dep.id] && (
+                  <div className="sections" style={{ gap: 6 }}>
+                    {(dep.sections || []).length === 0 && <div className="hint">暂无 section</div>}
+                    {dep.sections.map((s, i) => {
+                      const actionKey = `${dep.id}||${s.id}||action`;
+                      const contentKey = `${dep.id}||${s.id}||content`;
+                      const editing = depositEditing[actionKey] !== undefined || depositEditing[contentKey] !== undefined;
+                      const sectionMeta = extractReplayMeta(s?.content || '');
+                      const canFlexUpload =
+                        !editing &&
+                        sectionMeta?.type === 'add_doc' &&
+                        (sectionMeta?.source === 'upload' || (s?.content || '').toString().includes('上传文档'));
+                      const replay = replayState?.[dep.id]?.bySection?.[s.id];
+                      const expanded = editing ? true : isDepositSectionExpanded(dep.id, s.id);
+                      return (
+                        <div key={s.id} className="section" style={{ background: '#fff' }}>
+                          <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <span className="pill muted">{i + 1}</span>
+                              {editing ? (
+                                <input
+                                  value={depositEditing[actionKey] ?? s.action ?? ''}
+                                  onChange={(e) => startEditDeposit(dep.id, `${s.id}||action`, e.target.value)}
+                                  style={{ minWidth: 180 }}
+                                />
+                              ) : (
+                                <span>{s.action || '（无标题）'}</span>
+                              )}
+                              {replay?.status ? (
+                                <span className={`status ${replay.status}`} title={replay.message || ''}>
+                                  {replay.status}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="section-actions" style={{ gap: 6 }}>
+                              {canFlexUpload ? (
+                                <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)}>
+                                  灵活上传
+                                </button>
+                              ) : null}
+                              {editing ? (
+                                <>
+                                  <button className="ghost xsmall" type="button" onClick={() => applyDepositSection(dep.id, s.id)}>
+                                    保存
+                                  </button>
+                                  <button className="ghost xsmall" type="button" onClick={() => cancelEditDepositSection(dep.id, s.id)}>
+                                    取消
+                                  </button>
+                                </>
+                              ) : (
+                                <button className="ghost xsmall" type="button" onClick={() => startEditDepositSection(dep.id, s)}>
+                                  编辑
+                                </button>
+                              )}
+                              <button className="ghost xsmall" type="button" onClick={() => toggleDepositSectionExpanded(dep.id, s.id)}>
+                                {expanded ? '收起' : '展开'}
+                              </button>
+                              <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>
+                                删除
+                              </button>
+                            </div>
+                          </div>
+                          {expanded ? (
+                            editing ? (
+                              <textarea
+                                rows={4}
+                                value={depositEditing[contentKey] ?? s.content ?? ''}
+                                onChange={(e) => startEditDeposit(dep.id, `${s.id}||content`, e.target.value)}
+                              />
+                            ) : (
+                              <>
+                                <div className="hint" style={{ whiteSpace: 'pre-wrap' }}>{s.content || '（无内容）'}</div>
+                                {replay?.status === 'fail' && replay.message ? (
+                                  <div className="hint" style={{ whiteSpace: 'pre-wrap', color: '#b91c1c' }}>
+                                    {replay.message}
+                                  </div>
+                                ) : null}
+                              </>
+                            )
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+    </div>
+  );

@@ -1,0 +1,15 @@
+﻿node_modules
+.git
+.gitignore
+artifacts
+backup_*
+*.log
+*.tar
+*.tar.gz
+*.tar.zip
+*.zip
+test
+tmp_*
+*.bak
+.env
+.cursor

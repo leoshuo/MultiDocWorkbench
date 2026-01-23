@@ -1,0 +1,4 @@
+/* 优先使用常见中文字体，避免乱码 */
+body {
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Heiti SC", "Source Han Sans SC", "Inter", system-ui, -apple-system, sans-serif;
+}

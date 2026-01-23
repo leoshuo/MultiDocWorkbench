@@ -1,0 +1,256 @@
+{
+  "doc-classify": [
+    {
+      "id": "btn_doc_title",
+      "label": "文档归类",
+      "left": 24,
+      "top": 24,
+      "width": 312,
+      "height": 32,
+      "enabled": true,
+      "kind": "text",
+      "style": {
+        "fontSize": 20,
+        "color": "#1e293b",
+        "backgroundColor": "transparent",
+        "fontWeight": 600,
+        "borderColor": "transparent",
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "textAlign": "left",
+        "justifyContent": "flex-start",
+        "padding": "0"
+      }
+    },
+    {
+      "id": "btn_doc_desc",
+      "label": "自动识别上传的文档类型，智能分析内容特征，并将其精准归类到相应的业务文件夹中。",
+      "left": 24,
+      "top": 64,
+      "width": 312,
+      "height": 80,
+      "enabled": true,
+      "kind": "text",
+      "style": {
+        "fontSize": 14,
+        "color": "#64748b",
+        "backgroundColor": "transparent",
+        "fontWeight": 400,
+        "borderColor": "transparent",
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "textAlign": "left",
+        "justifyContent": "flex-start",
+        "padding": "0"
+      }
+    },
+    {
+      "id": "btn_multi_start",
+      "label": "开始处理",
+      "left": 240,
+      "top": 400,
+      "width": 90,
+      "height": 32,
+      "enabled": true,
+      "kind": "action",
+      "style": {
+        "fontSize": 14,
+        "color": "#1e293b",
+        "backgroundColor": "transparent",
+        "fontWeight": 500,
+        "borderColor": "#e2e8f0",
+        "borderWidth": 1,
+        "borderRadius": 6
+      }
+    }
+  ],
+  "info-extract": [
+    {
+      "id": "btn_info_title",
+      "label": "信息提取",
+      "left": 24,
+      "top": 24,
+      "width": 312,
+      "height": 32,
+      "enabled": true,
+      "kind": "text",
+      "style": {
+        "fontSize": 20,
+        "color": "#1e293b",
+        "backgroundColor": "transparent",
+        "fontWeight": 600,
+        "borderColor": "transparent",
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "textAlign": "left",
+        "justifyContent": "flex-start",
+        "padding": "0"
+      }
+    },
+    {
+      "id": "btn_info_desc",
+      "label": "从多篇非结构化文档中，利用大模型提取关键实体与数据，自动生成结构化报表。",
+      "left": 24,
+      "top": 64,
+      "width": 312,
+      "height": 80,
+      "enabled": true,
+      "kind": "text",
+      "style": {
+        "fontSize": 14,
+        "color": "#64748b",
+        "backgroundColor": "transparent",
+        "fontWeight": 400,
+        "borderColor": "transparent",
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "textAlign": "left",
+        "justifyContent": "flex-start",
+        "padding": "0"
+      }
+    },
+    {
+      "id": "btn_multi_config",
+      "label": "配置规则",
+      "left": 240,
+      "top": 400,
+      "width": 90,
+      "height": 32,
+      "enabled": true,
+      "kind": "action",
+      "style": {
+        "fontSize": 14,
+        "color": "#1e293b",
+        "backgroundColor": "transparent",
+        "fontWeight": 500,
+        "borderColor": "#e2e8f0",
+        "borderWidth": 1,
+        "borderRadius": 6
+      }
+    }
+  ],
+  "cross-analysis": [
+    {
+      "id": "btn_cross_title",
+      "label": "跨文档分析",
+      "left": 24,
+      "top": 24,
+      "width": 312,
+      "height": 32,
+      "enabled": true,
+      "kind": "text",
+      "style": {
+        "fontSize": 20,
+        "color": "#1e293b",
+        "backgroundColor": "transparent",
+        "fontWeight": 600,
+        "borderColor": "transparent",
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "textAlign": "left",
+        "justifyContent": "flex-start",
+        "padding": "0"
+      }
+    },
+    {
+      "id": "btn_cross_desc",
+      "label": "深度分析多个文档之间的关联关系，挖掘潜在洞察，一键生成综合分析报告。",
+      "left": 24,
+      "top": 64,
+      "width": 312,
+      "height": 80,
+      "enabled": true,
+      "kind": "text",
+      "style": {
+        "fontSize": 14,
+        "color": "#64748b",
+        "backgroundColor": "transparent",
+        "fontWeight": 400,
+        "borderColor": "transparent",
+        "borderWidth": 0,
+        "borderRadius": 0,
+        "textAlign": "left",
+        "justifyContent": "flex-start",
+        "padding": "0"
+      }
+    },
+    {
+      "id": "btn_multi_report",
+      "label": "生成报告",
+      "left": 240,
+      "top": 400,
+      "width": 90,
+      "height": 32,
+      "enabled": true,
+      "kind": "action",
+      "style": {
+        "fontSize": 14,
+        "color": "#1e293b",
+        "backgroundColor": "transparent",
+        "fontWeight": 500,
+        "borderColor": "#e2e8f0",
+        "borderWidth": 1,
+        "borderRadius": 6
+      }
+    }
+  ],
+  "header": [
+    {
+      "id": "btn_header_switch",
+      "label": "← 切换至 SOP 工作台",
+      "left": 40,
+      "top": 18,
+      "width": 180,
+      "height": 36,
+      "enabled": true,
+      "kind": "switch",
+      "style": {
+        "fontSize": 14,
+        "color": "#475569",
+        "backgroundColor": "transparent",
+        "fontWeight": 500,
+        "borderColor": "#e2e8f0",
+        "borderWidth": 1,
+        "borderRadius": 8
+      }
+    },
+    {
+      "id": "btn_header_title",
+      "label": "多类型文档处理工作台",
+      "left": 550,
+      "top": 18,
+      "width": 300,
+      "height": 36,
+      "enabled": true,
+      "kind": "title",
+      "style": {
+        "fontSize": 22,
+        "color": "#1e293b",
+        "backgroundColor": "transparent",
+        "fontWeight": 700,
+        "borderColor": "transparent",
+        "borderWidth": 0,
+        "borderRadius": 0
+      }
+    },
+    {
+      "id": "btn_header_edit",
+      "label": "⚙ 编辑布局",
+      "left": 1100,
+      "top": 18,
+      "width": 120,
+      "height": 36,
+      "enabled": true,
+      "kind": "edit",
+      "style": {
+        "fontSize": 14,
+        "color": "#475569",
+        "backgroundColor": "transparent",
+        "fontWeight": 500,
+        "borderColor": "#e2e8f0",
+        "borderWidth": 1,
+        "borderRadius": 8
+      }
+    }
+  ]
+}

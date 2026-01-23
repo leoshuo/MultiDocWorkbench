@@ -1,0 +1,32 @@
+{
+  "preview-panel": {
+    "left": 18,
+    "top": 0,
+    "width": 484,
+    "height": 337
+  },
+  "input-form-panel": {
+    "left": 22,
+    "top": 347,
+    "width": 478,
+    "height": 172
+  },
+  "document-list-panel": {
+    "left": 24,
+    "top": 348,
+    "width": 475,
+    "height": 440
+  },
+  "processing-panel": {
+    "left": 526,
+    "top": 0,
+    "width": 1075,
+    "height": 575
+  },
+  "operations-panel": {
+    "left": 523,
+    "top": 585,
+    "width": 1075,
+    "height": 204
+  }
+}
