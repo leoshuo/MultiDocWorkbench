@@ -31,7 +31,7 @@ import { GlobalButtonsContainer } from './GlobalButton';
 import { EditConsole } from './RecycleBin';
 
 
-import { InputPanelContent, InputFormPanelContent, DocumentListPanelContent, ReplayDirectoryPanelContent, ContentPreviewPanelContent, ProcessingPanelContent, OperationsPanelContent } from './PanelComponents';
+import { InputPanelContent, InputFormPanelContent, DocumentListPanelContent, ContentPreviewPanelContent, ProcessingPanelContent, OperationsPanelContent } from './PanelComponents';
 
 
 import { EditableContentBlock } from './EditableContentBlock';
@@ -45,1468 +45,190 @@ import { DocumentPreviewModal } from './DocumentPreviewModal';
 
 import { Pencil, Layout as LayoutIcon, Settings, Check, X, FileText, List, History, Sparkles, FolderOpen, Trash2, Plus, GripVertical, Type, AlignLeft, AlignCenter, AlignRight, Play, GalleryVerticalEnd, Save, RotateCcw, LogOut, Layout, ChevronLeft, Upload, Copy, Edit3 } from 'lucide-react';
 
-const UI_TEXT = {
-  t1: "应用端按钮配置",
-  t2: "配置多文档处理工作台对话区按钮与沉淀集的对应关系",
-  t3: "暂无应用端按钮",
-  t4: "可选沉淀集",
-  t5: "先选择左侧按钮，再勾选右侧沉淀集",
-  t6: "暂无沉淀集",
-  t7: "后管页面按钮逻辑",
-  t8: "控制经验沉淀工作台按钮显示与逻辑配置",
-  t9: "自定义 Prompt:",
-  t10: "找回默认按钮",
-  t11: "🤖 大模型Replay",
-  t12: "📜 脚本Replay",
-  t13: "沉淀",
-  t14: "选择沉淀集",
-  t15: "沉淀集：",
-  t16: "沉淀集暂无沉淀",
-  t17: "一级标题",
-  t18: "二级标题",
-  t19: "三级标题",
-  t20: "四级标题",
-  t21: "保存标题",
-  t22: "取消",
-  t23: "编辑标题",
-  t24: "保存摘要",
-  t25: "删除",
-  t26: "编辑摘要",
-  t27: "选择文档",
-  t28: "添加文档",
-  t29: "移除关联",
-  t30: "复制全文",
-  t31: "保存布局修改",
-  t32: "完成编辑",
-  t33: "取消编辑，恢复已保存布局",
-  t34: "取消编辑",
-  t35: "重置为默认布局",
-  t36: "重置",
-  t37: "按钮配置",
-  t38: "可新增/编辑/删除；关闭则在大纲配置隐藏该按钮",
-  t39: "暂无按钮",
-  t40: "启用",
-  t41: "编辑",
-  t42: "编辑：",
-  t43: "按钮名称",
-  t44: "开",
-  t45: "关闭",
-  t46: "沉淀方式",
-  t47: "数据源与输出",
-  t48: "可新增/删除多条规则，用于分别配置“标题/摘要”的输出方式",
-  t49: "新增一条",
-  t50: "数据源",
-  t51: "内容预览（当前文本框）",
-  t52: "资源列表选中文档（已保存内容）",
-  t53: "输出内容",
-  t54: "标题",
-  t55: "展示位置",
-  t56: "删除",
-  t57: "提示词（支持",
-  t58: "占位符）",
-  t59: "保存并生效",
-  t60: "请选择要显示的列表",
-  t61: "沉淀列表",
-  t62: "沉淀集列表",
-  t63: "暂无沉淀记录",
-  t64: "拖动排序",
-  t65: "点击修改顺序",
-  t66: "保存",
-  t67: "编辑名称",
-  t68: "收起全部 section",
-  t69: "展开全部 section",
-  t70: "原因：",
-  t71: "暂无 section",
-  t72: "操作记录",
-  t73: "灵活上传",
-  t74: "输入来源",
-  t75: "必须",
-  t76: "可选",
-  t77: "执行摘要",
-  t78: "记录位置",
-  t79: "保存后将通过大模型规范编译",
-  t80: "后管页面按钮逻辑重配",
-  t81: "完成并保存",
-  t82: "编辑标题样式",
-  t83: "切换应用端工作台",
-  t84: "配置经验沉淀工作台按钮逻辑",
-  t85: "点击启用编辑模式",
-  t86: "编辑布局",
-  t87: "结束沉淀",
-  t88: "编辑模式中，主要功能区：1. 拖动/调整组件 2. 点击右侧箭头打开编辑控制（保存/回收）",
-  t89: "填入摘要",
-  t90: "选择文档以查看全文",
-  t91: "最终文档生成",
-  t92: "清除",
-  t93: "暂无大纲数据，请点击右上角按钮抽取",
-  t94: "动作执行",
-  t95: "对原文档处理",
-  t96: "对模型返回内容",
-  t97: "批量修改选中",
-  t98: "例如：一句话总结全文；从文档A粘贴到总结",
-  t99: "执行指令按钮已关闭",
-  t100: "清除全部",
-  t101: "历史大纲",
-  t102: "用户行为采集配置",
-  t103: "启用点击流采集",
-  t104: "停留时长阈值(秒)",
-  t105: "采集采样率(%)",
-  t106: "自动分类反馈",
-  t107: "情感分析灵敏度",
-  t108: "隐性SOP归纳配置",
-  t109: "即时归纳可能模式",
-  t110: "最小归纳样本数",
-  t111: "历史大纲存档",
-  t112: "保存当前大纲为存档",
-  t113: "加载中...",
-  t114: "暂无存档记录",
-  t115: "包含",
-  t116: "个章节",
-  t117: "保存中...",
-  t118: "未选择沉淀集",
-  t119: "回放中...",
-  t120: "双击编辑名称",
-  t121: "点击编辑",
-  t122: "未记录原因",
-  t123: "未记录动作",
-  t124: "编译中...",
-  t125: "编译",
-  t126: "未记录",
-  t127: "暂无摘要",
-  t128: "暂无内容",
-  t129: "未记录信息",
-  t130: "打开已隐藏面板",
-  t131: "沉淀中...",
-  t132: "AI自动优化",
-  t133: "优化中...",
-  t134: "使用此处",
-  t135: "未命名文档",
-  t136: "未命名存档",
-  t137: "策略置信阈值",
-  t138: "自迭代配置说明",
-  t139: "配置系统自动学习与优化的策略参数",
-  t140: "反馈结构化配置",
-  t141: "自动沉淀",
-  t142: "收起",
-  t143: "展开",
-  t144: "沉淀记录",
-  t145: "执行指令",
-  t146: "上传文件",
-  t147: "使用默认Prompt",
-  t148: "确认要删除该按钮吗？",
-  t149: "输入素材",
-  t150: "文档列表",
-  t151: "文档处理",
-  t152: "内容预览",
-  t153: "操作调度",
-  t154: "保存到后端失败，已保存到本地",
-  t155: "确认要取消编辑吗？未保存的修改将丢失。",
-  t156: "确定要重置为默认布局吗？",
-  t157: "核心功能不可禁用",
-  t158: "当前已包含所有默认按钮，无需恢复",
-  t159: "检测到缺失：",
-  t160: "个默认按钮，是否恢复？",
-  t161: "已恢复缺失的默认按钮",
-  t162: "上传文档",
-  t163: "按钮",
-  t164: "请输入沉淀集名称"
-};
+// ========== 从拆分模块导入常量 ==========
+import {
+  UI_TEXT,
+  LLM_BUTTONS_STORAGE_KEY,
+  LLM_BUTTONS_MIGRATION_KEY,
+  DEPOSITS_STORAGE_KEY,
+  DEPOSITS_SEQ_STORAGE_KEY,
+  REPLAY_META_MARKER,
+  SHARED_SCENE_KEY,
+  PROCESSING_TAB_SEQUENCE,
+  PROCESSING_TAB_LABELS,
+  LEGACY_PROCESSING_TAB_LABELS,
+  DEFAULT_SECTION_REQUIREMENTS,
+  DEFAULT_APP_BUTTONS,
+  DEFAULT_PRECIPITATION_MODE,
+  DEFAULT_OUTLINE_BUTTON_PROMPT,
+  DEFAULT_DISPATCH_SYSTEM_PROMPT,
+  DEFAULT_FINAL_SYSTEM_PROMPT,
+  INPUT_SOURCE_PREFIX_RE
+} from './sop/SOPConstants';
+
+// ========== 从拆分模块导入工具函数 ==========
+import {
+  api,
+  readFileText,
+  isDocxName,
+  loadMammoth,
+  htmlToStructuredText,
+  parseDocxFileToStructuredText,
+  fixMojibake,
+  isGarbledText,
+  sanitizeText,
+  normalizeButtonText,
+  uniqueDocsByIdKeepLast,
+  upsertDocsToFront,
+  buildSectionTree,
+  openHandleDb,
+  idbGet,
+  idbSet,
+  idbDel,
+  normalizePrecipitationMode,
+  normalizeIoRows,
+  defaultLlmButtons,
+  loadLlmButtonsFromStorage,
+  loadDepositsFromStorage,
+  loadDepositsSeqFromStorage
+} from './sop/SOPUtils';
 
+// ========== 从拆分模块导入组件 ==========
+import { HistoryModal, HistoryList } from './sop/SOPHistory';
+import { EditingToolbar } from './sop/SOPToolbar';
+import { AppButtonsConfigPanel } from './sop/panels/AppButtonsConfigPanel';
+import { GlobalButtonsConfigPanel } from './sop/panels/GlobalButtonsConfigPanel';
+import {
+  DepositModeSelect,
+  DepositGroupSelector,
+  DepositGroupsList,
+  SelectedDepositGroupPanel,
+} from './sop/panels/DepositPanels';
+import { createOutlineNodeRenderer } from './sop/panels/OutlineNode';
+import { DepositConfirmModal } from './sop/modals/DepositConfirmModal';
+import { UpdateGroupModal } from './sop/modals/UpdateGroupModal';
 
+// ========== 安全工具函数 ==========
+import {
+  safeGet,
+  safeArray,
+  safeObject,
+  safeString,
+  safeJsonParse,
+  safeAsync,
+  withRetry,
+  withTimeout,
+} from './sop/utils/safeOps';
+import { debounce, throttle } from './sop/utils/throttle';
+import { useToast } from './sop/hooks/useToast';
 
+// UI_TEXT 已迁移
 
 
+// api 已迁移
 
 
+// readFileText 已迁移
 
-async function api(path, options = {}) {
 
+// isDocxName 已迁移
 
-  const resp = await fetch(path, {
 
+// PROCESSING_TAB_SEQUENCE 已迁移
 
-    headers: { 'Content-Type': 'application/json' },
+// PROCESSING_TAB_LABELS 已迁移
+// INPUT_SOURCE_PREFIX_RE 已迁移
+// fixMojibake 已迁移
+// isGarbledText 已迁移
+// sanitizeText 已迁移
+// normalizeButtonText 已迁移
 
+// LEGACY_PROCESSING_TAB_LABELS 已迁移
 
-    ...options,
+// DEFAULT_SECTION_REQUIREMENTS 已迁移
 
 
-    body: options.body ? JSON.stringify(options.body) : undefined
+// DEFAULT_APP_BUTTONS 已迁移
 
 
-  });
+// loadMammoth 已迁移
 
 
-  if (!resp.ok) {
+// htmlToStructuredText 已迁移
 
 
-    const text = await resp.text();
+// parseDocxFileToStructuredText 已迁移
 
 
-    let msg = text;
+// uniqueDocsByIdKeepLast 已迁移
 
 
-    try {
+// upsertDocsToFront 已迁移
 
 
-      msg = JSON.parse(text).error || text;
+// buildSectionTree 已迁移
 
 
-    } catch (_) {
+// LLM_BUTTONS_STORAGE_KEY 已迁移
 
 
+// LLM_BUTTONS_MIGRATION_KEY 已迁移
 
 
+// DEPOSITS_STORAGE_KEY 已迁移
 
-      /* ignore */
-    }
 
+// DEPOSITS_SEQ_STORAGE_KEY 已迁移
 
-    throw new Error(msg || '请求失败');
 
+// REPLAY_META_MARKER 已迁移
 
-  }
 
+// REPLAY_DIR_HANDLE_KEY 已迁移
 
-  const ct = resp.headers.get('content-type') || '';
+// SHARED_SCENE_KEY 已迁移
 
 
-  return ct.includes('application/json') ? resp.json() : resp.text();
+// openHandleDb 已迁移
 
 
-}
+// idbGet 已迁移
 
 
+// idbSet 已迁移
 
 
+// idbDel 已迁移
 
-function readFileText(file) {
 
+// DEFAULT_OUTLINE_BUTTON_PROMPT 已迁移
 
-  return new Promise((resolve, reject) => {
 
+// DEFAULT_DISPATCH_SYSTEM_PROMPT 已迁移
 
-    const reader = new FileReader();
 
+// DEFAULT_FINAL_SYSTEM_PROMPT 已迁移
 
-    reader.onload = () => resolve(reader.result.toString());
 
+// normalizeIoRows 已迁移
 
-    reader.onerror = reject;
 
+// DEFAULT_PRECIPITATION_MODE 已迁移
 
-    reader.readAsText(file, 'utf-8');
 
+// normalizePrecipitationMode 已迁移
 
-  });
 
+// defaultLlmButtons 已迁移至 ./sop/SOPUtils.js
 
-}
 
+// loadLlmButtonsFromStorage 已迁移至 ./sop/SOPUtils.js
 
 
+// loadDepositsFromStorage 已迁移至 ./sop/SOPUtils.js
 
 
-const isDocxName = (name) => (name || '').toString().trim().toLowerCase().endsWith('.docx');
-
-
-
-
-
-const PROCESSING_TAB_SEQUENCE = ['tab_outline', 'tab_records', 'tab_config', 'tab_strategy'];
-
-const PROCESSING_TAB_LABELS = {
-  tab_outline: '大纲配置',
-  tab_records: '沉淀配置',
-  tab_config: '应用端按钮配置',
-  tab_strategy: '自迭代配置'
-};
-const INPUT_SOURCE_PREFIX_RE = /^输入来源[:：]?\s*/;
-const fixMojibake = (value) => {
-  if (typeof value !== 'string') return value;
-  if (!/[\u00C0-\u00FF]/.test(value)) return value;
-  const bytes = Uint8Array.from(value, (ch) => ch.charCodeAt(0) & 0xff);
-  const decoded = new TextDecoder('utf-8').decode(bytes);
-  return /[\u4e00-\u9fff]/.test(decoded) ? decoded : value;
-};
-const isGarbledText = (value) =>
-  typeof value === 'string' && (/\uFFFD/.test(value) || /\?{2,}/.test(value));
-const sanitizeText = (value, fallback = '') => {
-  if (value === null || value === undefined) return fallback;
-  const fixed = fixMojibake((value || '').toString());
-  const trimmed = fixed.trim();
-  if (!trimmed || isGarbledText(trimmed)) return fallback;
-  return trimmed;
-};
-const normalizeButtonText = (btn) => {
-  if (!btn || typeof btn !== 'object') return btn;
-  const next = { ...btn };
-  if (typeof next.label === 'string') next.label = sanitizeText(next.label, '');
-  if (typeof next.prompt === 'string') next.prompt = sanitizeText(next.prompt, '');
-  if (typeof next.title === 'string') next.title = sanitizeText(next.title, '');
-  return next;
-};
-
-const LEGACY_PROCESSING_TAB_LABELS = {
-  tab_outline: ['大纲预览', '大纲模式', '大纲配置'],
-  tab_records: ['沉淀记录', '沉淀列表', '沉淀配置'],
-  tab_config: ['应用端按钮配置', '应用端配置', '应用端按钮'],
-  tab_strategy: ['策略自更新配置', '自迭代配置']
-};
-
-const DEFAULT_SECTION_REQUIREMENTS = {
-
-
-  inputSource: 'optional',
-
-
-  actionExecution: 'optional',
-
-
-  executionSummary: 'optional',
-
-
-  recordLocation: 'optional'
-
-
-};
-
-
-const DEFAULT_APP_BUTTONS = [
-  { id: 'app_btn_daily_merge', label: '日报合并写作（主任版）', groupIds: [] },
-  { id: 'app_btn_competitor_report', label: '竞品分析报告写作', groupIds: [] },
-  { id: 'app_btn_custom_write', label: '自定义写作', groupIds: [] }];
-
-
-
-
-
-
-const loadMammoth = async () => {
-
-
-  const mod = await import('mammoth/mammoth.browser');
-
-
-  return mod?.default || mod;
-
-
-};
-
-
-
-
-
-const htmlToStructuredText = (html) => {
-
-
-  const raw = (html || '').toString();
-
-
-  if (!raw.trim()) return '';
-
-
-  let parsed;
-
-
-  try {
-
-
-    parsed = new DOMParser().parseFromString(raw, 'text/html');
-
-
-  } catch (_) {
-
-
-    return raw.replace(/<[^>]+>/g, ' ').replace(/\s+\n/g, '\n').trim();
-
-
-  }
-
-
-
-
-
-  const lines = [];
-
-
-  const push = (s = '') => {
-
-
-    const t = (s || '').toString().replace(/\s+/g, ' ').trim();
-
-
-    if (!t) return;
-
-
-    lines.push(t);
-
-
-  };
-
-
-  const pushBlank = () => {
-
-
-    if (!lines.length) return;
-
-
-    if (lines[lines.length - 1] !== '') lines.push('');
-
-
-  };
-
-
-
-
-
-  const walk = (node, listDepth = 0) => {
-
-
-    if (!node) return;
-
-
-    if (node.nodeType === 3) return; // text handled by element.textContent
-
-
-    const el = node;
-
-
-    if (!el.tagName) {
-
-
-      Array.from(el.childNodes || []).forEach((c) => walk(c, listDepth));
-
-
-      return;
-
-
-    }
-
-
-    const tag = el.tagName.toUpperCase();
-
-
-    if (/^H[1-6]$/.test(tag)) {
-
-
-      const lvl = Math.max(1, Math.min(6, Number(tag.slice(1)) || 1));
-
-
-      const text = (el.textContent || '').toString().trim();
-
-
-      if (text) push(`${'#'.repeat(lvl)} ${text}`);
-
-
-      pushBlank();
-
-
-      return;
-
-
-    }
-
-
-    if (tag === 'P') {
-
-
-      const text = (el.textContent || '').toString().trim();
-
-
-      if (text) push(text);
-
-
-      pushBlank();
-
-
-      return;
-
-
-    }
-
-
-    if (tag === 'LI') {
-
-
-      const text = (el.textContent || '').toString().trim();
-
-
-      if (text) push(`${'  '.repeat(Math.max(0, listDepth))}- ${text}`);
-
-
-      return;
-
-
-    }
-
-
-    if (tag === 'UL' || tag === 'OL') {
-
-
-      Array.from(el.children || []).forEach((c) => walk(c, listDepth + 1));
-
-
-      pushBlank();
-
-
-      return;
-
-
-    }
-
-
-    if (tag === 'BR') {
-
-
-      pushBlank();
-
-
-      return;
-
-
-    }
-
-
-    Array.from(el.childNodes || []).forEach((c) => walk(c, listDepth));
-
-
-  };
-
-
-
-
-
-  Array.from(parsed.body?.childNodes || []).forEach((c) => walk(c, 0));
-
-
-  return lines.
-
-
-    join('\n').
-
-
-    replace(/\n{3,}/g, '\n\n').
-
-
-    trim();
-
-
-};
-
-
-
-
-
-const parseDocxFileToStructuredText = async (file) => {
-
-
-  const buf = await file.arrayBuffer();
-
-
-  const mammoth = await loadMammoth();
-
-
-  const res = await mammoth.convertToHtml({ arrayBuffer: buf });
-
-
-  const html = (res?.value || '').toString();
-
-
-  const structured = htmlToStructuredText(html);
-
-
-  return structured.trim() ? structured : '';
-
-
-};
-
-
-
-
-
-function uniqueDocsByIdKeepLast(list) {
-
-
-  const seen = new Set();
-
-
-  const out = [];
-
-
-  for (let i = list.length - 1; i >= 0; i -= 1) {
-
-
-    const d = list[i];
-
-
-    if (!d?.id || seen.has(d.id)) continue;
-
-
-    seen.add(d.id);
-
-
-    out.unshift(d);
-
-
-  }
-
-
-  return out;
-
-
-}
-
-
-
-
-
-function upsertDocsToFront(prevDocs, docsToUpsert) {
-
-
-  const unique = uniqueDocsByIdKeepLast(docsToUpsert || []);
-
-
-  const ids = new Set(unique.map((d) => d.id));
-
-
-  const rest = (prevDocs || []).filter((d) => !ids.has(d.id));
-
-
-  return [...unique, ...rest];
-
-
-}
-
-
-
-
-
-function buildSectionTree(sections) {
-
-
-  const roots = [];
-
-
-  const stack = [];
-
-
-  (sections || []).forEach((sec) => {
-
-
-    const rawLevel = Number(sec?.level) || 1;
-
-
-    const level = Math.max(1, Math.min(4, rawLevel));
-
-
-    const node = { section: sec, level, children: [] };
-
-
-
-
-
-    while (stack.length && stack[stack.length - 1].level >= level) stack.pop();
-
-
-    if (!stack.length) roots.push(node); else
-
-
-      stack[stack.length - 1].node.children.push(node);
-
-
-
-
-
-    stack.push({ level, node });
-
-
-  });
-
-
-  return roots;
-
-
-}
-
-
-
-
-
-const LLM_BUTTONS_STORAGE_KEY = 'llm_buttons_v1';
-
-
-const LLM_BUTTONS_MIGRATION_KEY = 'llm_buttons_migrated_v2';
-
-
-const DEPOSITS_STORAGE_KEY = 'deposits_v1';
-
-
-const DEPOSITS_SEQ_STORAGE_KEY = 'deposits_seq_v1';
-
-
-const REPLAY_META_MARKER = '__REPLAY_META__';
-
-
-const REPLAY_DIR_HANDLE_KEY = 'replay_dir_handle_v1';
-
-const SHARED_SCENE_KEY = 'shared_scene_id';
-
-
-
-
-function openHandleDb() {
-
-
-  return new Promise((resolve, reject) => {
-
-
-    const req = indexedDB.open('doc_workspace_handles', 1);
-
-
-    req.onupgradeneeded = () => {
-
-
-      const db = req.result;
-
-
-      if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
-
-
-    };
-
-
-    req.onsuccess = () => resolve(req.result);
-
-
-    req.onerror = () => reject(req.error);
-
-
-  });
-
-
-}
-
-
-
-
-
-async function idbGet(key) {
-
-
-  const db = await openHandleDb();
-
-
-  return new Promise((resolve, reject) => {
-
-
-    const tx = db.transaction('kv', 'readonly');
-
-
-    const store = tx.objectStore('kv');
-
-
-    const req = store.get(key);
-
-
-    req.onsuccess = () => resolve(req.result || null);
-
-
-    req.onerror = () => reject(req.error);
-
-
-  });
-
-
-}
-
-
-
-
-
-async function idbSet(key, value) {
-
-
-  const db = await openHandleDb();
-
-
-  return new Promise((resolve, reject) => {
-
-
-    const tx = db.transaction('kv', 'readwrite');
-
-
-    const store = tx.objectStore('kv');
-
-
-    const req = store.put(value, key);
-
-
-    req.onsuccess = () => resolve(true);
-
-
-    req.onerror = () => reject(req.error);
-
-
-  });
-
-
-}
-
-
-
-
-
-async function idbDel(key) {
-
-
-  const db = await openHandleDb();
-
-
-  return new Promise((resolve, reject) => {
-
-
-    const tx = db.transaction('kv', 'readwrite');
-
-
-    const store = tx.objectStore('kv');
-
-
-    const req = store.delete(key);
-
-
-    req.onsuccess = () => resolve(true);
-
-
-    req.onerror = () => reject(req.error);
-
-
-  });
-
-
-}
-
-
-
-
-
-const DEFAULT_OUTLINE_BUTTON_PROMPT =
-  `
-请输出 JSON 数组：
-
-[
-  {"id":"...","title":"标题","summary":"不超过20字的摘要","hint":"提示","level":1-4}
-]
-
-要求：
-- level 只取 1/2/3/4，默认 1
-- title 必填
-- summary 不超过20字
-- hint 为1-2句
-- 只输出 JSON
-
-输入：
-{{text}}
-`.trim();
-
-
-const DEFAULT_DISPATCH_SYSTEM_PROMPT =
-  `
-请输出 JSON：
-- summary: 简要摘要
-- detail: 详细说明
-- edits: [{sectionId, field:'title'|'summary', content}]
-只输出 JSON。
-`.trim();
-
-
-const DEFAULT_FINAL_SYSTEM_PROMPT =
-  `
-请输出 Markdown 格式的最终文档。
-`.trim();
-
-
-function normalizeIoRows(io, fallback) {
-
-
-  const fallbackDataSource = fallback?.dataSource === 'selected_doc' ? 'selected_doc' : 'preview';
-
-
-  const fallbackOutputTarget = fallback?.outputTarget === 'title' ? 'title' : 'summary';
-
-
-
-
-
-  const rows = Array.isArray(io) ? io : null;
-
-
-  if (!rows) {
-
-
-    // Migration from older schema: a single outputTarget was controlling where summaries go.
-
-
-    return [
-
-
-      {
-
-
-        id: 'io_migrated_1',
-
-
-        enabled: true,
-
-
-        dataSource: fallbackDataSource,
-
-
-        output: 'titles',
-
-
-        target: 'title'
-
-
-      },
-
-
-      {
-
-
-        id: 'io_migrated_2',
-
-
-        enabled: true,
-
-
-        dataSource: fallbackDataSource,
-
-
-        output: 'summaries',
-
-
-        target: fallbackOutputTarget
-
-
-      }];
-
-
-
-
-
-  }
-
-
-
-
-
-  const normalized = rows.
-
-
-    map((r, idx) => {
-
-
-      const id = typeof r?.id === 'string' && r.id.trim() ? r.id.trim() : `io_${idx + 1}`;
-
-
-      const enabled = r?.enabled !== false;
-
-
-      const dataSource = r?.dataSource === 'selected_doc' ? 'selected_doc' : 'preview';
-
-
-      const output = r?.output === 'summaries' ? 'summaries' : 'titles';
-
-
-      const target = r?.target === 'title' ? 'title' : 'summary';
-
-
-      return { id, enabled, dataSource, output, target };
-
-
-    }).
-
-
-    filter((r) => r.id);
-
-
-
-
-
-  return normalized.length ? normalized : normalizeIoRows(null, fallback);
-
-
-}
-
-
-
-
-
-const DEFAULT_PRECIPITATION_MODE = 'llm';
-
-
-
-
-
-const normalizePrecipitationMode = (value) => value === 'script' ? 'script' : 'llm';
-
-
-
-
-
-function defaultLlmButtons() {
-
-
-  return [
-
-
-    {
-
-
-      id: 'btn_outline_extract',
-
-
-      kind: 'outline_extract',
-
-
-      label: '全文大纲抽取',
-
-
-      enabled: true,
-
-
-      precipitationMode: 'llm',
-
-
-      prompt: DEFAULT_OUTLINE_BUTTON_PROMPT,
-
-
-      dataSource: 'preview', // legacy default for migration
-
-
-      outputTarget: 'summary', // legacy default for migration
-
-
-      io: [
-
-
-        { id: 'io_default_1', enabled: true, dataSource: 'preview', output: 'titles', target: 'title' },
-
-
-        { id: 'io_default_2', enabled: true, dataSource: 'preview', output: 'summaries', target: 'summary' }]
-
-
-
-
-
-    },
-
-
-    {
-
-
-      id: 'btn_outline_slot_1',
-
-
-      kind: 'outline_action',
-
-
-      label: '',
-
-
-      enabled: false,
-
-
-      precipitationMode: 'llm',
-
-
-      prompt: DEFAULT_DISPATCH_SYSTEM_PROMPT,
-
-
-      io: [{ id: 'io_outline_slot_1', enabled: true, dataSource: 'preview', output: 'summaries', target: 'summary' }]
-
-
-    },
-
-
-    {
-
-
-      id: 'btn_outline_slot_2',
-
-
-      kind: 'outline_action',
-
-
-      label: '',
-
-
-      enabled: false,
-
-
-      precipitationMode: 'llm',
-
-
-      prompt: DEFAULT_DISPATCH_SYSTEM_PROMPT,
-
-
-      io: [{ id: 'io_outline_slot_2', enabled: true, dataSource: 'preview', output: 'summaries', target: 'summary' }]
-
-
-    },
-
-
-    {
-
-
-      id: 'btn_outline_slot_3',
-
-
-      kind: 'outline_action',
-
-
-      label: '',
-
-
-      enabled: false,
-
-
-      precipitationMode: 'llm',
-
-
-      prompt: DEFAULT_DISPATCH_SYSTEM_PROMPT,
-
-
-      io: [{ id: 'io_outline_slot_3', enabled: true, dataSource: 'preview', output: 'summaries', target: 'summary' }]
-
-
-    },
-
-
-    {
-
-
-      id: 'btn_dispatch',
-
-
-      kind: 'dispatch',
-
-
-      label: '执行指令',
-
-
-      enabled: true,
-
-
-      precipitationMode: 'llm',
-
-
-      prompt: DEFAULT_DISPATCH_SYSTEM_PROMPT,
-
-
-      io: [{ id: 'io_dispatch_1', enabled: true, dataSource: 'preview', output: 'summaries', target: 'summary' }]
-
-
-    },
-
-
-    {
-
-
-      id: 'btn_final_generate',
-
-
-      kind: 'final_generate',
-
-
-      label: '最终文档生成',
-
-
-      enabled: true,
-
-
-      precipitationMode: 'llm',
-
-
-      prompt: DEFAULT_FINAL_SYSTEM_PROMPT,
-
-
-      io: [{ id: 'io_final_1', enabled: true, dataSource: 'preview', output: 'summaries', target: 'summary' }]
-
-
-    }];
-
-
-
-
-
-}
-
-
-
-
-
-function loadLlmButtonsFromStorage() {
-
-
-  try {
-
-
-    const raw = localStorage.getItem(LLM_BUTTONS_STORAGE_KEY);
-
-
-    if (!raw) return defaultLlmButtons();
-
-
-    const parsed = JSON.parse(raw);
-
-
-    if (!Array.isArray(parsed)) return defaultLlmButtons();
-
-
-    const normalized = parsed.
-
-
-      map((b, idx) => {
-
-
-        const id = typeof b?.id === 'string' && b.id.trim() ? b.id.trim() : `btn_${idx + 1}`;
-
-
-        const kind =
-
-
-          b?.kind === 'dispatch' || b?.kind === 'final_generate' || b?.kind === 'outline_extract' || b?.kind === 'outline_action' ?
-
-
-            b.kind :
-
-
-            'outline_extract';
-
-
-        const label = typeof b?.label === 'string' ? b.label : '';
-
-
-        const enabled = !!b?.enabled;
-
-
-        const dataSource = b?.dataSource === 'selected_doc' ? 'selected_doc' : 'preview';
-
-
-        const promptDefault =
-
-
-          kind === 'dispatch' ?
-
-
-            DEFAULT_DISPATCH_SYSTEM_PROMPT :
-
-
-            kind === 'final_generate' ?
-
-
-              DEFAULT_FINAL_SYSTEM_PROMPT :
-
-
-              kind === 'outline_action' ?
-
-
-                DEFAULT_DISPATCH_SYSTEM_PROMPT :
-
-
-                DEFAULT_OUTLINE_BUTTON_PROMPT;
-
-
-        const prompt = typeof b?.prompt === 'string' ? b.prompt : promptDefault;
-
-
-        const outputTarget = b?.outputTarget === 'title' ? 'title' : 'summary';
-
-
-        const io = normalizeIoRows(b?.io, { dataSource, outputTarget });
-
-
-        const precipitationMode = normalizePrecipitationMode(b?.precipitationMode);
-
-
-        return { id, kind, label, enabled, prompt, io, precipitationMode };
-
-
-      }).
-
-
-      filter((b) => b.id);
-
-
-    const defaults = defaultLlmButtons();
-
-
-    const migrated = localStorage.getItem(LLM_BUTTONS_MIGRATION_KEY) === '1';
-
-
-    const merged = [...normalized];
-
-
-    const toAdd = migrated ? defaults.filter((d) => d.kind === 'outline_action') : defaults;
-
-
-    toAdd.forEach((d) => {
-
-
-      if (!merged.some((b) => b.id === d.id)) merged.push(d);
-
-
-    });
-
-
-    if (!migrated) {
-
-
-      try {
-
-
-        localStorage.setItem(LLM_BUTTONS_MIGRATION_KEY, '1');
-
-
-        localStorage.setItem(LLM_BUTTONS_STORAGE_KEY, JSON.stringify(merged));
-
-
-      } catch (_) {
-
-
-
-
-
-        /* ignore */
-      }
-
-
-    }
-
-
-    return merged.length ? merged : defaults;
-
-
-  } catch (_) {
-
-
-    return defaultLlmButtons();
-
-
-  }
-
-
-}
-
-
-
-
-
-function loadDepositsFromStorage() {
-
-
-  try {
-
-
-    const raw = localStorage.getItem(DEPOSITS_STORAGE_KEY);
-
-
-    if (!raw) return [];
-
-
-    const parsed = JSON.parse(raw);
-
-
-    if (!Array.isArray(parsed)) return [];
-
-
-    return parsed.
-
-
-      map((d) => ({
-
-
-        id: typeof d?.id === 'string' && d.id.trim() ? d.id.trim() : `沉淀_${Date.now()}`,
-
-
-        name: typeof d?.name === 'string' && d.name.trim() ? fixMojibake(d.name).trim() : undefined,
-
-
-        createdAt: typeof d?.createdAt === 'number' ? d.createdAt : Date.now(),
-
-
-        precipitationMode: normalizePrecipitationMode(d?.precipitationMode),
-
-
-        sections: Array.isArray(d?.sections) ? d.sections.map((s) => ({
-          ...s,
-          action: fixMojibake(s?.action),
-          content: fixMojibake(s?.content),
-          summary: fixMojibake(s?.summary),
-          hint: fixMojibake(s?.hint)
-        })) : []
-
-
-      })).
-
-
-      filter((d) => d.id);
-
-
-  } catch (_) {
-
-
-    return [];
-
-
-  }
-
-
-}
-
-
-
-
-
-function loadDepositsSeqFromStorage() {
-
-
-  try {
-
-
-    const raw = localStorage.getItem(DEPOSITS_SEQ_STORAGE_KEY);
-
-
-    const n = Number(raw);
-
-
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
-
-
-  } catch (_) {
-
-
-    return 0;
-
-
-  }
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
+// loadDepositsSeqFromStorage 已迁移至 ./sop/SOPUtils.js
 
 
 export default function SOPWorkbench({ onSwitch }) {
@@ -1533,8 +255,8 @@ export default function SOPWorkbench({ onSwitch }) {
   const [finalizing, setFinalizing] = useState(false);
 
 
-  const [toast, setToast] = useState('');
-
+  // 使用 useToast hook 管理提示消息
+  const { toast, showToast } = useToast({ duration: 1800 });
 
   const [showOutlineMode, setShowOutlineMode] = useState(true);
 
@@ -1554,9 +276,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   const [processedContent, setProcessedContent] = useState('');
-
-
-
 
 
   const [dispatchMode, setDispatchMode] = useState('doc'); // 'doc' | 'result'
@@ -1595,12 +314,6 @@ export default function SOPWorkbench({ onSwitch }) {
   const [isEditingLayout, setIsEditingLayout] = useState(false); // 编辑界面模式
 
 
-
-
-
-
-
-
   // 左列：内容预览（上）、输入素材（中）、文档列表（下）
 
 
@@ -1628,13 +341,7 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const [panelPositions, setPanelPositions] = useState(() => {
-
-
-
 
 
     let saved = null;
@@ -1658,25 +365,13 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     // 验证单个面板位置是否有效
 
 
     const isValid = (pos) => pos && pos.width > 100 && pos.height > 100;
 
 
-
-
-
-
-
-
     if (saved) {
-
-
-
 
 
       if (saved['input-panel'] && !saved['input-form-panel']) {
@@ -1685,19 +380,10 @@ export default function SOPWorkbench({ onSwitch }) {
         console.log('[Layout Migration] 检测到旧版4面板配置，正在迁移到5面板配置...');
 
 
-
-
-
-
-
-
         const oldInput = saved['input-panel'];
 
 
         const splitHeight = Math.floor(oldInput.height / 2) - 10;
-
-
-
 
 
         saved['input-form-panel'] = {
@@ -1718,9 +404,6 @@ export default function SOPWorkbench({ onSwitch }) {
         };
 
 
-
-
-
         saved['document-list-panel'] = {
 
 
@@ -1739,19 +422,7 @@ export default function SOPWorkbench({ onSwitch }) {
         };
 
 
-
-
-
-
-
-
         delete saved['input-panel'];
-
-
-
-
-
-
 
 
         try {
@@ -1775,9 +446,6 @@ export default function SOPWorkbench({ onSwitch }) {
       }
 
 
-
-
-
       // Config Migration 2: Remove input-form-panel and expand document-list-panel
 
 
@@ -1791,9 +459,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
         const listPanel = saved['document-list-panel'];
-
-
-
 
 
         if (inputPanel && listPanel) {
@@ -1815,9 +480,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
           // So simply setting List.top = Input.top, and List.height = Input.height + Gap + List.height
-
-
-
 
 
           saved['document-list-panel'] = {
@@ -1868,12 +530,6 @@ export default function SOPWorkbench({ onSwitch }) {
       }
 
 
-
-
-
-
-
-
       const result = { ...DEFAULT_LAYOUT };
 
 
@@ -1892,16 +548,10 @@ export default function SOPWorkbench({ onSwitch }) {
       });
 
 
-
-
-
       return result;
 
 
     }
-
-
-
 
 
     // 没有保存的配置，使用默认布局
@@ -1920,18 +570,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   }); // 面板位置和大?
-
-
-
-
-
-
-
-
-
-
-
-
 
 
   const [layoutSize, setLayoutSize] = useState(() => {
@@ -1964,9 +602,6 @@ export default function SOPWorkbench({ onSwitch }) {
     } catch (_) {
 
 
-
-
-
       /* ignore */
     }
 
@@ -1977,9 +612,6 @@ export default function SOPWorkbench({ onSwitch }) {
   });
 
 
-
-
-
   // 内容块位置（编辑模式下可调整?
 
 
@@ -1987,9 +619,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     'input-form-panel': { left: 10, top: 10, width: 560, height: 400 },
-
-
-
 
 
     'document-list-panel': { left: 10, top: 10, width: 560, height: 300 },
@@ -2023,9 +652,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const [contentBlockPositions, setContentBlockPositions] = useState(() => {
@@ -2079,9 +705,6 @@ export default function SOPWorkbench({ onSwitch }) {
   });
 
 
-
-
-
   const mergeButtonConfigWithDefaults = (incoming) => {
 
 
@@ -2094,13 +717,7 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     const source = { ...incoming };
-
-
-
 
 
     if (source['input-panel'] && !source['input-form-panel']) {
@@ -2113,9 +730,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     }
-
-
-
 
 
     const merged = { ...DEFAULT_BUTTON_CONFIG };
@@ -2136,9 +750,6 @@ export default function SOPWorkbench({ onSwitch }) {
     });
 
 
-
-
-
     if (merged['input-form-panel']) {
 
 
@@ -2152,9 +763,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     }
-
-
-
 
 
     if (Array.isArray(merged['processing-tabs'])) {
@@ -2248,9 +856,6 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     Object.keys(merged).forEach((panelId) => {
       if (!Array.isArray(merged[panelId])) return;
       const defaults = DEFAULT_BUTTON_CONFIG[panelId] || [];
@@ -2339,31 +944,16 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     return merged;
 
 
   };
 
 
-
-
-
   const [buttonPositions, setButtonPositions] = useState(() => {
 
 
-
-
-
     let cached = loadButtonConfig();
-
-
-
-
-
-
 
 
     if (!cached) {
@@ -2375,28 +965,13 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
-
-
-
     if (cached['input-panel'] && !cached['input-form-panel']) {
 
 
       console.log('[Button Migration] 检测到旧版4面板按钮配置，正在迁移到5面板配置...');
 
 
-
-
-
-
-
-
       cached['input-form-panel'] = cached['input-panel'] || [];
-
-
-
 
 
       // document-list-panel 使用默认配置
@@ -2405,28 +980,13 @@ export default function SOPWorkbench({ onSwitch }) {
       cached['document-list-panel'] = DEFAULT_BUTTON_CONFIG['document-list-panel'] || [];
 
 
-
-
-
-
-
-
       delete cached['input-panel'];
-
-
-
 
 
       console.log('[Button Migration] 迁移完成');
 
 
     }
-
-
-
-
-
-
 
 
     return mergeButtonConfigWithDefaults(cached);
@@ -2493,12 +1053,6 @@ export default function SOPWorkbench({ onSwitch }) {
       }
 
 
-
-
-
-
-
-
       const oldConfig = loadButtonConfig();
 
 
@@ -2508,16 +1062,10 @@ export default function SOPWorkbench({ onSwitch }) {
         console.log('[GlobalButtons] Migrating from old format...');
 
 
-
-
-
         backupConfig(oldConfig, 'app-button-config');
 
 
         cleanOldBackups('app-button-config', 3);
-
-
-
 
 
         // 迁移到新格式
@@ -2525,9 +1073,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
         const migrated = migrateButtonConfig(oldConfig, panelPositions);
         migrated.activeButtons = (migrated.activeButtons || []).map((btn) => normalizeButtonText(btn));
-
-
-
 
 
         localStorage.setItem('global-buttons-config', JSON.stringify(migrated));
@@ -2557,9 +1102,6 @@ export default function SOPWorkbench({ onSwitch }) {
   });
 
 
-
-
-
   const [backupGlobalButtons, setBackupGlobalButtons] = useState(() => {
 
 
@@ -2582,9 +1124,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   }); // 备份状态，用于恢复
-
-
-
 
 
   const [deletedButtons, setDeletedButtons] = useState(() => {
@@ -2611,12 +1150,6 @@ export default function SOPWorkbench({ onSwitch }) {
   });
 
 
-
-
-
-
-
-
   const [deletedBlocks, setDeletedBlocks] = useState(() => {
 
 
@@ -2641,16 +1174,7 @@ export default function SOPWorkbench({ onSwitch }) {
   });
 
 
-
-
-
-
-
-
   const [showRecycleBin, setShowRecycleBin] = useState(false);
-
-
-
 
 
   // Ensure recyle bin is hidden on edit mode toggle
@@ -2663,9 +1187,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   }, [isEditingLayout]);
-
-
-
 
 
   // Load config from backend
@@ -2681,9 +1202,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
         let hasServerData = false;
-
-
-
 
 
         if (data.layout && Object.keys(data.layout).length > 0) {
@@ -2720,9 +1238,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
           });
-
-
-
 
 
           if (!fixedButtons.some((b) => b.id === 'btn_input_upload_file')) {
@@ -2764,9 +1279,6 @@ export default function SOPWorkbench({ onSwitch }) {
           }
 
 
-
-
-
           setGlobalButtons(fixedButtons);
 
 
@@ -2798,9 +1310,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
           });
-
-
-
 
 
           // Auto-restore 'upload_file' button if missing
@@ -2843,9 +1352,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
           }
-
-
-
 
 
           setGlobalButtons(fixedButtons);
@@ -2899,9 +1405,6 @@ export default function SOPWorkbench({ onSwitch }) {
           } catch (_) {
 
 
-
-
-
             /* ignore */
           }
 
@@ -2933,13 +1436,7 @@ export default function SOPWorkbench({ onSwitch }) {
         }
 
 
-
-
-
         console.log('Loaded config from backend, hasServerData:', hasServerData);
-
-
-
 
 
         // If server has no data, but we have local data (which is already loaded into state via useState initializers),
@@ -2969,9 +1466,6 @@ export default function SOPWorkbench({ onSwitch }) {
           // Actually, we can read from localStorage directly for the integrity of the data stream.
 
 
-
-
-
           const localLayout = localStorage.getItem('layout_panel_positions');
 
 
@@ -2991,9 +1485,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
           const localLlmButtons = localStorage.getItem(LLM_BUTTONS_STORAGE_KEY);
-
-
-
 
 
           if (localLayout || localButtons || localBlocks || localHeaderTitles || localLayoutSize || localLlmButtons) {
@@ -3026,9 +1517,6 @@ export default function SOPWorkbench({ onSwitch }) {
             };
 
 
-
-
-
             api('/api/config/save', {
 
 
@@ -3054,12 +1542,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   }, []);
-
-
-
-
-
-
 
 
   const [savedLayout, setSavedLayout] = useState(null);
@@ -3136,12 +1618,6 @@ export default function SOPWorkbench({ onSwitch }) {
   const [selectedAppButtonId, setSelectedAppButtonId] = useState('');
 
 
-
-
-
-
-
-
   const [headerTitles, setHeaderTitles] = useState(() => {
     const defaultHeaderTitles = {
       eyebrow: {
@@ -3191,12 +1667,6 @@ export default function SOPWorkbench({ onSwitch }) {
   const [resizingHeaderTitle, setResizingHeaderTitle] = useState(null);
 
 
-
-
-
-
-
-
   const getPanelTitle = (panelId) => {
     const defaultTitles = {
       'input-form-panel': UI_TEXT.t149,
@@ -3222,9 +1692,6 @@ export default function SOPWorkbench({ onSwitch }) {
   const previewTextRef = useRef(null);
 
 
-
-
-
   // Guardian: Ensure 'outline_extract' button exists and is enabled
 
 
@@ -3241,9 +1708,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     let newButtons = [...globalButtons];
-
-
-
 
 
     if (!hasExtract) {
@@ -3297,9 +1761,6 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     if (shouldUpdate) {
 
 
@@ -3321,13 +1782,7 @@ export default function SOPWorkbench({ onSwitch }) {
   const [replayState, setReplayState] = useState({}); // depositId -> {running, bySection:{[sectionId]:{status,message}}}
 
 
-  const [replayDirHandle, setReplayDirHandle] = useState(null);
-
-
-  const [replayDirName, setReplayDirName] = useState('');
-
-
-
+  // 已移除 replayDirHandle 和 replayDirName 状态 - 目录配置统一使用服务端 replayDirConfig
 
 
   const [outlineHistory, setOutlineHistory] = useState([]);
@@ -3353,9 +1808,6 @@ export default function SOPWorkbench({ onSwitch }) {
   const [buttonDraft, setButtonDraft] = useState(null);
 
 
-
-
-
   const [llmButtons, setLlmButtons] = useState(() => loadLlmButtonsFromStorage());
 
 
@@ -3377,9 +1829,6 @@ export default function SOPWorkbench({ onSwitch }) {
   const canFillSummary = showOutlineMode && processingTab === 'outline' && selectedOutlineIds.length > 0 && hasPreviewSelection;
 
 
-
-
-
   const deepClone = (obj) => {
 
 
@@ -3399,9 +1848,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const appendReplayMeta = (text, meta) => {
@@ -3426,9 +1872,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const extractReplayMeta = (content) => {
@@ -3467,13 +1910,7 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const OP_META_VERSION = 1;
-
-
-
 
 
   const clipText = (text, max = 600) => {
@@ -3489,9 +1926,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const describeInput = (input) => {
@@ -3613,9 +2047,6 @@ export default function SOPWorkbench({ onSwitch }) {
   const normalizeRequirement = (value) => value === 'required' ? 'required' : 'optional';
 
 
-
-
-
   const getSectionRequirements = (section) => {
 
 
@@ -3644,9 +2075,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const resolvePrecipitationMode = (meta) => {
@@ -3832,251 +2260,60 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
+  // 浏览器端目录选择功能已移除，目录配置统一使用服务端 replayDirConfig
 
 
-
-  const pickReplayDirectory = async () => {
-
-
-    try {
-
-
-      if (!window.showDirectoryPicker) {
-
-
-        showToast('当前浏览器不支持目录选择（建议使用 Chrome/Edge）');
-
-
-        return;
-
-
-      }
-
-
-      const handle = await window.showDirectoryPicker();
-
-
-      await idbSet(REPLAY_DIR_HANDLE_KEY, handle);
-
-
-      setReplayDirHandle(handle);
-
-
-      setReplayDirName(handle.name || '已选择目录');
-
-
-      try {
-
-
-        await navigator.storage?.persist?.();
-
-
-      } catch (_) {
-
-
-
-
-
-        /* ignore */
-      }
-
-
-      showToast('已选择回放目录');
-
-
-    } catch (err) {
-
-
-      if (err?.name === 'AbortError') return;
-
-
-      console.error(err);
-
-
-      showToast(err.message || '选择目录失败');
-
-
-    }
-
-
-  };
-
-
-
-
-
-  const clearReplayDirectory = async () => {
-
-
-    try {
-
-
-      await idbDel(REPLAY_DIR_HANDLE_KEY);
-
-
-    } catch (_) {
-
-
-
-
-
-      /* ignore */
-    }
-
-
-    setReplayDirHandle(null);
-
-
-    setReplayDirName('');
-    showToast('已清空回放目录');
-
-
-  };
-
-
-
-
-
-  const ensureDirPermission = async (handle) => {
-
-
-    if (!handle) return false;
-
-
-    if (!handle.queryPermission) return true;
-
-
-    try {
-
-
-      const opts = { mode: 'read' };
-
-
-      let perm = await handle.queryPermission(opts);
-
-
-      if (perm === 'granted') return true;
-
-
-      perm = await handle.requestPermission(opts);
-
-
-      return perm === 'granted';
-
-
-    } catch (_) {
-
-
-      return false;
-
-
-    }
-
-
-  };
-
-
-
-
-
+  // 从服务端配置的目录读取文件（应用端/后管端共用）
   const uploadDocFromReplayDirByNameDetailed = async (docName) => {
-
-
     const name = (docName || '').toString().trim();
-
-
     if (!name) throw new Error('文档名为空');
 
+    // 调用服务端 API 读取文件
+    const fileRes = await api('/api/multi/replay/read-file', { 
+      method: 'POST', 
+      body: { fileName: name } 
+    });
 
-    if (!replayDirHandle) throw new Error('未选择回放目录，请先选择文件夹目录');
-
-
-    const ok = await ensureDirPermission(replayDirHandle);
-
-
-    if (!ok) throw new Error('目录权限未授权');
-
-
-    let fileHandle;
-
-
-    try {
-
-
-      fileHandle = await replayDirHandle.getFileHandle(name, { create: false });
-
-
-    } catch (_) {
-
-
-      throw new Error(`回放目录中未找到文件：${name}`);
-
-
+    if (fileRes.error) {
+      throw new Error(fileRes.error);
     }
 
+    let text = fileRes.content;
+    
+    // 如果是 DOCX 文件，需要在前端解析
+    if (fileRes.needsParsing && fileRes.ext === '.docx') {
+      // 将 base64 转为 Blob，然后解析
+      const binary = atob(fileRes.content);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const file = new File([blob], name, { type: blob.type });
+      text = await parseDocxFileToStructuredText(file);
+    }
 
-    const file = await fileHandle.getFile();
-
-
-    const isDocx = isDocxName(name);
-
-
-    const text = isDocx ? await parseDocxFileToStructuredText(file) : await file.text();
-
-
+    // 保存到后端文档列表
     const res = await api('/api/docs', { method: 'POST', body: { name, content: (text ?? '').toString() } });
-
-
     const doc = res?.doc;
-
-
     const overwritten = !!res?.overwritten;
 
-
     setDocs((prev) => upsertDocsToFront(prev, [doc]));
-
-
     setSelectedDocId(doc.id);
-
-
     setDocDraft(doc.content || '');
 
-
     if (scene) {
-
-
       try {
-
-
         const docIds = Array.from(new Set([doc.id, ...(scene.docIds || [])]));
-
-
         const { scene: s } = await api(`/api/scene/${scene.id}`, { method: 'PATCH', body: { docIds } });
-
-
         setScene(s);
-
-
       } catch (_) {
-
-
-
-
-
         /* ignore */
       }
-
-
     }
 
-
     return { doc, overwritten, text };
-
-
   };
-
-
-
 
 
   const uploadDocFromReplayDirByName = async (docName) => {
@@ -4089,9 +2326,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const normalizeDocSelector = (selector) => {
@@ -4128,9 +2362,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const matchFileNameBySelector = (name, selector) => {
@@ -4187,58 +2418,31 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
+  // 从服务端配置的目录获取文件列表（应用端/后管端共用）
   const listReplayDirFiles = async () => {
-
-
-    if (!replayDirHandle) throw new Error('未选择回放目录，请先选择文件夹目录');
-
-
-    const ok = await ensureDirPermission(replayDirHandle);
-
-
-    if (!ok) throw new Error('目录权限未授权');
-
-
-    const out = [];
-
-
-    // eslint-disable-next-line no-restricted-syntax
-
-
-    for await (const handle of replayDirHandle.values()) {
-
-
-      if (handle?.kind !== 'file') continue;
-
-
-      out.push(handle);
-
-
+    const res = await api('/api/multi/replay/files');
+    
+    if (res.error) {
+      throw new Error(res.error);
     }
-
-
-    return out;
-
-
+    
+    if (!res.files || !res.files.length) {
+      if (!res.dirPath) {
+        throw new Error('未配置 Replay 目录，请在文档列表面板中配置');
+      }
+      throw new Error('配置的目录中没有文件');
+    }
+    
+    // 返回格式与原来的 FileSystemFileHandle 兼容
+    return res.files.map(f => ({ name: f.name, kind: 'file', ext: f.ext }));
   };
 
 
-
-
-
+  // 根据选择器从配置目录上传文档（应用端/后管端共用）
   const uploadDocsFromReplayDirBySelector = async (selector) => {
-
-
     const s = normalizeDocSelector(selector);
-
-
-    const handles = await listReplayDirFiles();
-
-
-    const matched = handles.filter((h) => matchFileNameBySelector(h?.name || '', s));
+    const files = await listReplayDirFiles();
+    const matched = files.filter((f) => matchFileNameBySelector(f?.name || '', s));
 
 
     if (!matched.length) {
@@ -4265,97 +2469,34 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     let chosen = matched;
 
 
     if (s.mode !== 'multi') {
 
 
-      if (s.pick === 'first') {
-
-
-        const sorted = matched.slice().sort((a, b) => (a?.name || '').localeCompare(b?.name || '', 'zh-CN'));
-
-
-        chosen = sorted[0] ? [sorted[0]] : [matched[0]];
-
-
-      } else {
-
-
-        const items = [];
-
-
-        // eslint-disable-next-line no-restricted-syntax
-
-
-        for (const h of matched) {
-
-
-          // eslint-disable-next-line no-await-in-loop
-
-
-          const f = await h.getFile();
-
-
-          items.push({ handle: h, lastModified: Number(f?.lastModified || 0) });
-
-
-        }
-
-
-        items.sort((a, b) => b.lastModified - a.lastModified || (a.handle?.name || '').localeCompare(b.handle?.name || '', 'zh-CN'));
-
-
-        chosen = items[0]?.handle ? [items[0].handle] : [matched[0]];
-
-
-      }
-
-
+      // 单文件模式：按文件名排序选第一个
+      const sorted = matched.slice().sort((a, b) => (a?.name || '').localeCompare(b?.name || '', 'zh-CN'));
+      chosen = sorted[0] ? [sorted[0]] : [matched[0]];
     } else {
-
-
+      // 多文件模式：按文件名排序
       chosen = matched.sort((a, b) => (a?.name || '').localeCompare(b?.name || '', 'zh-CN'));
-
-
     }
-
-
-
-
 
     const results = [];
-
-
-    // eslint-disable-next-line no-restricted-syntax
-
-
-    for (const h of chosen) {
-
-
-      // eslint-disable-next-line no-await-in-loop
-
-
-      const r = await uploadDocFromReplayDirByNameDetailed(h.name);
-
-
-      results.push({ name: h.name, overwritten: !!r.overwritten });
-
-
+    for (const f of chosen) {
+      const r = await uploadDocFromReplayDirByNameDetailed(f.name);
+      results.push({ name: f.name, overwritten: !!r.overwritten });
     }
 
-
-    return { count: results.length, names: results.map((r) => r.name), overwrittenAny: results.some((r) => r.overwritten) };
+    return { 
+      count: results.length, 
+      names: results.map((r) => r.name), 
+      overwrittenAny: results.some((r) => r.overwritten) 
+    }
 
 
   };
-
-
-
 
 
   const runOutlineExtractButton = async ({ btn, preferDocName }) => {
@@ -4379,9 +2520,6 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     let doc = null;
 
 
@@ -4392,9 +2530,7 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
       if (id) doc = docs.find((d) => d.id === id); else
-
-
-        if (replayDirHandle) doc = await uploadDocFromReplayDirByName(preferDocName);
+        if (replayDirConfig?.dirPath) doc = await uploadDocFromReplayDirByName(preferDocName);
 
 
     }
@@ -4404,9 +2540,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     if (!doc) throw new Error('请先选择一个文档作为数据源');
-
-
-
 
 
     const previewText =
@@ -4442,9 +2575,6 @@ export default function SOPWorkbench({ onSwitch }) {
     if (!text.trim()) throw new Error('当前数据源内容为空，无法抽取大纲');
 
 
-
-
-
     const tplRes = await api('/api/template/auto', { method: 'POST', body: { text, prompt: btn?.prompt || '' } });
 
 
@@ -4472,9 +2602,6 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     const hasSummaryToSummary = enabledRows.some((r) => r.output === 'summaries' && r.target === 'summary');
 
 
@@ -4482,9 +2609,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     const hasTitleToSummary = enabledRows.some((r) => r.output === 'titles' && r.target === 'summary');
-
-
-
 
 
     const transformedTemplate = {
@@ -4505,9 +2629,6 @@ export default function SOPWorkbench({ onSwitch }) {
         const title = hasSummaryToTitle && modelSummary ? `${modelTitle} - ${modelSummary}` : modelTitle;
 
 
-
-
-
         const summaryParts = [];
 
 
@@ -4520,9 +2641,6 @@ export default function SOPWorkbench({ onSwitch }) {
         const summary = summaryParts.join('\n').trim();
 
 
-
-
-
         return { ...s, title, summary };
 
 
@@ -4530,9 +2648,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     };
-
-
-
 
 
     const applyRes = await api(`/api/scene/${scene.id}/apply-template`, { method: 'POST', body: { template: transformedTemplate } });
@@ -4545,12 +2660,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     setShowOutlineMode(true);
-
-
-
-
-
-
 
 
     try {
@@ -4592,16 +2701,10 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
 
-
-
-
     return applyRes?.template?.sections?.length || 0;
 
 
   };
-
-
-
 
 
   useEffect(() => {
@@ -4614,9 +2717,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
     } catch (_) {
-
-
-
 
 
       /* ignore */
@@ -4635,50 +2735,7 @@ export default function SOPWorkbench({ onSwitch }) {
   }, [llmButtons]);
 
 
-
-
-
-  useEffect(() => {
-
-
-    (async () => {
-
-
-      try {
-
-
-        const handle = await idbGet(REPLAY_DIR_HANDLE_KEY);
-
-
-        if (handle) {
-
-
-          setReplayDirHandle(handle);
-
-
-          setReplayDirName(handle.name || '已选择目录');
-
-
-        }
-
-
-      } catch (_) {
-
-
-
-
-
-        /* ignore */
-      }
-
-
-    })();
-
-
-  }, []);
-
-
-
+  // 已移除浏览器端目录句柄恢复逻辑 - 目录配置统一使用服务端
 
 
   useEffect(() => {
@@ -4696,17 +2753,11 @@ export default function SOPWorkbench({ onSwitch }) {
     } catch (_) {
 
 
-
-
-
       /* ignore */
     }
 
 
   }, [deposits, depositSeq]);
-
-
-
 
 
   useEffect(() => {
@@ -4808,13 +2859,7 @@ export default function SOPWorkbench({ onSwitch }) {
       }
 
 
-
-
-
       try {
-
-
-
 
 
         const buttonsRes = await api('/api/buttons');
@@ -4895,8 +2940,6 @@ export default function SOPWorkbench({ onSwitch }) {
       if ((docRes.docs || []).length) setSelectedDocId(docRes.docs[0].id);
 
 
-
-
       // 加载操作沉淀记录
 
 
@@ -4904,9 +2947,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
       await reloadDepositGroups(true);
-
-
-
 
 
       try {
@@ -4944,9 +2984,6 @@ export default function SOPWorkbench({ onSwitch }) {
       }
 
 
-
-
-
       // 加载历史大纲
 
 
@@ -4962,9 +2999,6 @@ export default function SOPWorkbench({ onSwitch }) {
       } catch (e) { console.error('加载历史大纲失败', e); }
 
 
-
-
-
     };
 
 
@@ -4972,9 +3006,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   }, []);
-
-
-
 
 
   useEffect(() => {
@@ -4988,7 +3019,6 @@ export default function SOPWorkbench({ onSwitch }) {
   }, [scene]);
 
 
-
   useEffect(() => {
 
     if (scene?.id) {
@@ -4998,8 +3028,6 @@ export default function SOPWorkbench({ onSwitch }) {
     }
 
   }, [scene?.id]);
-
-
 
 
   useEffect(() => {
@@ -5017,22 +3045,7 @@ export default function SOPWorkbench({ onSwitch }) {
   }, [selectedDocId, docs]);
 
 
-
-
-
-  const showToast = (msg) => {
-
-
-    setToast(msg);
-
-
-    setTimeout(() => setToast(''), 1800);
-
-
-  };
-
-
-
+  // showToast 已通过 useToast hook 提供
 
 
   const startEditLlmButton = (btn) => {
@@ -5059,9 +3072,6 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const cancelEditLlmButton = () => {
 
 
@@ -5072,9 +3082,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const addIoRuleToDraft = () => {
@@ -5119,9 +3126,6 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const updateIoRuleInDraft = (ruleId, patch) => {
 
 
@@ -5152,9 +3156,6 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const deleteIoRuleFromDraft = (ruleId) => {
 
 
@@ -5179,13 +3180,7 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
-
-
-
 
 
   const optimizePromptDraft = async () => {
@@ -5260,9 +3255,6 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const saveLlmButtonDraft = () => {
 
 
@@ -5332,9 +3324,6 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const addLlmButton = () => {
 
 
@@ -5371,9 +3360,6 @@ export default function SOPWorkbench({ onSwitch }) {
         { id: `io_${Date.now()}_2`, enabled: true, dataSource: 'preview', output: 'summaries', target: 'summary' }]
 
 
-
-
-
     };
 
 
@@ -5384,9 +3370,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const deleteLlmButton = (id) => {
@@ -5425,9 +3408,6 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const handleDeleteBlock = (blockId) => {
 
 
@@ -5449,9 +3429,6 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const handleRestoreBlock = (blockId) => {
 
 
@@ -5467,18 +3444,12 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const handlePermanentDeleteBlock = (blockId) => {
     if (!confirm('确认要永久删除该组件吗？此操作不可撤销。')) return;
     const newDeleted = deletedBlocks.filter((id) => id !== blockId);
     setDeletedBlocks(newDeleted);
     localStorage.setItem('layout_deleted_blocks', JSON.stringify(newDeleted));
   };
-
-
-
 
 
   const toggleLlmButtonEnabled = (id, enabled) => {
@@ -5488,9 +3459,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const logSection = (action, content) => {
@@ -5529,9 +3497,6 @@ export default function SOPWorkbench({ onSwitch }) {
   };
 
 
-
-
-
   const startDeposit = () => {
 
 
@@ -5545,9 +3510,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
 
   };
-
-
-
 
 
   const endDeposit = () => {
@@ -6442,9 +4404,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   // --- History Handlers ---
 
 
@@ -6455,9 +4414,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const saveHistory = async () => {
@@ -6532,17 +4488,10 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const useHistory = async (item) => {
 
 
     if (!item?.template) return;
-
-
-
-
 
 
     setHistoryLoading(true);
@@ -6564,9 +4513,6 @@ ${combinedRequirements}
 
 
       setShowOutlineMode(true);
-
-
-
 
 
       // 记录沉淀
@@ -6596,9 +4542,6 @@ ${combinedRequirements}
       });
 
 
-
-
-
       showToast('已恢复历史大纲');
 
 
@@ -6624,9 +4567,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const deleteHistory = async (itemId) => {
@@ -6669,9 +4609,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const updateHistoryTitle = async (itemId, newTitle) => {
@@ -6726,9 +4663,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const reloadDeposits = async (silent = false) => {
@@ -6803,9 +4737,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const normalizeDepositGroup = (g) => {
 
 
@@ -6828,9 +4759,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const reloadDepositGroups = async (silent = false) => {
@@ -6878,7 +4806,6 @@ ${combinedRequirements}
   };
 
 
-
   const loadSharedScene = async () => {
 
     const cachedId = localStorage.getItem(SHARED_SCENE_KEY);
@@ -6892,7 +4819,6 @@ ${combinedRequirements}
         if (existing?.scene) return existing.scene;
 
       } catch (_) {
-
 
 
         /* ignore */
@@ -6913,15 +4839,10 @@ ${combinedRequirements}
   };
 
 
-
-
   const getSelectedDepositIds = () =>
 
 
     deposits.filter((d) => selectedDepositIds?.[d.id]).map((d) => d.id);
-
-
-
 
 
   const createDepositGroupFromSelection = async () => {
@@ -6987,9 +4908,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const updateDepositGroup = async (groupId, patch, successMsg) => {
     if (!groupId) return;
     const nextPatch = { ...patch };
@@ -7038,9 +4956,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const renameDepositGroup = async () => {
 
 
@@ -7072,9 +4987,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const updateGroupFromSelection = async () => {
@@ -7134,9 +5046,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const deleteDepositGroup = async () => {
     const group = depositGroups.find((g) => g.id === selectedDepositGroupId);
     if (!group) {
@@ -7155,9 +5064,6 @@ ${combinedRequirements}
       await reloadDepositGroups(true);
     }
   };
-
-
-
 
 
   const replayDepositGroup = async () => {
@@ -7214,9 +5120,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const normalizeAppButtons = (payload) => {
 
 
@@ -7256,9 +5159,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const updateAppButtonLabel = (id, label) => {
 
 
@@ -7268,9 +5168,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const updateAppButtonGroups = (id, groupIds) => {
 
 
@@ -7278,9 +5175,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const toggleAppButtonGroup = (id, groupId) => {
@@ -7314,9 +5208,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const saveAppButtonsConfig = async () => {
@@ -7360,9 +5251,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   
@@ -7441,537 +5329,13 @@ ${combinedRequirements}
   };
 
 
+  // renderAppButtonsConfigPanel 已迁移到 ./sop/panels/AppButtonsConfigPanel.jsx
 
 
-
-  const renderAppButtonsConfigPanel = () =>
-
-
-    <div className="app-buttons-config">
-
-
-      <div className="card-head" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-
-
-        <div>
-
-
-          <div className="section-title">{UI_TEXT.t1}</div>
-
-
-          <div className="hint">{UI_TEXT.t2}</div>
-
-
-        </div>
-
-
-        <button
-
-
-          className="ghost small"
-
-
-          type="button"
-
-
-          onClick={saveAppButtonsConfig}
-
-
-          disabled={appButtonsSaving}
-
-
-          style={{ pointerEvents: 'auto' }}>
-
-
-
-
-
-          {appButtonsSaving ? UI_TEXT.t117 : UI_TEXT.t66}
-
-
-        </button>
-
-
-      </div>
-
-
-      {/* 注：Replay 目录配置已移至"文档列表"面板，应用端和后管端共用同一配置 */}
-
-      {appButtonsConfig.length === 0 ?
-
-
-        <div className="hint">{UI_TEXT.t3}</div> :
-
-
-
-
-
-        <div className="app-buttons-config-grid">
-
-
-          <div className="app-buttons-left">
-
-
-            {appButtonsConfig.map((btn, idx) => {
-
-
-              const isActive = btn.id === selectedAppButtonId;
-
-
-              const groupNames = (btn.groupIds || []).
-
-
-                map((gid) => depositGroups.find((g) => g.id === gid)?.name || gid);
-
-
-              return (
-
-
-                <div
-
-
-                  key={btn.id}
-
-
-                  className={`app-button-item ${isActive ? 'active' : ''}`}
-
-
-                  onClick={() => setSelectedAppButtonId(btn.id)}>
-
-
-
-
-
-                  <div className="app-button-row">
-
-
-                    <span className="pill muted">{idx + 1}</span>
-
-
-                    <input
-
-
-                      value={btn.label}
-
-
-                      onChange={(e) => updateAppButtonLabel(btn.id, e.target.value)}
-
-
-                      onClick={(e) => e.stopPropagation()}
-
-
-                      placeholder={UI_TEXT.t43} />
-
-
-
-
-
-                  </div>
-
-
-                  <div className="app-button-selected-groups">
-
-
-                    {groupNames.length === 0 ?
-
-
-                      <span className="hint">{UI_TEXT.t118}</span> :
-
-
-
-
-
-                      groupNames.map((name) =>
-
-
-                        <span key={name} className="pill muted">{name}</span>
-
-
-                      )
-
-
-                    }
-
-
-                  </div>
-
-
-                </div>);
-
-
-
-
-
-            })}
-
-
-          </div>
-
-
-          <div className="app-buttons-right">
-
-
-            <div className="section-title" style={{ fontSize: '14px' }}>{UI_TEXT.t4}</div>
-
-
-            <div className="hint">{UI_TEXT.t5}</div>
-
-
-            {depositGroups.length === 0 ?
-
-
-              <div className="hint">{UI_TEXT.t6}</div> :
-
-
-
-
-
-              <div className="app-button-group-list">
-
-
-                {depositGroups.map((group) => {
-
-
-                  const selected = appButtonsConfig.find((btn) => btn.id === selectedAppButtonId);
-
-
-                  const checked = selected?.groupIds?.includes(group.id);
-
-
-                  return (
-
-
-                    <label key={group.id} className={`app-button-group-item ${checked ? 'active' : ''}`}>
-
-
-                      <input
-
-
-                        type="checkbox"
-
-
-                        checked={!!checked}
-
-
-                        onChange={() => {
-
-
-                          if (!selected) return;
-
-
-                          toggleAppButtonGroup(selected.id, group.id);
-
-
-                        }} />
-
-
-
-
-
-                      <span>{group.name}</span>
-
-
-                    </label>);
-
-
-
-
-
-                })}
-
-
-              </div>
-
-
-            }
-
-
-          </div>
-
-
-        </div>
-
-
-      }
-
-
-    </div>;
-
-
-
-
-
-
-
-
-  const renderGlobalButtonsConfigPanel = () =>
-
-
-    <div style={{ height: '100%', overflow: 'auto' }}>
-
-
-      <div style={{ padding: '12px', borderBottom: '1px solid #f0f0f0', background: '#fafafa' }}>
-
-
-        <h4 style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 600 }}>{UI_TEXT.t7}</h4>
-
-
-        <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>{UI_TEXT.t8}</p>
-
-
-      </div>
-
-
-      <div style={{ padding: '0 12px' }}>
-
-
-        {globalButtons.map((btn) =>
-
-
-          <label
-
-
-            key={btn.id}
-
-
-            style={{
-
-
-              display: 'block',
-
-
-              padding: '10px 0',
-
-
-              borderBottom: '1px solid #f0f0f0'
-
-
-            }}>
-
-
-
-
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-
-
-              <div>
-
-
-                <div style={{ fontSize: '13px', fontWeight: 500 }}>{btn.label}</div>
-
-
-                <div style={{ fontSize: '11px', color: '#999' }}>{btn.kind}</div>
-
-
-              </div>
-
-
-              <input
-
-
-                type="checkbox"
-
-
-                checked={btn.enabled !== false}
-
-
-                disabled={btn.kind === 'outline_extract'}
-
-
-                style={btn.kind === 'outline_extract' ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-
-
-                title={btn.kind === 'outline_extract' ? UI_TEXT.t157 : ''}
-
-
-                onChange={(e) => {
-
-
-                  if (btn.kind === 'outline_extract') return;
-
-
-                  const newEnabled = e.target.checked;
-
-
-                  const newButtons = globalButtons.map((b) => b.id === btn.id ? { ...b, enabled: newEnabled } : b);
-
-
-                  setGlobalButtons(newButtons);
-
-
-                  saveButtonConfig({ activeButtons: newButtons });
-
-
-                }} />
-
-
-
-
-
-            </div>
-
-
-            {btn.kind === 'outline_extract' &&
-
-
-              <div style={{ padding: '8px 0 4px' }}>
-
-
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>{UI_TEXT.t9}</div>
-
-
-                <textarea
-
-
-                  value={btn.prompt || ''}
-
-
-                  onChange={(e) => {
-
-
-                    const newPrompt = e.target.value;
-
-
-                    const newButtons = globalButtons.map((b) => b.id === btn.id ? { ...b, prompt: newPrompt } : b);
-
-
-                    setGlobalButtons(newButtons);
-
-
-                    saveButtonConfig({ activeButtons: newButtons });
-
-
-                  }}
-
-
-                  style={{ width: '100%', minHeight: '80px', fontSize: '12px' }} />
-
-
-
-
-
-              </div>
-
-
-            }
-
-
-          </label>
-
-
-        )}
-
-
-      </div>
-
-
-      <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>
-
-
-        <button
-
-
-          className="ghost small"
-
-
-          type="button"
-
-
-          style={{ color: '#666' }}
-
-
-          onClick={() => {
-
-
-            const defaults = defaultLlmButtons();
-
-
-            const currentKinds = globalButtons.map((b) => b.kind);
-
-
-            const missing = defaults.filter((d) => !currentKinds.includes(d.kind));
-
-
-
-
-
-            if (missing.length === 0) {
-
-
-              showToast(UI_TEXT.t158);
-
-
-              return;
-
-
-            }
-
-
-
-
-
-            if (window.confirm(`${UI_TEXT.t159}${missing.length}${UI_TEXT.t160}`)) {
-
-
-              const newRestored = missing.map((b) => ({
-
-
-                ...b,
-
-
-                id: `btn_restored_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-
-
-                enabled: true
-
-
-              }));
-
-
-              const newButtons = [...globalButtons, ...newRestored];
-
-
-              setGlobalButtons(newButtons);
-
-
-              saveButtonConfig({ activeButtons: newButtons });
-
-
-              showToast(UI_TEXT.t161);
-
-
-            }
-
-
-          }}>{UI_TEXT.t10}
-
-
-
-
-
-
-
-
-        </button>
-
-
-      </div>
-
-
-    </div>;
-
-
-
-
-
-
+  // renderGlobalButtonsConfigPanel 已迁移到 ./sop/panels/GlobalButtonsConfigPanel.jsx
 
 
   // --- Precipitation Handlers ---
-
-
-
 
 
   const handleHeaderTitleMouseDown = (e, titleKey) => {
@@ -7986,9 +5350,6 @@ ${combinedRequirements}
     e.stopPropagation();
 
 
-
-
-
     const startX = e.clientX;
 
 
@@ -7998,16 +5359,10 @@ ${combinedRequirements}
     const startPos = headerTitles[titleKey].position || { left: 0, top: 0 };
 
 
-
-
-
     setDraggingHeaderTitle({ titleKey, startX, startY, startPos });
 
 
   };
-
-
-
 
 
   // 监听标题拖动
@@ -8019,9 +5374,6 @@ ${combinedRequirements}
     if (!draggingHeaderTitle) return;
 
 
-
-
-
     const handleMouseMove = (e) => {
 
 
@@ -8029,9 +5381,6 @@ ${combinedRequirements}
 
 
       const deltaY = e.clientY - draggingHeaderTitle.startY;
-
-
-
 
 
       setHeaderTitles((prev) => ({
@@ -8067,9 +5416,6 @@ ${combinedRequirements}
     };
 
 
-
-
-
     const handleMouseUp = () => {
 
 
@@ -8079,16 +5425,10 @@ ${combinedRequirements}
     };
 
 
-
-
-
     document.addEventListener('mousemove', handleMouseMove);
 
 
     document.addEventListener('mouseup', handleMouseUp);
-
-
-
 
 
     return () => {
@@ -8106,12 +5446,6 @@ ${combinedRequirements}
   }, [draggingHeaderTitle]);
 
 
-
-
-
-
-
-
   const handleHeaderTitleResizeMouseDown = (e, titleKey, direction) => {
 
 
@@ -8122,9 +5456,6 @@ ${combinedRequirements}
 
 
     e.stopPropagation();
-
-
-
 
 
     const startX = e.clientX;
@@ -8145,16 +5476,10 @@ ${combinedRequirements}
     };
 
 
-
-
-
     setResizingHeaderTitle({ titleKey, startX, startY, startSize, direction });
 
 
   };
-
-
-
 
 
   // 监听标题大小调整
@@ -8166,9 +5491,6 @@ ${combinedRequirements}
     if (!resizingHeaderTitle) return;
 
 
-
-
-
     const handleMouseMove = (e) => {
 
 
@@ -8178,9 +5500,6 @@ ${combinedRequirements}
       const deltaY = e.clientY - resizingHeaderTitle.startY;
 
 
-
-
-
       setHeaderTitles((prev) => {
 
 
@@ -8188,9 +5507,6 @@ ${combinedRequirements}
 
 
         const newHeight = Math.max(20, resizingHeaderTitle.startSize.height + deltaY);
-
-
-
 
 
         return {
@@ -8223,9 +5539,6 @@ ${combinedRequirements}
     };
 
 
-
-
-
     const handleMouseUp = () => {
 
 
@@ -8235,16 +5548,10 @@ ${combinedRequirements}
     };
 
 
-
-
-
     document.addEventListener('mousemove', handleMouseMove);
 
 
     document.addEventListener('mouseup', handleMouseUp);
-
-
-
 
 
     return () => {
@@ -8262,34 +5569,19 @@ ${combinedRequirements}
   }, [resizingHeaderTitle]);
 
 
-
-
-
-
-
-
   useEffect(() => {
 
 
     if (!draggingButton) return;
 
 
-
-
-
     const handleMouseMove = (e) => {
-
-
-
 
 
       const deltaX = e.clientX - draggingButton.startX;
 
 
       const deltaY = e.clientY - draggingButton.startY;
-
-
-
 
 
       if (draggingButton.panelId) {
@@ -8308,9 +5600,6 @@ ${combinedRequirements}
 
 
         let nextHeight = draggingButton.originalHeight;
-
-
-
 
 
         if (dragType === 'move') {
@@ -8346,9 +5635,6 @@ ${combinedRequirements}
         }
 
 
-
-
-
         setButtonPositions((prev) => {
 
 
@@ -8382,9 +5668,6 @@ ${combinedRequirements}
       }
 
 
-
-
-
       if (draggingButton.action === 'move') {
 
 
@@ -8415,9 +5698,6 @@ ${combinedRequirements}
         const newHeight = Math.max(20, draggingButton.startSize.height + deltaY);
 
 
-
-
-
         updateGlobalButton(draggingButton.buttonId, {
 
 
@@ -8436,9 +5716,6 @@ ${combinedRequirements}
     };
 
 
-
-
-
     const handleMouseUp = () => {
 
 
@@ -8446,9 +5723,6 @@ ${combinedRequirements}
 
 
     };
-
-
-
 
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -8470,9 +5744,6 @@ ${combinedRequirements}
 
 
   }, [draggingButton, globalButtons]);
-
-
-
 
 
   // 监听 headerTitles 变化并自动保存到 localStorage
@@ -8499,9 +5770,6 @@ ${combinedRequirements}
   }, [headerTitles]);
 
 
-
-
-
   const handleStartEditingLayout = () => {
 
 
@@ -8521,9 +5789,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const applySavedLayout = () => {
@@ -8559,9 +5824,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const handleCancelLayoutEdit = () => {
 
 
@@ -8577,22 +5839,10 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const handleCompleteLayoutEdit = async () => {
 
 
-
-
-
     setIsEditingLayout(false);
-
-
-
-
-
-
 
 
     try {
@@ -8642,12 +5892,6 @@ ${combinedRequirements}
       console.log('[Save] Saved global buttons config:', globalButtons.length, 'active buttons');
 
 
-
-
-
-
-
-
       setSavedLayout(JSON.parse(JSON.stringify(panelPositions)));
 
 
@@ -8658,9 +5902,6 @@ ${combinedRequirements}
 
 
       setEditingHeaderTitle(null);
-
-
-
 
 
       showToast('配置已保存（本地）');
@@ -8676,12 +5917,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
-
-
-
 
 
     (async () => {
@@ -8765,7 +6000,6 @@ ${combinedRequirements}
           })
 
 
-
         ]
 
         );
@@ -8775,9 +6009,6 @@ ${combinedRequirements}
 
 
       } catch (e) {
-
-
-
 
 
         console.warn('Backend save failed', e);
@@ -8792,9 +6023,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const handleResetLayout = () => {
 
 
@@ -8807,19 +6035,10 @@ ${combinedRequirements}
   };
 
 
-
-
-
-
-
-
   const handleButtonMouseDown = (e, panelId, buttonId, dragType = 'move') => {
 
 
     if (!isEditingLayout) return;
-
-
-
 
 
     const button = buttonPositions[panelId]?.find((b) => b.id === buttonId);
@@ -8828,16 +6047,10 @@ ${combinedRequirements}
     if (!button) return;
 
 
-
-
-
     const startX = e.clientX;
 
 
     const startY = e.clientY;
-
-
-
 
 
     setDraggingButton({
@@ -8873,22 +6086,10 @@ ${combinedRequirements}
     });
 
 
-
-
-
     e.preventDefault();
 
 
   };
-
-
-
-
-
-
-
-
-
 
 
   const toggleDepositSelected = (depositId, checked) => {
@@ -8915,13 +6116,7 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const clearDepositSelection = () => setSelectedDepositIds({});
-
-
-
 
 
   const persistDepositOrder = async (nextList) => {
@@ -8963,9 +6158,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const reorderDepositList = (list, sourceId, targetId) => {
 
 
@@ -8993,9 +6185,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const moveDepositToIndex = (list, depositId, targetIndex) => {
 
 
@@ -9021,9 +6210,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const applyDepositOrderChange = (updater) => {
@@ -9056,9 +6242,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const selectAllDeposits = () => {
 
 
@@ -9084,9 +6267,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const deleteDepositsByIds = async (ids) => {
@@ -9117,9 +6297,6 @@ ${combinedRequirements}
 
 
     const failedIds = list.filter((_, idx) => results[idx].status !== 'fulfilled');
-
-
-
 
 
     if (okIds.length) {
@@ -9185,9 +6362,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     if (failedIds.length) {
 
 
@@ -9209,9 +6383,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     const refreshed = await reloadDeposits(false);
 
 
@@ -9221,13 +6392,7 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const deleteSelectedDeposits = () => void deleteDepositsByIds(Object.keys(selectedDepositIds || {}).filter((k) => selectedDepositIds[k]));
-
-
-
 
 
   const startEditDeposit = (depositId, field, value) => {
@@ -9239,9 +6404,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const startEditDepositOrder = (depositId, currentIndex) => {
 
 
@@ -9249,9 +6411,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const cancelEditDeposit = (depositId, field) => {
@@ -9273,9 +6432,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const applyDepositName = async (depositId) => {
@@ -9318,9 +6474,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const updateDepositMode = async (depositId, mode) => {
@@ -9368,93 +6521,7 @@ ${combinedRequirements}
   };
 
 
-
-
-
-  const renderDepositModeSelect = (deposit) =>
-
-
-    <label className="deposit-mode">
-
-
-      <select
-
-
-        value={normalizePrecipitationMode(deposit?.precipitationMode)}
-
-
-        onChange={(e) => updateDepositMode(deposit.id, e.target.value)}>
-
-
-
-
-
-        <option value="llm">{UI_TEXT.t11}</option>
-
-
-        <option value="script">{UI_TEXT.t12}</option>
-
-
-      </select>
-
-
-    </label>;
-
-
-
-
-
-
-
-
-  const renderDepositGroupSelector = () =>
-
-
-    <div className="deposit-group-selector">
-
-
-      <span className="hint">{UI_TEXT.t13}</span>
-
-
-      <select
-
-
-        value={selectedDepositGroupId}
-
-
-        onChange={(e) => setSelectedDepositGroupId(e.target.value)}>
-
-
-
-
-
-        <option value="">{UI_TEXT.t14}</option>
-
-
-        {depositGroups.length === 0 ?
-
-
-          <option value="" disabled>{UI_TEXT.t6}</option> :
-
-
-          null}
-
-
-        {depositGroups.map((g) =>
-          <option key={g.id} value={g.id}>{sanitizeText(g.name, g.name || '')}</option>
-        )}
-
-
-      </select>
-
-
-    </div>;
-
-
-
-
-
-
+  // renderDepositModeSelect 和 renderDepositGroupSelector 已迁移到 ./sop/panels/DepositPanels.jsx
 
 
   const getProcessingTabLayout = () => {
@@ -9537,9 +6604,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const applyDepositOrder = (depositId) => {
 
 
@@ -9573,9 +6637,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const handleDepositOrderKeyDown = (e, depositId) => {
 
 
@@ -9589,9 +6650,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const handleDepositDragStart = (depositId) => (e) => {
@@ -9615,17 +6673,11 @@ ${combinedRequirements}
     } catch (_) {
 
 
-
-
-
       /* ignore */
     }
 
 
   };
-
-
-
 
 
   const handleDepositDragOver = (depositId) => (e) => {
@@ -9641,9 +6693,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const handleDepositDrop = (depositId) => (e) => {
@@ -9670,9 +6719,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const handleDepositDragEnd = () => {
 
 
@@ -9683,9 +6729,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const renderProcessingTabArrows = () => {
@@ -9736,25 +6779,16 @@ ${combinedRequirements}
           style={{ left: `${Math.max(0, center - 10)}px`, top: `${Math.max(0, top)}px` }}>
 
 
-
-
-
           --&gt;
 
 
         </span>);
 
 
-
-
-
     });
 
 
   };
-
-
-
 
 
   // 沉淀列表模式的按钮: 批量操作 + 沉淀集管理
@@ -9773,7 +6807,6 @@ ${combinedRequirements}
     'group_delete',
     'group_replay'
   ]);
-
 
 
   const getRecordsToolbarButtons = (kindSet) => {
@@ -9868,9 +6901,6 @@ ${combinedRequirements}
       }
 
 
-
-
-
       if (btn.kind === 'batch_replay' && batchReplayRunning) {
 
 
@@ -9880,9 +6910,6 @@ ${combinedRequirements}
       }
 
 
-
-
-
       if (btn.kind === 'group_replay' && selectedGroup && depositGroupReplay[selectedGroup.id]) {
 
 
@@ -9890,9 +6917,6 @@ ${combinedRequirements}
 
 
       }
-
-
-
 
 
       let label = btn.label;
@@ -9910,9 +6934,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const getDepositReplayStatus = (deposit) => {
@@ -9943,9 +6964,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const getDepositReplayReason = (deposit) => {
@@ -9993,326 +7011,9 @@ ${combinedRequirements}
   };
 
 
+  // renderDepositGroupsList 已迁移到 ./sop/panels/DepositPanels.jsx
 
-
-
-  // 渲染沉淀集列表视图
-  const renderDepositGroupsList = () => {
-    if (depositGroups.length === 0) {
-      return <p className="hint" style={{ padding: '20px', textAlign: 'center' }}>{UI_TEXT.t6}</p>;
-    }
-    return (
-      <div className="deposit-groups-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {depositGroups.map((group) => {
-          const isSelected = selectedDepositGroupId === group.id;
-          const depositCount = (group.depositIds || []).length;
-          return (
-            <div
-              key={group.id}
-              className={`section deposit-group-item ${isSelected ? 'selected' : ''}`}
-              style={{
-                padding: '12px 16px',
-                borderRadius: '8px',
-                background: isSelected ? '#e0f2fe' : '#f8fafc',
-                border: isSelected ? '2px solid #0ea5e9' : '1px solid #e2e8f0',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-              onClick={() => setSelectedDepositGroupId(isSelected ? '' : group.id)}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => setSelectedDepositGroupId(isSelected ? '' : group.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ width: '16px', height: '16px' }}
-                  />
-                  <span style={{ fontWeight: 500, fontSize: '14px' }}>{sanitizeText(group.name, group.id)}</span>
-                  <span className="pill muted" style={{ fontSize: '12px' }}>{depositCount} 条沉淀</span>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    type="button"
-                    className="ghost xsmall"
-                    onClick={(e) => { e.stopPropagation(); setSelectedDepositGroupId(group.id); renameDepositGroup(); }}
-                  >
-                    {UI_TEXT.t67}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost xsmall"
-                    onClick={(e) => { e.stopPropagation(); setSelectedDepositGroupId(group.id); setTimeout(() => replayDepositGroup(), 0); }}
-                    disabled={depositGroupReplay[group.id]}
-                  >
-                    {depositGroupReplay[group.id] ? UI_TEXT.t119 : 'Replay'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderSelectedDepositGroupPanel = () => {
-    const group = depositGroups.find((g) => g.id === selectedDepositGroupId);
-    if (!group) return null;
-
-
-    // 支持一个沉淀被多次添加到同一个沉淀集，保留重复项
-    const groupDeposits = (group.depositIds || [])
-      .map((id, idx) => {
-        const dep = deposits.find((d) => d.id === id);
-        return dep ? { ...dep, _groupIdx: idx } : null;
-      })
-      .filter(Boolean);
-
-
-    return (
-
-
-      <div className="section deposit-group-panel">
-
-
-        <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-          <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-
-
-            <span>{UI_TEXT.t15}{group.name}</span>
-
-
-            <span className="pill muted">{groupDeposits.length}</span>
-
-
-          </div>
-
-
-          <div className="section-actions" style={{ gap: 6 }}>
-
-
-            <button
-
-
-              className="ghost xsmall"
-
-
-              type="button"
-
-
-              onClick={replayDepositGroup}
-
-
-              disabled={depositGroupReplay[group.id]}>
-
-
-
-
-              {depositGroupReplay[group.id] ? UI_TEXT.t119 : 'Replay'}
-
-
-
-            </button>
-
-
-          </div>
-
-
-        </div>
-
-
-        <div className="sections" style={{ gap: 6 }}>
-
-
-          {groupDeposits.length === 0 && <div className="hint">{UI_TEXT.t16}</div>}
-
-
-          {groupDeposits.map((dep, idx) =>
-            <div key={`${dep.id}_${dep._groupIdx}`} className="section">
-
-
-              <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
-
-
-                  <span className="pill muted">{idx + 1}</span>
-
-
-                  {depositEditing[`${dep.id}||name`] !== undefined ?
-
-
-                    <input
-
-
-                      className="deposit-name-input"
-
-
-                      value={depositEditing[`${dep.id}||name`]}
-
-
-                      onChange={(e) => startEditDeposit(dep.id, 'name', e.target.value)}
-
-
-                      onBlur={() => void applyDepositName(dep.id)}
-
-
-                      onKeyDown={(e) => handleDepositNameKeyDown(e, dep.id)}
-
-
-                      autoFocus
-
-
-                      onClick={(e) => e.stopPropagation()}
-
-
-                      style={{ border: '1px solid #1a73e8', padding: '2px 6px', borderRadius: '4px', fontSize: '16px', width: '200px' }} /> :
-
-
-
-
-
-
-
-
-                    <span
-
-
-                      className="deposit-name"
-
-
-                      onDoubleClick={(e) => { e.stopPropagation(); startEditDeposit(dep.id, 'name', dep.name || dep.id); }}
-
-
-                      title={UI_TEXT.t120}
-
-
-                      style={{ cursor: 'text', fontWeight: 500 }}>
-
-
-
-
-
-                      {dep.name || UI_TEXT.t144}
-
-
-                    </span>
-
-
-                  }
-
-
-                  <button
-
-
-                    className="icon-btn tiny"
-
-
-                    type="button"
-
-
-                    onClick={(e) => { e.stopPropagation(); startEditDeposit(dep.id, 'name', dep.name || dep.id); }}
-
-
-                    title={UI_TEXT.t67}
-
-
-                    style={{ width: 20, height: 20, padding: 2, opacity: 0.5 }}>
-
-
-
-
-
-                    <Edit3 size={12} />
-
-
-                  </button>
-
-
-                </div>
-
-
-                <div className="section-actions" style={{ gap: 6 }}>
-
-
-                  {getDepositReplayStatus(dep) ?
-
-
-                    <span
-
-
-                      className={`status ${getDepositReplayStatus(dep).replace(' ', '-')}`}
-
-                      title={getDepositReplayReason(dep) || UI_TEXT.t122}>
-
-
-
-
-
-
-                      {getDepositReplayStatus(dep)}
-
-
-                    </span> :
-
-
-                    null}
-
-
-                  <button
-
-
-                    className="ghost xsmall"
-
-
-                    type="button"
-
-
-                    onClick={() => void replayDeposit(dep.id)}
-
-
-                    disabled={!!replayState?.[dep.id]?.running}>
-
-
-
-
-
-                    Replay
-
-
-                  </button>
-
-
-                </div>
-
-
-              </div>
-
-
-            </div>
-
-
-          )}
-
-
-        </div>
-
-
-      </div>);
-
-
-
-
-
-  };
-
-
-
+  // renderSelectedDepositGroupPanel 已迁移到 ./sop/panels/DepositPanels.jsx
 
 
   const addDeposit = () => {
@@ -10340,9 +7041,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const addDepositSection = (depositId) => {
@@ -10400,9 +7098,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const deleteDepositSection = (depositId, sectionId) => {
@@ -10477,9 +7172,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const applyDepositSectionField = (depositId, sectionId, field) => {
 
 
@@ -10514,9 +7206,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const startEditDepositSection = (depositId, section) => {
@@ -10571,9 +7260,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const flexEditUploadDepositSection = async (depositId, section) => {
 
 
@@ -10616,9 +7302,6 @@ ${combinedRequirements}
       }
 
 
-
-
-
       const res = await api('/api/replay/file-selector', {
 
 
@@ -10646,9 +7329,6 @@ ${combinedRequirements}
       }
 
 
-
-
-
       const nextMeta = {
 
 
@@ -10665,9 +7345,6 @@ ${combinedRequirements}
 
 
       };
-
-
-
 
 
       const selectorHint =
@@ -10689,9 +7366,6 @@ ${combinedRequirements}
 
 
       const nextContent = appendReplayMeta([head, body].join('\n'), nextMeta);
-
-
-
 
 
       setDeposits((prev) =>
@@ -10717,7 +7391,6 @@ ${combinedRequirements}
       showToast(res?.usedModel === false ? '生成成功（未配置大模型）' : '生成成功');
 
 
-
     } catch (err) {
 
 
@@ -10731,9 +7404,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const cancelEditDepositSection = (depositId, sectionId) => {
@@ -10772,9 +7442,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const applyDepositSection = async (depositId, sectionId) => {
@@ -10993,9 +7660,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const handleDepositNameKeyDown = (e, depositId) => {
 
 
@@ -11009,9 +7673,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const handleDepositSectionKeyDown = (e, depositId, sectionId) => {
@@ -11032,9 +7693,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const isDepositSectionExpanded = (depositId, sectionId) => {
 
 
@@ -11051,9 +7709,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const toggleDepositSectionExpanded = (depositId, sectionId) => {
@@ -11075,9 +7730,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const setAllDepositSectionsExpanded = (depositId, expanded) => {
@@ -11105,9 +7757,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const batchReplaySelectedDeposits = async () => {
@@ -11162,9 +7811,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const submitInputForm = async (formTarget) => {
@@ -11299,9 +7945,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   async function handleCreateDoc(event) {
 
 
@@ -11312,9 +7955,6 @@ ${combinedRequirements}
 
 
   }
-
-
-
 
 
   function extractText(raw) {
@@ -11374,9 +8014,6 @@ ${combinedRequirements}
   }
 
 
-
-
-
   async function handleFilePick(event) {
 
 
@@ -11387,9 +8024,6 @@ ${combinedRequirements}
 
 
     if (!files.length) return;
-
-
-
 
 
     const createdDocs = [];
@@ -11473,9 +8107,6 @@ ${combinedRequirements}
               }],
 
 
-
-
-
             process: (isDocx ? '解析 Word(.docx) 为结构化文本，' : '') + (createRes?.overwritten ? '覆盖同名文档' : '上传为新文档'),
 
 
@@ -11510,9 +8141,6 @@ ${combinedRequirements}
 
 
       }
-
-
-
 
 
       const uniqueCreatedDocs = uniqueDocsByIdKeepLast(createdDocs);
@@ -11555,9 +8183,6 @@ ${combinedRequirements}
 
 
       }
-
-
-
 
 
       if (uniqueCreatedDocs.length && failedFiles.length) {
@@ -11605,9 +8230,6 @@ ${combinedRequirements}
   }
 
 
-
-
-
   async function getDocIdsForScene() {
 
 
@@ -11647,9 +8269,6 @@ ${combinedRequirements}
   }
 
 
-
-
-
   async function editSection(sectionId) {
 
 
@@ -11684,9 +8303,6 @@ ${combinedRequirements}
 
 
   }
-
-
-
 
 
   function buildFinalText() {
@@ -11740,9 +8356,6 @@ ${combinedRequirements}
   }
 
 
-
-
-
   async function openFinalPreview() {
 
 
@@ -11761,9 +8374,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     const cfg = llmButtons.find((b) => b.kind === 'final_generate');
 
 
@@ -11774,9 +8384,6 @@ ${combinedRequirements}
 
 
     let modelAttempted = false;
-
-
-
 
 
     if (cfg?.enabled && (cfg.prompt || '').toString().trim()) {
@@ -11833,9 +8440,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     logSectionWithMeta(cfg?.label || UI_TEXT.t91, {
 
 
@@ -11869,9 +8473,6 @@ ${combinedRequirements}
     });
 
 
-
-
-
     const win = window.open('', '_blank');
 
 
@@ -11902,16 +8503,10 @@ ${combinedRequirements}
   }
 
 
-
-
-
   async function autoTemplate(buttonConfig) {
 
 
     console.log('[autoTemplate] Called with buttonConfig:', buttonConfig);
-
-
-
 
 
     let currentScene = scene;
@@ -11968,9 +8563,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     // Determine configuration:
 
 
@@ -11978,9 +8570,6 @@ ${combinedRequirements}
 
 
     let btnConfig = buttonConfig;
-
-
-
 
 
     // If it's a Global Button (likely lacking 'io'), merge with default definition for its kind
@@ -11993,9 +8582,6 @@ ${combinedRequirements}
 
 
       const defaultMatch = defaults.find((b) => b.kind === btnConfig.kind) || defaults[0];
-
-
-
 
 
       // Merge: Global overrides Default (label, prompt), but inherits IO
@@ -12019,9 +8605,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     if (!btnConfig) {
 
 
@@ -12031,9 +8614,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     // Final button object
 
 
@@ -12041,9 +8621,6 @@ ${combinedRequirements}
 
 
     console.log('[autoTemplate] Using resolved config:', btn);
-
-
-
 
 
     const doc = docs.find((d) => d.id === selectedDocId);
@@ -12059,9 +8636,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
 
 
     const io = normalizeIoRows(btn?.io, { dataSource: btn?.dataSource, outputTarget: btn?.outputTarget });
@@ -12080,9 +8654,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
 
 
     const sources = Array.from(new Set(enabledRows.map((r) => r.dataSource)));
@@ -12106,9 +8677,6 @@ ${combinedRequirements}
     if (!text.trim()) return showToast('当前数据源内容为空，无法抽取大纲');
 
 
-
-
-
     console.log('[autoTemplate] Sending to API, text length:', text.length);
 
 
@@ -12130,13 +8698,7 @@ ${combinedRequirements}
       });
 
 
-
-
-
       console.log('[autoTemplate] API response:', tplRes);
-
-
-
 
 
       const hasSummaryToSummary = enabledRows.some((r) => r.output === 'summaries' && r.target === 'summary');
@@ -12146,9 +8708,6 @@ ${combinedRequirements}
 
 
       const hasTitleToSummary = enabledRows.some((r) => r.output === 'titles' && r.target === 'summary');
-
-
-
 
 
       const transformedTemplate = {
@@ -12169,9 +8728,6 @@ ${combinedRequirements}
           const title = hasSummaryToTitle && modelSummary ? `${modelTitle} - ${modelSummary}` : modelTitle;
 
 
-
-
-
           const summaryParts = [];
 
 
@@ -12184,9 +8740,6 @@ ${combinedRequirements}
           const summary = summaryParts.join('\n').trim();
 
 
-
-
-
           // CRITICAL FIX: Return the transformed section object
 
 
@@ -12197,9 +8750,6 @@ ${combinedRequirements}
 
 
       };
-
-
-
 
 
       const applyRes = await api(`/api/scene/${currentScene.id}/apply-template`, {
@@ -12283,10 +8833,7 @@ ${combinedRequirements}
         outputs: {
 
 
-
           summary: '生成大纲：标题数 ' + applyRes.template.sections.length + (tplRes?.usedModel === false ? tplRes?.blocked ? '（安全拦截，已降级规则提取）' : '（未配置大模型）' : ''),
-
-
 
 
           sectionsCount: applyRes.template.sections.length,
@@ -12375,9 +8922,6 @@ ${combinedRequirements}
   }
 
 
-
-
-
   const clearOutlineTemplate = async () => {
 
 
@@ -12418,9 +8962,6 @@ ${combinedRequirements}
 
 
       } catch (_) {
-
-
-
 
 
         /* ignore */
@@ -12499,9 +9040,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const runOutlineSlotButton = async (btn) => {
 
 
@@ -12529,9 +9067,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     const io = normalizeIoRows(btn?.io, { dataSource: btn?.dataSource, outputTarget: btn?.outputTarget });
 
 
@@ -12554,9 +9089,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
 
 
     const doc = docs.find((d) => d.id === selectedDocId) || null;
@@ -12616,9 +9148,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     const instructions = ((btn?.label || '').toString().trim() || '执行').toString();
 
 
@@ -12638,9 +9167,6 @@ ${combinedRequirements}
 
 
     }));
-
-
-
 
 
     setLoading(true);
@@ -12694,9 +9220,6 @@ ${combinedRequirements}
       const detail = extractText(result.detail || '') || '';
 
 
-
-
-
       if (detail.trim()) {
 
 
@@ -12748,9 +9271,6 @@ ${combinedRequirements}
       }
 
 
-
-
-
       logSectionWithMeta('个性化按钮', {
 
 
@@ -12778,9 +9298,6 @@ ${combinedRequirements}
           ...sources.map((src) => ({ kind: src === 'selected_doc' ? 'selected_doc' : 'preview', length: docContent.length }))],
 
 
-
-
-
         process: '使用个性化按钮调用大模型，对选中标题进行写入并应用结果',
 
 
@@ -12791,9 +9308,6 @@ ${combinedRequirements}
 
 
       });
-
-
-
 
 
       showToast(summary);
@@ -12818,9 +9332,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   async function runDispatch() {
@@ -12889,9 +9400,6 @@ ${combinedRequirements}
     let historyInputs = null;
 
 
-
-
-
     if (dispatchMode === 'batch_outline') {
 
 
@@ -12916,16 +9424,10 @@ ${combinedRequirements}
       dispatchInputs.push({ kind: 'outline_selected', sectionIds: selectedOutlineIdsForDispatch });
 
 
-
-
-
       dispatchInputKind = 'outline_selected_batch';
 
 
       dispatchInputNote = '输入来自：已勾选标题及摘要；输出将按 edits 修改大纲';
-
-
-
 
 
       outlineSegments = selectedSections.map((sec, idx) => ({
@@ -13037,9 +9539,6 @@ ${combinedRequirements}
 
 
       }
-
-
-
 
 
       if (sectionsWithUnprocessed.length) {
@@ -13299,9 +9798,6 @@ ${combinedRequirements}
       if (dispatchInputRef.current) dispatchInputRef.current.value = '';
 
 
-
-
-
       let appliedEditsCount = 0;
 
 
@@ -13391,9 +9887,6 @@ ${combinedRequirements}
       }
 
 
-
-
-
       // 记录 edits 已经更新的 sectionId
       const editedSectionIds = new Set();
       if (Array.isArray(result.edits)) {
@@ -13405,9 +9898,6 @@ ${combinedRequirements}
       }
 
       let appliedSummaryCount = 0;
-
-
-
 
 
       // 对于 edits 没有覆盖到的选中标题，如果有 detail，用 detail 填充
@@ -13450,9 +9940,6 @@ ${combinedRequirements}
       }
 
 
-
-
-
       const destinations = [{ kind: 'dispatch_result' }];
 
 
@@ -13460,9 +9947,6 @@ ${combinedRequirements}
 
 
       if (appliedEditsCount) destinations.push(`文档处理/大纲配置（按 edits 写回${appliedEditsCount}处）`);
-
-
-
 
 
       // 沉淀记录：执行指令 - 记录完整信息
@@ -13629,9 +10113,6 @@ ${combinedRequirements}
       });
 
 
-
-
-
       // 若处理了文档，标记已处理 
 
 
@@ -13698,9 +10179,6 @@ ${combinedRequirements}
   }
 
 
-
-
-
   async function applyProcessedToOutput() {
 
 
@@ -13729,9 +10207,6 @@ ${combinedRequirements}
 
 
   }
-
-
-
 
 
   async function deleteDoc(id) {
@@ -13815,9 +10290,6 @@ ${combinedRequirements}
   }
 
 
-
-
-
   const clearAllDocs = async () => {
 
 
@@ -13881,9 +10353,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   useEffect(() => {
 
 
@@ -13914,9 +10383,6 @@ ${combinedRequirements}
   }, [appButtonsConfig]);
 
 
-
-
-
   const selectedDoc = docs.find((d) => d.id === selectedDocId);
 
 
@@ -13941,13 +10407,7 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const slotsForOutput = Object.keys(finalSlots).length ? finalSlots : {};
-
-
-
 
 
   const startEditOutline = (id, field, value) => {
@@ -13966,9 +10426,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const addDocToSection = (sectionId) => {
@@ -14053,9 +10510,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const copyPreviewToSummary = (sectionId, docId) => {
@@ -14145,9 +10599,6 @@ ${combinedRequirements}
             { kind: 'doc_resource', docName, length: (doc?.content || '').toString().length }],
 
 
-
-
-
         process: '将选中文档的全部内容复制到该标题的摘要中（覆盖原摘要）',
 
 
@@ -14170,9 +10621,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const removeDocFromSection = (sectionId, docId) => {
@@ -14271,9 +10719,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const persistSectionLinks = async (links) => {
 
 
@@ -14322,9 +10767,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const saveDocDraft = async () => {
 
 
@@ -14367,9 +10809,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const cancelEditOutline = (id, field) => {
 
 
@@ -14389,9 +10828,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const applyOutlineUpdate = (sectionId, field, value) => {
@@ -14563,9 +10999,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const clearOutlineSummary = (sectionId) => {
 
 
@@ -14662,9 +11095,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const updateSectionLevel = (sectionId, level) => {
 
 
@@ -14719,9 +11149,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const updateTemplateSections = (updater) => {
 
 
@@ -14765,9 +11192,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const addSectionBelow = (afterId) => {
@@ -14874,9 +11298,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const removeSectionById = (sectionId) => {
 
 
@@ -14911,9 +11332,6 @@ ${combinedRequirements}
 
 
     const removed = sections.filter((s) => idsToRemove.includes(s.id));
-
-
-
 
 
     updateTemplateSections((list) => (list || []).filter((s) => !idsToRemove.includes(s.id)));
@@ -15122,13 +11540,7 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const outlineTree = buildSectionTree(template?.sections || []);
-
-
-
 
 
   const updatePreviewSelection = () => {
@@ -15179,9 +11591,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const getPreviewSelectionFromDom = () => {
 
 
@@ -15210,9 +11619,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const insertSelectionToCheckedSummaries = async () => {
@@ -15269,9 +11675,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     const doc = docs.find((d) => d.id === selectedDocId);
 
 
@@ -15296,9 +11699,6 @@ ${combinedRequirements}
     });
 
 
-
-
-
     const overwriteIds = [];
 
 
@@ -15315,9 +11715,6 @@ ${combinedRequirements}
 
 
     });
-
-
-
 
 
     const nextTpl = (() => {
@@ -15345,9 +11742,6 @@ ${combinedRequirements}
 
 
     })();
-
-
-
 
 
     if (nextTpl) {
@@ -15428,9 +11822,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     // 获取选中内容的上下文（前后各100字符）
     const fullDocText = doc?.content || '';
     const selStart = domSel?.start ?? previewSelection.start;
@@ -15499,9 +11890,6 @@ ${combinedRequirements}
     );
 
 
-
-
-
     const endPos = domSel?.end ?? previewSelection.end;
 
 
@@ -15517,9 +11905,6 @@ ${combinedRequirements}
     } catch (_) {
 
 
-
-
-
       /* ignore */
     }
 
@@ -15528,9 +11913,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const setReplaySectionStatus = (depositId, sectionId, status, message) => {
@@ -15587,9 +11969,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const captureReplaySnapshot = () =>
 
 
@@ -15638,9 +12017,6 @@ ${combinedRequirements}
     });
 
 
-
-
-
   const restoreReplaySnapshot = async (snap) => {
     if (!snap) return;
 
@@ -15667,9 +12043,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const findDocIdByNameInList = (name, list) => {
 
 
@@ -15688,19 +12061,10 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const findDocIdByName = (name) => findDocIdByNameInList(name, docs);
 
 
-
-
-
   const waitUiTick = () => new Promise((r) => setTimeout(r, 0));
-
-
-
 
 
   const refreshDocsFromServer = async () => {
@@ -15727,9 +12091,6 @@ ${combinedRequirements}
     } catch (_) {
 
 
-
-
-
       /* ignore */
     }
 
@@ -15738,9 +12099,6 @@ ${combinedRequirements}
 
 
   };
-
-
-
 
 
   const refreshSceneFromServer = async (sceneId) => {
@@ -15791,9 +12149,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const getServerTemplate = async (sceneId) => {
 
 
@@ -15824,9 +12179,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const applyTemplateToServer = async (tpl) => {
 
 
@@ -15854,9 +12206,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const strictReplayRequired = (meta, action) => {
 
 
@@ -15881,9 +12230,6 @@ ${combinedRequirements}
   };
 
 
-
-
-
   const replayOneDepositSection = async (deposit, section) => {
 
 
@@ -15897,9 +12243,6 @@ ${combinedRequirements}
 
 
     const softErrors = [];
-
-
-
 
 
     const assertReplay = (cond, message, opts = {}) => {
@@ -15924,9 +12267,6 @@ ${combinedRequirements}
 
 
     };
-
-
-
 
 
     const finalizeReplayResult = (result) => {
@@ -15963,9 +12303,6 @@ ${combinedRequirements}
     };
 
 
-
-
-
     if (strictReplayRequired(meta, action)) {
 
 
@@ -15973,9 +12310,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
 
 
     if (meta?.type === 'dispatch_input' || action === '输入指令') {
@@ -15991,9 +12325,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
 
 
     if (
@@ -16027,9 +12358,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
 
 
     if (meta?.type === 'add_doc' || action === '添加文档') {
@@ -16182,9 +12510,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     if (meta?.type === 'copy_full_to_summary' || action === '复制全文到摘要') {
 
 
@@ -16206,9 +12531,7 @@ ${combinedRequirements}
       let doc = id ? docs.find((d) => d.id === id) : null;
 
 
-      if (!id && replayDirHandle) {
-
-
+      if (!id && replayDirConfig?.dirPath) {
         const uploaded = await uploadDocFromReplayDirByName(docName);
 
 
@@ -16272,9 +12595,6 @@ ${combinedRequirements}
     }
 
 
-
-
-
     if (meta?.type === 'outline_link_doc' || action === '关联文档') {
 
 
@@ -16293,9 +12613,7 @@ ${combinedRequirements}
       let id = findDocIdByName(docName);
 
 
-      if (!id && replayDirHandle) {
-
-
+      if (!id && replayDirConfig?.dirPath) {
         const d = await uploadDocFromReplayDirByName(docName);
 
 
@@ -16342,9 +12660,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
 
 
     if (meta?.type === 'outline_unlink_doc' || action === '取消关联') {
@@ -16441,9 +12756,6 @@ ${combinedRequirements}
 
 
     }
-
-
-
 
 
     if (meta?.type === 'insert_to_summary' || action === '添入摘要' || action === '填入摘要') {
@@ -16678,9 +12990,6 @@ ${text}
     }
 
 
-
-
-
     if (meta?.type === 'delete_outline_section' || action === '删除标题') {
 
 
@@ -16748,9 +13057,6 @@ ${text}
 
 
     }
-
-
-
 
 
     if (meta?.type === 'outline_clear' || action === '清除大纲') {
@@ -16853,14 +13159,11 @@ ${specialRequirements || '无'}`;
       }
 
 
-
       const dispatchCfg = llmButtons.find((b) => b.kind === 'dispatch');
 
 
       const systemPrompt = meta?.prompt || dispatchCfg?.prompt;
       const m = /指令：?([\\s\\S]*?)(\\n|$)/.exec((section?.content || '').toString());
-
-
 
 
       const inputKind = (meta?.inputKind || '').toString();
@@ -16873,9 +13176,6 @@ ${specialRequirements || '无'}`;
 
 
       let outlineSegments = [];
-
-
-
 
 
       if (inputKind === 'result' && Array.isArray(meta?.historyInputs) && meta.historyInputs.length) {
@@ -16981,9 +13281,7 @@ ${specialRequirements || '无'}`;
             let docObj = id ? docs.find((x) => x.id === id) : null;
 
 
-            if (!docObj && replayDirHandle) {
-
-
+            if (!docObj && replayDirConfig?.dirPath) {
               // eslint-disable-next-line no-await-in-loop
 
 
@@ -17041,9 +13339,7 @@ ${specialRequirements || '无'}`;
         let docObj = id ? docs.find((x) => x.id === id) : null;
 
 
-        if (!id && preferDocName && replayDirHandle) {
-
-
+        if (!id && preferDocName && replayDirConfig?.dirPath) {
           docObj = await uploadDocFromReplayDirByName(preferDocName);
 
 
@@ -17060,9 +13356,6 @@ ${specialRequirements || '无'}`;
 
 
       }
-
-
-
 
 
       const result = await api('/api/dispatch', {
@@ -17104,9 +13397,6 @@ ${specialRequirements || '无'}`;
       }
 
 
-
-
-
       const detail = extractText(result.detail || '');
 
 
@@ -17131,9 +13421,6 @@ ${specialRequirements || '无'}`;
       if (expectedEditsCount !== null && expectedEditsCount > 0) {
         assertReplay(hasOutput, 'Replay 未返回有效输出（detail 或 edits 均为空）');
       }
-
-
-
 
 
       const baseTpl = await getServerTemplate(scene?.id);
@@ -17209,9 +13496,6 @@ ${specialRequirements || '无'}`;
       }
 
 
-
-
-
       if (selectedIds.length) {
 
 
@@ -17273,9 +13557,6 @@ ${specialRequirements || '无'}`;
   };
 
 
-
-
-
   const replayDeposit = async (depositId) => {
 
 
@@ -17288,9 +13569,6 @@ ${specialRequirements || '无'}`;
     if (replayState?.[depositId]?.running) return;
 
 
-
-
-
     setExpandedLogs((prev) => ({ ...prev, [depositId]: true }));
 
 
@@ -17298,9 +13576,6 @@ ${specialRequirements || '无'}`;
 
 
     showToast('开始Replay');
-
-
-
 
 
     for (const s of dep.sections || []) {
@@ -17336,9 +13611,6 @@ ${specialRequirements || '无'}`;
     }
 
 
-
-
-
     setReplayState((prev) => ({ ...prev, [depositId]: { ...(prev?.[depositId] || {}), running: false } }));
 
 
@@ -17346,9 +13618,6 @@ ${specialRequirements || '无'}`;
 
 
   };
-
-
-
 
 
   // 计算某个标题是否有下级标题（用于显示展开/收起按钮）
@@ -17407,676 +13676,42 @@ ${specialRequirements || '无'}`;
     return false;
   };
 
-  const renderOutlineNode = (node) => {
-    // 检查是否应该被隐藏
-    if (isSectionHiddenByParent(node.index)) {
-      return null;
-    }
-
-    const sec = node.section;
-
-
-    const level = sec?.level || 1;
-
-
-    const prefix = levelLabel[level] || levelLabel[1];
-
-
-    const titleKey = `${sec.id}||title`;
-
-
-    const summaryKey = `${sec.id}||summary`;
-
-
-    const editingTitle = outlineEditing[titleKey];
-
-
-    const editingSummary = outlineEditing[summaryKey];
-
-
-    const linkedDocIds = sectionDocLinks[sec.id] || [];
-
-
-    const doneMap = sectionDocDone[sec.id] || {};
-
-
-    const storedPickDocId = sectionDocPick[sec.id] || '';
-
-
-    const pickDocId = storedPickDocId || linkedDocIds[linkedDocIds.length - 1] || '';
-
-
-    const canCopyFullToSummary =
-
-
-      showOutlineMode &&
-
-
-      processingTab !== 'records' &&
-
-
-      !!pickDocId &&
-
-
-      (linkedDocIds || []).includes(pickDocId);
-
-
-
-
-
-    return (
-
-
-      <div
-
-
-        key={sec.id}
-
-
-        className={`section outline-node level-${Number(level) || 1}`}
-
-
-        style={{ position: 'relative' }}>
-
-
-
-
-
-        <div className="section-head" style={{ alignItems: 'center', justifyContent: 'space-between', paddingRight: '100px' }}>
-
-
-          <div
-
-
-            className="section-title"
-
-
-            style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-
-
-
-
-
-            {editingTitle !== undefined ?
-
-
-              <>
-
-
-                <select
-
-
-                  value={level}
-
-
-                  onChange={(e) => updateSectionLevel(sec.id, e.target.value)}
-
-
-                  className="level-select">
-
-
-
-
-
-                  <option value="1">{UI_TEXT.t17}</option>
-
-
-                  <option value="2">{UI_TEXT.t18}</option>
-
-
-                  <option value="3">{UI_TEXT.t19}</option>
-
-
-                  <option value="4">{UI_TEXT.t20}</option>
-
-
-                </select>
-
-
-                <input
-
-
-                  value={editingTitle}
-
-
-                  onChange={(e) => setOutlineEditing((prev) => ({ ...prev, [titleKey]: e.target.value }))}
-
-
-                  style={{ minWidth: 200 }} />
-
-
-
-
-
-                <button className="ghost small" onClick={() => applyOutlineUpdate(sec.id, 'title', editingTitle)}>{UI_TEXT.t21}
-
-
-
-
-
-                </button>
-
-
-                <button className="ghost small" onClick={() => cancelEditOutline(sec.id, 'title')}>{UI_TEXT.t22}
-
-
-
-
-
-                </button>
-
-
-              </> :
-
-
-
-
-
-              <>
-
-
-                <span>{`${prefix}：${sec.title}`}</span>
-
-
-                <button className="ghost xsmall" style={{ fontSize: '11px', padding: '2px 6px' }} onClick={() => startEditOutline(sec.id, 'title', sec.title || '')}>{UI_TEXT.t23}
-
-
-
-
-
-                </button>
-
-
-              </>
-
-
-            }
-
-
-          </div>
-
-
-          <div className="section-actions btn-compact" style={{ position: 'absolute', right: '8px', top: '8px' }}>
-
-
-            <label className="inline-check">
-
-
-              <input
-
-
-                type="checkbox"
-
-
-                checked={!!selectedOutlineExec[sec.id]}
-
-
-                onChange={(e) => setSelectedOutlineExec((prev) => ({ ...prev, [sec.id]: e.target.checked }))} />
-
-
-
-
-
-            </label>
-
-
-            <button className="ghost xsmall" type="button" onClick={() => addSectionBelow(sec.id)}>
-
-
-              +
-
-
-            </button>
-
-
-            <button className="ghost xsmall" type="button" onClick={() => removeSectionById(sec.id)}>
-
-
-              {UI_TEXT.t25}
-
-
-            </button>
-
-            {/* 展开/收起按钮 - 仅当有下级标题时显示 */}
-            {hasChildSections(sec.id) && (
-              <button 
-                className="ghost xsmall" 
-                type="button" 
-                onClick={() => toggleSectionCollapse(sec.id)}
-                style={{ 
-                  fontSize: '11px', 
-                  padding: '2px 6px',
-                  minWidth: '36px',
-                  color: sectionCollapsed[sec.id] ? '#0ea5e9' : '#64748b'
-                }}
-                title={sectionCollapsed[sec.id] ? '展开下级标题' : '收起下级标题'}
-              >
-                {sectionCollapsed[sec.id] ? '展开' : '收起'}
-              </button>
-            )}
-
-
-          </div>
-
-
-        </div>
-
-
-
-
-
-        <div className="hint" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-
-
-          {editingSummary !== undefined ?
-
-
-            <>
-
-
-              <textarea
-
-
-                rows={2}
-
-
-                value={editingSummary}
-
-
-                onChange={(e) => setOutlineEditing((prev) => ({ ...prev, [summaryKey]: e.target.value }))}
-
-
-                style={{ minWidth: 260 }} />
-
-
-
-
-
-              <button className="ghost small" onClick={() => applyOutlineUpdate(sec.id, 'summary', editingSummary)}>{UI_TEXT.t24}
-
-
-
-
-
-              </button>
-
-
-              <button className="ghost small" onClick={() => cancelEditOutline(sec.id, 'summary')}>{UI_TEXT.t22}
-
-
-
-
-
-              </button>
-
-
-            </> :
-
-
-
-
-
-            <>
-
-
-              <div className={`summary-text ${summaryExpanded[sec.id] ? 'expanded' : ''}`}>
-
-
-                {sec.summary || sec.hint || UI_TEXT.t127}
-
-
-              </div>
-
-
-              {(sec.summary || sec.hint) &&
-
-
-                <>
-
-
-                  <button
-
-
-                    className="ghost xsmall"
-
-
-                    type="button"
-
-
-                    style={{ fontSize: '11px', padding: '2px 6px' }}
-
-
-                    onClick={() => setSummaryExpanded((prev) => ({ ...prev, [sec.id]: !prev[sec.id] }))}>
-
-
-
-
-
-                    {summaryExpanded[sec.id] ? UI_TEXT.t142 : UI_TEXT.t143}
-
-
-                  </button>
-
-
-                  <button className="ghost xsmall" style={{ fontSize: '11px', padding: '2px 6px' }} type="button" onClick={() => clearOutlineSummary(sec.id)}>{UI_TEXT.t25}
-
-
-
-
-
-                  </button>
-
-
-                </>
-
-
-              }
-
-
-              <button className="ghost xsmall" style={{ fontSize: '11px', padding: '2px 6px' }} onClick={() => startEditOutline(sec.id, 'summary', sec.summary || sec.hint || '')}>{UI_TEXT.t26}
-
-
-
-
-
-              </button>
-
-
-            </>
-
-
-          }
-
-
-        </div>
-
-
-
-
-
-        <div className="link-row outline-row mixed-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-
-
-          {/* Picker & Add Button (First) */}
-
-
-          <div className="link-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-
-
-            <select
-
-
-              value={storedPickDocId || ''}
-
-
-              onChange={(e) => setSectionDocPick((prev) => ({ ...prev, [sec.id]: e.target.value }))}
-
-
-              style={{ maxWidth: '140px', padding: '2px 6px', fontSize: '12px', height: '24px' }}>
-
-
-
-
-
-              <option value="">{UI_TEXT.t27}</option>
-
-
-              {docs.map((d) =>
-
-
-                <option key={d.id} value={d.id}>
-
-
-                  {d.name}
-
-
-                </option>
-
-
-              )}
-
-
-            </select>
-
-
-            <button className="ghost xsmall" style={{ fontSize: '11px', padding: '2px 6px', whiteSpace: 'nowrap' }} type="button" onClick={() => addDocToSection(sec.id)}>{UI_TEXT.t28}
-
-
-
-
-
-            </button>
-
-
-          </div>
-
-
-
-
-
-          {/* Linked Docs (After) */}
-
-
-          {linkedDocIds.map((id) => {
-
-
-            const doc = docs.find((d) => d.id === id);
-
-
-            const showCopy = canCopyFullToSummary && id === pickDocId;
-
-
-            return (
-
-
-              <span key={id} className="doc-inline" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-
-
-                <span className={`pill doc-pill ${doneMap[id] ? 'done' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', background: doneMap[id] ? '#e6f4ea' : '#f1f3f4', fontSize: '12px', border: '1px solid transparent' }}>
-
-
-                  <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc?.name || id}>
-
-
-                    {doc?.name || id}
-
-
-                  </span>
-
-
-                  {doneMap[id] && <span className="checkmark" style={{ fontSize: '10px' }}></span>}
-
-
-                  <button
-
-
-                    type="button"
-
-
-                    className="pill-close"
-
-
-                    onClick={() => removeDocFromSection(sec.id, id)}
-
-
-                    aria-label={UI_TEXT.t29}
-
-
-                    style={{ width: '16px', height: '16px', lineHeight: '14px', fontSize: '14px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: '#666', cursor: 'pointer' }}>
-
-
-
-
-
-                    ×
-
-
-                  </button>
-
-
-                </span>
-
-
-                {showCopy ?
-
-
-                  <button
-
-
-                    className="ghost xsmall"
-
-
-                    type="button"
-
-
-                    style={{ fontSize: '11px', padding: '2px 6px' }}
-
-
-                    onClick={() => copyPreviewToSummary(sec.id, pickDocId)}>{UI_TEXT.t30}
-
-
-
-
-
-
-
-
-                  </button> :
-
-
-                  null}
-
-
-              </span>);
-
-
-
-
-
-          })}
-
-
-        </div>
-
-
-
-
-
-        {node.children?.length ? <div className="outline-children">{node.children.map(renderOutlineNode)}</div> : null}
-
-
-      </div>);
-
-
-
-
-
-  };
-
-
-
-
-
-  const EditingToolbar = () =>
-
-
-    isEditingLayout ?
-
-
-      <div
-
-
-        style={{
-
-
-          position: 'fixed',
-
-
-          top: 12,
-
-
-          right: 12,
-
-
-          zIndex: 9999,
-
-
-          display: 'flex',
-
-
-          gap: 8,
-
-
-          padding: '8px 12px',
-
-
-          background: 'rgba(255,255,255,0.9)',
-
-
-          WebkitBackdropFilter: 'blur(8px)',
-
-
-          backdropFilter: 'blur(8px)',
-
-
-          boxShadow: '0 4px 12px rgba(15,23,42,0.25)',
-
-
-          borderRadius: 8,
-
-
-          border: '1px solid #cbd5e1',
-
-
-          pointerEvents: 'auto'
-
-
-        }}
-
-
-        onMouseDown={(e) => e.stopPropagation()}
-
-
-        onClick={(e) => e.stopPropagation()}>
-
-
-
-
-
-        <button type="button" className="ghost success" onClick={handleCompleteLayoutEdit} title={UI_TEXT.t31}>{UI_TEXT.t32}
-
-
-
-
-
-        </button>
-
-
-        <button type="button" className="ghost" onClick={handleCancelLayoutEdit} title={UI_TEXT.t33}>{UI_TEXT.t34}
-
-
-
-
-
-        </button>
-
-
-        <button type="button" className="ghost warning" onClick={handleResetLayout} title={UI_TEXT.t35}>{UI_TEXT.t36}
-
-
-
-
-
-        </button>
-
-
-      </div> :
-
-
-      null;
-
-
-
+  // 使用 createOutlineNodeRenderer 创建大纲节点渲染函数
+  // 已从 ~480 行内联代码迁移至独立组件 OutlineNode.jsx
+  const renderOutlineNode = createOutlineNodeRenderer({
+    levelLabel,
+    outlineEditing,
+    sectionDocLinks,
+    sectionDocDone,
+    sectionDocPick,
+    showOutlineMode,
+    processingTab,
+    selectedOutlineExec,
+    sectionCollapsed,
+    summaryExpanded,
+    docs,
+    isSectionHiddenByParent,
+    updateSectionLevel,
+    setOutlineEditing,
+    applyOutlineUpdate,
+    cancelEditOutline,
+    startEditOutline,
+    setSelectedOutlineExec,
+    addSectionBelow,
+    removeSectionById,
+    hasChildSections,
+    toggleSectionCollapse,
+    clearOutlineSummary,
+    setSummaryExpanded,
+    setSectionDocPick,
+    addDocToSection,
+    removeDocFromSection,
+    copyPreviewToSummary,
+  });
+
+
+  // EditingToolbar 已迁移到 ./sop/SOPToolbar.jsx
+  // 使用方式: <EditingToolbar isEditing={isEditingLayout} onComplete={handleCompleteLayoutEdit} onCancel={handleCancelLayoutEdit} onReset={handleResetLayout} />
 
 
   // 样式编辑
@@ -18085,28 +13720,16 @@ ${specialRequirements || '无'}`;
   const handleStyleEdit = (panelId, buttonId) => {
 
 
-
-
-
     setEditingButtonId(JSON.stringify({ panelId, buttonId }));
 
 
   };
 
 
-
-
-
-
-
-
   const handleWorkbenchButtonClick = (button) => {
 
 
     if (isEditingLayout) return; // 编辑模式下不触发业务逻辑
-
-
-
 
 
     console.log('Workbench button clicked:', button.kind, button.label);
@@ -18119,9 +13742,6 @@ ${specialRequirements || '无'}`;
 
 
       Object.keys(selectedDepositIds || {}).filter((k) => selectedDepositIds[k]).length === deposits.length;
-
-
-
 
 
     switch (button.kind) {
@@ -18149,24 +13769,10 @@ ${specialRequirements || '无'}`;
 
 
       case 'pick_dir':
-
-
-        pickReplayDirectory();
-
-
-        break;
-
-
       case 'clear_dir':
-
-
-        clearReplayDirectory();
-
-
+        // 已移除浏览器端目录选择功能，请在文档列表面板中配置服务端目录路径
+        console.log('目录配置已移至文档列表面板');
         break;
-
-
-
 
 
       // Preview Panel
@@ -18182,9 +13788,6 @@ ${specialRequirements || '无'}`;
 
 
         break;
-
-
-
 
 
       // Processing Panel
@@ -18331,9 +13934,6 @@ ${specialRequirements || '无'}`;
       case 'outline_extract':
 
 
-
-
-
         const llmBtn = llmButtons.find((b) => b.kind === 'outline_extract');
 
 
@@ -18367,9 +13967,6 @@ ${specialRequirements || '无'}`;
         break;
 
 
-
-
-
       // Operations Panel
 
 
@@ -18400,9 +13997,6 @@ ${specialRequirements || '无'}`;
         break;
 
 
-
-
-
       default:
 
 
@@ -18410,9 +14004,6 @@ ${specialRequirements || '无'}`;
 
 
         if (button.kind?.startsWith('slot_') || button.kind === 'custom') {
-
-
-
 
 
           const target = llmButtons.find((b) => b.id === button.id) || button;
@@ -18437,9 +14028,6 @@ ${specialRequirements || '无'}`;
 
 
   };
-
-
-
 
 
   // 更新按钮样式
@@ -18508,13 +14096,7 @@ ${specialRequirements || '无'}`;
   };
 
 
-
-
-
   // ===== 全局按钮操作函数 =====
-
-
-
 
 
   // 更新全局按钮
@@ -18536,9 +14118,6 @@ ${specialRequirements || '无'}`;
 
 
   };
-
-
-
 
 
   // 更新全局按钮样式
@@ -18589,12 +14168,6 @@ ${specialRequirements || '无'}`;
   };
 
 
-
-
-
-
-
-
   const deleteGlobalButton = (buttonId) => {
 
 
@@ -18604,28 +14177,16 @@ ${specialRequirements || '无'}`;
     if (!button) return;
 
 
-
-
-
     console.log('[GlobalButton] Delete (to recycle):', buttonId);
 
 
-
-
-
     const deletedButton = { ...button, deletedAt: Date.now() };
-
-
-
 
 
     setDeletedButtons((prev) => [...prev, deletedButton]);
 
 
     setGlobalButtons((prev) => prev.filter((btn) => btn.id !== buttonId));
-
-
-
 
 
     // 保存到localStorage
@@ -18646,9 +14207,6 @@ ${specialRequirements || '无'}`;
   };
 
 
-
-
-
   // 恢复已删除的按钮
 
 
@@ -18661,9 +14219,6 @@ ${specialRequirements || '无'}`;
     if (!button) return;
 
 
-
-
-
     // 移除 deletedAt 标记
 
 
@@ -18671,18 +14226,6 @@ ${specialRequirements || '无'}`;
 
 
     const restoredButton = { ...rest };
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     setGlobalButtons((prev) => [...prev, restoredButton]);
@@ -18707,9 +14250,6 @@ ${specialRequirements || '无'}`;
 
 
   };
-
-
-
 
 
   // 永久删除按钮
@@ -18739,12 +14279,6 @@ ${specialRequirements || '无'}`;
   };
 
 
-
-
-
-
-
-
   const handleClearRecycleBin = () => {
 
 
@@ -18755,9 +14289,6 @@ ${specialRequirements || '无'}`;
 
 
   };
-
-
-
 
 
   // 全局按钮拖动处理
@@ -18775,25 +14306,16 @@ ${specialRequirements || '无'}`;
     e.stopPropagation();
 
 
-
-
-
     const button = globalButtons.find((btn) => btn.id === buttonId);
 
 
     if (!button) return;
 
 
-
-
-
     const startX = e.clientX;
 
 
     const startY = e.clientY;
-
-
-
 
 
     setDraggingButton({
@@ -18823,9 +14345,6 @@ ${specialRequirements || '无'}`;
   };
 
 
-
-
-
   // 全局按钮样式编辑
 
 
@@ -18836,9 +14355,6 @@ ${specialRequirements || '无'}`;
 
 
   };
-
-
-
 
 
   // 删除按钮
@@ -18877,12 +14393,6 @@ ${specialRequirements || '无'}`;
   };
 
 
-
-
-
-
-
-
   const renderProcessingPanelContent = () => {
 
 
@@ -18898,9 +14408,6 @@ ${specialRequirements || '无'}`;
     const showRecords = processingTab === 'records';
 
 
-
-
-
     return (
 
 
@@ -18911,9 +14418,6 @@ ${specialRequirements || '无'}`;
 
 
         <div className="processing-topbar" style={{ height: '40px' }} />
-
-
-
 
 
         {showConfig ?
@@ -18943,9 +14447,6 @@ ${specialRequirements || '无'}`;
             </div>
 
 
-
-
-
             <div className="sections" style={{ gap: 10 }}>
 
 
@@ -18953,9 +14454,6 @@ ${specialRequirements || '无'}`;
 
 
                 <div className="hint">{UI_TEXT.t39}</div> :
-
-
-
 
 
                 llmButtons.map((b, idx) =>
@@ -19006,9 +14504,6 @@ ${specialRequirements || '无'}`;
                             onChange={(e) => toggleLlmButtonEnabled(b.id, e.target.checked)} />
 
 
-
-
-
                           <span className="hint">{UI_TEXT.t40}</span>
 
 
@@ -19018,16 +14513,10 @@ ${specialRequirements || '无'}`;
                         <button className="ghost small" type="button" onClick={() => startEditLlmButton(b)} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t41}
 
 
-
-
-
                         </button>
 
 
                         <button className="ghost small" type="button" onClick={() => deleteLlmButton(b.id)} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t25}
-
-
-
 
 
                         </button>
@@ -19051,9 +14540,6 @@ ${specialRequirements || '无'}`;
             </div>
 
 
-
-
-
             {buttonDraft ?
 
 
@@ -19069,9 +14555,6 @@ ${specialRequirements || '无'}`;
                   <label className="form-row">{UI_TEXT.t43}
 
 
-
-
-
                     <input
 
 
@@ -19081,22 +14564,13 @@ ${specialRequirements || '无'}`;
                       onChange={(e) => setButtonDraft((p) => ({ ...p, label: e.target.value }))} />
 
 
-
-
-
                   </label>
-
-
-
 
 
                   <div className="link-row">
 
 
                     <label className="form-row" style={{ minWidth: 120 }}>{UI_TEXT.t40}
-
-
-
 
 
                       <select
@@ -19106,9 +14580,6 @@ ${specialRequirements || '无'}`;
 
 
                         onChange={(e) => setButtonDraft((p) => ({ ...p, enabled: e.target.value === 'on' }))}>
-
-
-
 
 
                         <option value="on">{UI_TEXT.t44}</option>
@@ -19126,9 +14597,6 @@ ${specialRequirements || '无'}`;
                     <label className="form-row" style={{ minWidth: 160 }}>{UI_TEXT.t46}
 
 
-
-
-
                       <select
 
 
@@ -19136,9 +14604,6 @@ ${specialRequirements || '无'}`;
 
 
                         onChange={(e) => setButtonDraft((p) => ({ ...p, precipitationMode: e.target.value }))}>
-
-
-
 
 
                         <option value="llm">{UI_TEXT.t11}</option>
@@ -19154,9 +14619,6 @@ ${specialRequirements || '无'}`;
 
 
                   </div>
-
-
-
 
 
                   <div className="section" style={{ background: '#fff' }}>
@@ -19178,9 +14640,6 @@ ${specialRequirements || '无'}`;
 
 
                       <button className="ghost small" type="button" onClick={addIoRuleToDraft} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t49}
-
-
-
 
 
                       </button>
@@ -19225,9 +14684,6 @@ ${specialRequirements || '无'}`;
                               onChange={(e) => updateIoRuleInDraft(r.id, { enabled: e.target.checked })} />
 
 
-
-
-
                             <span className="hint">{UI_TEXT.t40}</span>
 
 
@@ -19237,9 +14693,6 @@ ${specialRequirements || '无'}`;
                           <label className="form-row" style={{ minWidth: 220 }}>{UI_TEXT.t50}
 
 
-
-
-
                             <select
 
 
@@ -19247,9 +14700,6 @@ ${specialRequirements || '无'}`;
 
 
                               onChange={(e) => updateIoRuleInDraft(r.id, { dataSource: e.target.value })}>
-
-
-
 
 
                               <option value="preview">{UI_TEXT.t51}</option>
@@ -19267,9 +14717,6 @@ ${specialRequirements || '无'}`;
                           <label className="form-row" style={{ minWidth: 140 }}>{UI_TEXT.t53}
 
 
-
-
-
                             <select
 
 
@@ -19277,9 +14724,6 @@ ${specialRequirements || '无'}`;
 
 
                               onChange={(e) => updateIoRuleInDraft(r.id, { output: e.target.value })}>
-
-
-
 
 
                               <option value="titles">{UI_TEXT.t54}</option>
@@ -19297,9 +14741,6 @@ ${specialRequirements || '无'}`;
                           <label className="form-row" style={{ minWidth: 160 }}>{UI_TEXT.t55}
 
 
-
-
-
                             <select
 
 
@@ -19307,9 +14748,6 @@ ${specialRequirements || '无'}`;
 
 
                               onChange={(e) => updateIoRuleInDraft(r.id, { target: e.target.value })}>
-
-
-
 
 
                               <option value="title">{UI_TEXT.t54}</option>
@@ -19327,9 +14765,6 @@ ${specialRequirements || '无'}`;
                           <button className="ghost small" type="button" onClick={() => deleteIoRuleFromDraft(r.id)} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t56}
 
 
-
-
-
                           </button>
 
 
@@ -19343,9 +14778,6 @@ ${specialRequirements || '无'}`;
 
 
                   </div>
-
-
-
 
 
                   <label className="form-row">
@@ -19375,9 +14807,6 @@ ${specialRequirements || '无'}`;
                         style={{ pointerEvents: 'auto' }}>
 
 
-
-
-
                         {isOptimizingPrompt ? UI_TEXT.t133 : UI_TEXT.t132}
 
 
@@ -19399,13 +14828,7 @@ ${specialRequirements || '无'}`;
                       onChange={(e) => setButtonDraft((p) => ({ ...p, prompt: e.target.value }))} />
 
 
-
-
-
                   </label>
-
-
-
 
 
                   <div className="section-actions" style={{ justifyContent: 'flex-end' }}>
@@ -19414,16 +14837,10 @@ ${specialRequirements || '无'}`;
                     <button className="ghost small" type="button" onClick={cancelEditLlmButton} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t22}
 
 
-
-
-
                     </button>
 
 
                     <button className="ghost small" type="button" onClick={saveLlmButtonDraft} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t59}
-
-
-
 
 
                     </button>
@@ -19471,8 +14888,6 @@ ${specialRequirements || '无'}`;
             </> :
 
 
-
-
             <div className="sections history-scroll">
               {/* 沉淀列表/沉淀集列表切换标签 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
@@ -19513,8 +14928,33 @@ ${specialRequirements || '无'}`;
                 )}
               </div>
               {/* 沉淀集列表模式：显示所有沉淀集 + 选中沉淀集的详情 */}
-              {depositViewMode === 'groups' && renderDepositGroupsList()}
-              {depositViewMode === 'groups' && renderSelectedDepositGroupPanel()}
+              {depositViewMode === 'groups' && (
+                <DepositGroupsList
+                  depositGroups={depositGroups}
+                  selectedDepositGroupId={selectedDepositGroupId}
+                  setSelectedDepositGroupId={setSelectedDepositGroupId}
+                  renameDepositGroup={renameDepositGroup}
+                  replayDepositGroup={replayDepositGroup}
+                  depositGroupReplay={depositGroupReplay}
+                />
+              )}
+              {depositViewMode === 'groups' && (
+                <SelectedDepositGroupPanel
+                  depositGroups={depositGroups}
+                  selectedDepositGroupId={selectedDepositGroupId}
+                  deposits={deposits}
+                  depositEditing={depositEditing}
+                  startEditDeposit={startEditDeposit}
+                  applyDepositName={applyDepositName}
+                  handleDepositNameKeyDown={handleDepositNameKeyDown}
+                  replayDepositGroup={replayDepositGroup}
+                  replayDeposit={replayDeposit}
+                  depositGroupReplay={depositGroupReplay}
+                  replayState={replayState}
+                  getDepositReplayStatus={getDepositReplayStatus}
+                  getDepositReplayReason={getDepositReplayReason}
+                />
+              )}
 
               {depositViewMode === 'deposits' && deposits.length === 0 && <p className="hint">{UI_TEXT.t63}</p>}
 
@@ -19556,9 +14996,6 @@ ${specialRequirements || '无'}`;
                     style={dragOverDepositId === dep.id ? { outline: '2px dashed #3b82f6', outlineOffset: 2 } : undefined}>
 
 
-
-
-
                     <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
 
 
@@ -19578,9 +15015,6 @@ ${specialRequirements || '无'}`;
 
 
                             onChange={(e) => toggleDepositSelected(dep.id, e.target.checked)} />
-
-
-
 
 
                         </label>
@@ -19605,9 +15039,6 @@ ${specialRequirements || '无'}`;
 
 
                           title={UI_TEXT.t64}>
-
-
-
 
 
                           <GripVertical size={12} />
@@ -19646,12 +15077,6 @@ ${specialRequirements || '无'}`;
                             onKeyDown={(e) => handleDepositOrderKeyDown(e, dep.id)} /> :
 
 
-
-
-
-
-
-
                           <button
 
 
@@ -19665,9 +15090,6 @@ ${specialRequirements || '无'}`;
 
 
                             title={UI_TEXT.t65}>
-
-
-
 
 
                             {idx + 1}
@@ -19703,13 +15125,7 @@ ${specialRequirements || '无'}`;
                               style={{ minWidth: 180 }} />
 
 
-
-
-
                             <button className="ghost xsmall" type="button" onClick={() => void applyDepositName(dep.id)}>{UI_TEXT.t66}
-
-
-
 
 
                             </button>
@@ -19718,16 +15134,10 @@ ${specialRequirements || '无'}`;
                             <button className="ghost xsmall" type="button" onClick={() => cancelEditDeposit(dep.id, 'name')}>{UI_TEXT.t22}
 
 
-
-
-
                             </button>
 
 
                           </> :
-
-
-
 
 
                           <>
@@ -19746,12 +15156,6 @@ ${specialRequirements || '无'}`;
 
 
                               onClick={() => startEditDeposit(dep.id, 'name', dep.name || dep.id)}>{UI_TEXT.t67}
-
-
-
-
-
-
 
 
                             </button>
@@ -19781,9 +15185,6 @@ ${specialRequirements || '无'}`;
                             title={depositReason || UI_TEXT.t122}>
 
 
-
-
-
                             {depositStatus}
 
 
@@ -19793,7 +15194,7 @@ ${specialRequirements || '无'}`;
                           null}
 
 
-                        {renderDepositModeSelect(dep)}
+                        {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
 
                         <button
@@ -19811,9 +15212,6 @@ ${specialRequirements || '无'}`;
                           disabled={!!replayState?.[dep.id]?.running}>
 
 
-
-
-
                           Reply
 
 
@@ -19829,16 +15227,10 @@ ${specialRequirements || '无'}`;
                             <button className="ghost xsmall" type="button" onClick={() => setAllDepositSectionsExpanded(dep.id, false)}>{UI_TEXT.t68}
 
 
-
-
-
                             </button>
 
 
                             <button className="ghost xsmall" type="button" onClick={() => setAllDepositSectionsExpanded(dep.id, true)}>{UI_TEXT.t69}
-
-
-
 
 
                             </button>
@@ -19851,9 +15243,6 @@ ${specialRequirements || '无'}`;
 
 
                         <button className="ghost xsmall" type="button" onClick={() => deleteDepositsByIds([dep.id])}>{UI_TEXT.t25}
-
-
-
 
 
                         </button>
@@ -19869,9 +15258,6 @@ ${specialRequirements || '无'}`;
 
 
                           onClick={() => setExpandedLogs((prev) => ({ ...prev, [dep.id]: !prev[dep.id] }))}>
-
-
-
 
 
                           {expandedLogs[dep.id] ? UI_TEXT.t142 : UI_TEXT.t143}
@@ -20032,13 +15418,7 @@ ${specialRequirements || '无'}`;
                                         style={{ minWidth: 180 }} />
 
 
-
-
-
                                     </> :
-
-
-
 
 
                                     <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
@@ -20074,9 +15454,6 @@ ${specialRequirements || '无'}`;
                                     <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)}>{UI_TEXT.t73}
 
 
-
-
-
                                     </button> :
 
 
@@ -20110,13 +15487,7 @@ ${specialRequirements || '无'}`;
                                     </> :
 
 
-
-
-
                                     <button className="ghost xsmall" type="button" onClick={() => startEditDepositSection(dep.id, s)}>{UI_TEXT.t41}
-
-
-
 
 
                                     </button>
@@ -20135,9 +15506,6 @@ ${specialRequirements || '无'}`;
 
 
                                   <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
-
-
-
 
 
                                   </button>
@@ -20262,9 +15630,6 @@ ${specialRequirements || '无'}`;
                                             onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_input`, e.target.value)}>
 
 
-
-
-
                                             <option value="required">{UI_TEXT.t75}</option>
 
 
@@ -20307,9 +15672,6 @@ ${specialRequirements || '无'}`;
                                             onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_exec`, e.target.value)}>
 
 
-
-
-
                                             <option value="required">{UI_TEXT.t75}</option>
 
 
@@ -20334,9 +15696,6 @@ ${specialRequirements || '无'}`;
                                           onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                       </label>
 
 
@@ -20356,9 +15715,6 @@ ${specialRequirements || '无'}`;
 
 
                                             onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_summary`, e.target.value)}>
-
-
-
 
 
                                             <option value="required">{UI_TEXT.t75}</option>
@@ -20388,9 +15744,6 @@ ${specialRequirements || '无'}`;
                                           onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                       </label>
 
 
@@ -20410,9 +15763,6 @@ ${specialRequirements || '无'}`;
 
 
                                             onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_location`, e.target.value)}>
-
-
-
 
 
                                             <option value="required">{UI_TEXT.t75}</option>
@@ -20439,9 +15789,6 @@ ${specialRequirements || '无'}`;
                                           onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                       </label>
 
 
@@ -20452,9 +15799,6 @@ ${specialRequirements || '无'}`;
 
 
                                   </div> :
-
-
-
 
 
                                   <>
@@ -20499,9 +15843,6 @@ ${specialRequirements || '无'}`;
                                         style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e' }}>
 
 
-
-
-
                                         {replay.message || UI_TEXT.t129}
 
 
@@ -20514,16 +15855,10 @@ ${specialRequirements || '无'}`;
                                   </> :
 
 
-
-
-
                                 null}
 
 
                             </div>);
-
-
-
 
 
                         })}
@@ -20538,9 +15873,6 @@ ${specialRequirements || '无'}`;
                   </div>);
 
 
-
-
-
               })}
 
 
@@ -20553,13 +15885,7 @@ ${specialRequirements || '无'}`;
       </div>);
 
 
-
-
-
   };
-
-
-
 
 
   return (
@@ -20586,9 +15912,6 @@ ${specialRequirements || '无'}`;
               <button className="ghost xsmall" type="button" onClick={() => setShowBackofficeConfig(false)}>{UI_TEXT.t45}
 
 
-
-
-
               </button>
 
 
@@ -20598,7 +15921,12 @@ ${specialRequirements || '无'}`;
             <div className="modal-body">
 
 
-              {renderGlobalButtonsConfigPanel()}
+              {<GlobalButtonsConfigPanel
+                globalButtons={globalButtons}
+                setGlobalButtons={setGlobalButtons}
+                saveButtonConfig={saveButtonConfig}
+                showToast={showToast}
+              />}
 
 
             </div>
@@ -20610,16 +15938,10 @@ ${specialRequirements || '无'}`;
               <button className="ghost small" type="button" onClick={() => setShowBackofficeConfig(false)}>{UI_TEXT.t22}
 
 
-
-
-
               </button>
 
 
               <button className="ghost small" type="button" onClick={saveBackofficeButtonsConfig}>{UI_TEXT.t59}
-
-
-
 
 
               </button>
@@ -20636,334 +15958,32 @@ ${specialRequirements || '无'}`;
 
       }
 
-      {/* 沉淀确认弹窗 - AI 优化沉淀内容 */}
+      {/* 沉淀确认弹窗 - 使用独立组件 */}
       {showDepositConfirmModal && depositConfirmData && (
-        <div className="modal-backdrop" onClick={cancelDepositConfirm}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: '900px', maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-head">
-              <h3>📝 沉淀确认与优化</h3>
-              <button className="ghost xsmall" type="button" onClick={cancelDepositConfirm}>✕</button>
-            </div>
-            
-            <div className="modal-body" style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-              {/* 第一行：沉淀名称 + 沉淀模式 */}
-              <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#374151' }}>沉淀名称</label>
-                  <input
-                    type="text"
-                    value={depositConfirmData.depositName || ''}
-                    onChange={(e) => setDepositConfirmData(prev => ({ ...prev, depositName: e.target.value }))}
-                    placeholder="请输入沉淀名称"
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
-                  />
-                </div>
-                <div style={{ width: '200px' }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#374151' }}>沉淀模式</label>
-                  <select
-                    value={depositConfirmData.precipitationMode || 'llm'}
-                    onChange={(e) => setDepositConfirmData(prev => ({ ...prev, precipitationMode: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
-                  >
-                    <option value="llm">🤖 大模型Replay</option>
-                    <option value="script">📜 脚本Replay</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* 沉淀模式说明 */}
-              <div style={{ 
-                marginBottom: '16px', 
-                padding: '10px 14px', 
-                background: depositConfirmData.precipitationMode === 'llm' ? '#eff6ff' : '#fef3c7',
-                border: `1px solid ${depositConfirmData.precipitationMode === 'llm' ? '#bfdbfe' : '#fcd34d'}`,
-                borderRadius: '6px',
-                fontSize: '13px'
-              }}>
-                {depositConfirmData.precipitationMode === 'llm' ? (
-                  <><b>🤖 大模型Replay</b>：Replay 时 AI 会理解沉淀内容，结合当前上下文智能执行，适应性强。如无法执行会告知原因后尝试脚本Replay</>
-                ) : (
-                  <><b>📜 脚本Replay</b>：Replay 时严格按照录制的脚本执行，要求字段完全匹配</>
-                )}
-              </div>
-
-              {/* 录制的步骤摘要 - 可点击选择查看对应的脚本内容 */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#374151' }}>
-                  录制的操作（共 {depositConfirmData.sections?.length || 0} 步）
-                  <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: '8px' }}>点击查看对应脚本</span>
-                </label>
-                <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px', maxHeight: '120px', overflow: 'auto' }}>
-                  {/* 全部显示选项 */}
-                  <div 
-                    onClick={() => setSelectedSectionIndex(-1)}
-                    style={{ 
-                      padding: '6px 10px', 
-                      marginBottom: '4px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      background: selectedSectionIndex === -1 ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                      color: selectedSectionIndex === -1 ? '#fff' : '#6b7280',
-                      fontWeight: selectedSectionIndex === -1 ? 500 : 400,
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    📋 全部步骤
-                  </div>
-                  {/* 各个 section */}
-                  {depositConfirmData.sections?.map((s, i) => (
-                    <div 
-                      key={i} 
-                      onClick={() => setSelectedSectionIndex(i)}
-                      style={{ 
-                        padding: '6px 10px', 
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        background: selectedSectionIndex === i ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                        color: selectedSectionIndex === i ? '#fff' : '#111827',
-                        fontWeight: selectedSectionIndex === i ? 500 : 400,
-                        transition: 'all 0.2s',
-                        marginBottom: i < depositConfirmData.sections.length - 1 ? '2px' : '0'
-                      }}
-                    >
-                      <span style={{ marginRight: '8px', opacity: 0.7 }}>{i + 1}.</span>
-                      <span>{s.action || s.generalizedTitle || '操作'}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 结构化沉淀脚本 - 始终显示的可编辑文本框 */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#374151' }}>
-                  结构化沉淀脚本
-                  <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: '8px' }}>
-                    {selectedSectionIndex >= 0 
-                      ? `（当前显示：步骤 ${selectedSectionIndex + 1}）`
-                      : (depositConfirmData.precipitationMode === 'llm' ? '（可编辑，AI 优化结果将显示在此）' : '（可编辑，Replay 时将严格执行此脚本）')
-                    }
-                  </span>
-                </label>
-                <textarea
-                  value={selectedSectionIndex >= 0 
-                    ? getScriptForSection(depositConfirmData.structuredScript, selectedSectionIndex)
-                    : (depositConfirmData.structuredScript || '')
-                  }
-                  onChange={(e) => {
-                    if (selectedSectionIndex >= 0) {
-                      // 更新选中 section 对应的脚本内容
-                      const updatedScript = updateScriptForSection(
-                        depositConfirmData.structuredScript, 
-                        selectedSectionIndex, 
-                        e.target.value
-                      );
-                      setDepositConfirmData(prev => ({ ...prev, structuredScript: updatedScript }));
-                    } else {
-                      // 更新全部脚本内容
-                      setDepositConfirmData(prev => ({ ...prev, structuredScript: e.target.value }));
-                    }
-                  }}
-                  placeholder={depositConfirmData.precipitationMode === 'llm' 
-                    ? '点击下方「AI 智能优化」按钮，AI 将根据录制的操作生成结构化脚本...\n\n您也可以直接在此编辑脚本内容。'
-                    : '请输入或编辑结构化脚本，Replay 时将按此脚本执行...'}
-                  style={{ 
-                    width: '100%', 
-                    height: '220px', 
-                    padding: '12px', 
-                    border: `1px solid ${depositConfirmData.structuredScript ? '#a7f3d0' : '#d1d5db'}`,
-                    borderRadius: '6px', 
-                    fontSize: '13px',
-                    background: depositConfirmData.structuredScript ? '#f0fdf4' : '#fff',
-                    color: '#1f2937',
-                    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-                    resize: 'vertical',
-                    lineHeight: '1.5'
-                  }}
-                />
-              </div>
-
-              {/* 大模型沉淀时显示 AI 优化区域 */}
-              {depositConfirmData.precipitationMode === 'llm' && (
-                <>
-                  {/* 补充要求 / 修改指示 */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#374151' }}>
-                      修改指示（可选）
-                      <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: '8px' }}>告诉 AI 如何调整脚本</span>
-                    </label>
-                    <textarea
-                      value={depositConfirmData.userRequirements || ''}
-                      onChange={(e) => setDepositConfirmData(prev => ({ ...prev, userRequirements: e.target.value }))}
-                      placeholder="例如：把职称去掉，只留下名字；第2步改为通用描述..."
-                      style={{ width: '100%', height: '50px', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', resize: 'vertical' }}
-                    />
-                  </div>
-
-                  {/* AI 优化按钮 */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <button
-                      onClick={() => processDepositWithAI()}
-                      disabled={depositConfirmData.isProcessing}
-                      style={{
-                        background: depositConfirmData.isProcessing ? '#9ca3af' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '10px 20px',
-                        fontSize: '14px',
-                        cursor: depositConfirmData.isProcessing ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      {depositConfirmData.isProcessing ? '⏳ AI 处理中...' : (depositConfirmData.structuredScript ? '🔄 AI 重新优化' : '✨ AI 智能优化')}
-                    </button>
-                    <span style={{ color: '#6b7280', fontSize: '13px' }}>
-                      {depositConfirmData.structuredScript 
-                        ? '将基于当前脚本和修改指示重新优化' 
-                        : '将录制内容转化为可复用的结构化脚本'}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="modal-foot" style={{ borderTop: '1px solid #e5e7eb', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                {depositConfirmData.precipitationMode === 'llm' 
-                  ? '🤖 大模型Replay：AI 智能执行' 
-                  : '📜 脚本Replay：严格匹配执行'}
-              </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button 
-                  className="ghost small" 
-                  type="button" 
-                  onClick={cancelDepositConfirm}
-                  style={{ padding: '8px 16px' }}
-                >
-                  取消
-                </button>
-                <button 
-                  className="ghost small" 
-                  type="button" 
-                  onClick={() => { setIsDepositing(false); setDepositSections([]); setShowDepositConfirmModal(false); setDepositConfirmData(null); }}
-                  style={{ padding: '8px 16px', color: '#dc2626' }}
-                >
-                  放弃录制
-                </button>
-                <button 
-                  type="button" 
-                  onClick={confirmSaveDeposit}
-                  style={{
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '8px 20px',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  ✓ 确认保存
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <DepositConfirmModal
+          data={depositConfirmData}
+          setData={setDepositConfirmData}
+          selectedSectionIndex={selectedSectionIndex}
+          setSelectedSectionIndex={setSelectedSectionIndex}
+          onCancel={cancelDepositConfirm}
+          onDiscard={() => { setIsDepositing(false); setDepositSections([]); setShowDepositConfirmModal(false); setDepositConfirmData(null); }}
+          onConfirm={confirmSaveDeposit}
+          onAIProcess={processDepositWithAI}
+          getScriptForSection={getScriptForSection}
+          updateScriptForSection={updateScriptForSection}
+        />
       )}
 
-      {/* 更新沉淀集弹窗 - 多选沉淀集 */}
-      {showUpdateGroupModal && (
-        <div className="modal-backdrop" onClick={() => setShowUpdateGroupModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: '450px', maxWidth: '90vw' }}>
-            <div className="modal-head">
-              <h3>📦 选择要并入的沉淀集</h3>
-              <button className="ghost xsmall" type="button" onClick={() => setShowUpdateGroupModal(false)}>✕</button>
-            </div>
-            
-            <div className="modal-body" style={{ padding: '16px', maxHeight: '400px', overflow: 'auto' }}>
-              <p style={{ marginBottom: '12px', color: '#6b7280', fontSize: '13px' }}>
-                已选择 {getSelectedDepositIds().length} 个沉淀，请选择要并入的沉淀集（可多选）：
-              </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {depositGroups.map((group, idx) => (
-                  <label 
-                    key={group.id} 
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '10px',
-                      padding: '10px 12px',
-                      background: updateGroupSelectedIds.includes(group.id) ? '#eff6ff' : '#f9fafb',
-                      border: updateGroupSelectedIds.includes(group.id) ? '1px solid #3b82f6' : '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={updateGroupSelectedIds.includes(group.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setUpdateGroupSelectedIds(prev => [...prev, group.id]);
-                        } else {
-                          setUpdateGroupSelectedIds(prev => prev.filter(id => id !== group.id));
-                        }
-                      }}
-                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
-                    <span style={{ flex: 1, fontWeight: 500, color: '#374151' }}>
-                      {idx + 1}. {group.name}
-                    </span>
-                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>
-                      {(group.depositIds || []).length} 个沉淀
-                    </span>
-                  </label>
-                ))}
-              </div>
-              
-              {depositGroups.length === 0 && (
-                <p style={{ textAlign: 'center', color: '#9ca3af', padding: '20px' }}>暂无沉淀集</p>
-              )}
-            </div>
-            
-            <div className="modal-foot" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>
-              <button 
-                className="ghost small" 
-                type="button" 
-                onClick={() => setShowUpdateGroupModal(false)}
-                style={{ padding: '8px 16px' }}
-              >
-                取消
-              </button>
-              <button 
-                type="button" 
-                onClick={confirmUpdateGroups}
-                disabled={updateGroupSelectedIds.length === 0}
-                style={{
-                  background: updateGroupSelectedIds.length > 0 ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : '#e5e7eb',
-                  color: updateGroupSelectedIds.length > 0 ? '#fff' : '#9ca3af',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 20px',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: updateGroupSelectedIds.length > 0 ? 'pointer' : 'not-allowed',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                确认并入 {updateGroupSelectedIds.length > 0 ? `(${updateGroupSelectedIds.length}个)` : ''}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 更新沉淀集弹窗 - 使用独立组件 */}
+      <UpdateGroupModal
+        show={showUpdateGroupModal}
+        onClose={() => setShowUpdateGroupModal(false)}
+        depositGroups={depositGroups}
+        selectedGroupIds={updateGroupSelectedIds}
+        setSelectedGroupIds={setUpdateGroupSelectedIds}
+        selectedDepositCount={getSelectedDepositIds().length}
+        onConfirm={confirmUpdateGroups}
+      />
 
       {isEditingLayout && showRecycleBin &&
 
@@ -21014,9 +16034,6 @@ ${specialRequirements || '无'}`;
 
 
             localStorage.setItem('layout_size', JSON.stringify(layoutSize));
-
-
-
 
 
             // Persist to backend
@@ -21130,16 +16147,7 @@ ${specialRequirements || '无'}`;
           }} />
 
 
-
-
-
       }
-
-
-
-
-
-
 
 
       {isEditingLayout && !showRecycleBin &&
@@ -21205,9 +16213,6 @@ ${specialRequirements || '无'}`;
           title={UI_TEXT.t130}>
 
 
-
-
-
           <ChevronLeft size={20} color="#64748b" />
 
 
@@ -21215,12 +16220,6 @@ ${specialRequirements || '无'}`;
 
 
       }
-
-
-
-
-
-
 
 
       {isEditingLayout &&
@@ -21263,9 +16262,6 @@ ${specialRequirements || '无'}`;
 
 
             localStorage.setItem('layout_size', JSON.stringify(layoutSize));
-
-
-
 
 
             api('/api/config/save', {
@@ -21388,9 +16384,6 @@ ${specialRequirements || '无'}`;
           }}>
 
 
-
-
-
           <Save size={16} />{UI_TEXT.t81}
 
 
@@ -21400,19 +16393,10 @@ ${specialRequirements || '无'}`;
       }
 
 
-
-
-
       <main className={`layout-multi ${isEditingLayout ? 'editing-mode' : ''}`} style={{ position: 'relative' }}>
 
 
-
-
-
         {/* <EditingToolbar /> Removed in favor of EditConsole */}
-
-
-
 
 
         <header className="hero" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
@@ -21477,9 +16461,6 @@ ${specialRequirements || '无'}`;
                   onMouseDown={(e) => handleHeaderTitleMouseDown(e, 'eyebrow')}>
 
 
-
-
-
                   <p
 
 
@@ -21511,9 +16492,6 @@ ${specialRequirements || '无'}`;
 
 
                     }}>
-
-
-
 
 
                     {headerTitles.eyebrow.text}
@@ -21597,9 +16575,6 @@ ${specialRequirements || '无'}`;
                     title={UI_TEXT.t82}>
 
 
-
-
-
                     <Type size={12} />
 
 
@@ -21654,13 +16629,7 @@ ${specialRequirements || '无'}`;
                     }} />
 
 
-
-
-
                 </div> :
-
-
-
 
 
                 <p
@@ -21705,9 +16674,6 @@ ${specialRequirements || '无'}`;
                   }}>
 
 
-
-
-
                   {headerTitles.eyebrow.text}
 
 
@@ -21715,9 +16681,6 @@ ${specialRequirements || '无'}`;
 
 
               }
-
-
-
 
 
               {/* Main Title */}
@@ -21771,9 +16734,6 @@ ${specialRequirements || '无'}`;
                   onMouseDown={(e) => handleHeaderTitleMouseDown(e, 'title')}>
 
 
-
-
-
                   <h1
 
 
@@ -21802,9 +16762,6 @@ ${specialRequirements || '无'}`;
 
 
                     }}>
-
-
-
 
 
                     {headerTitles.title.text}
@@ -21888,9 +16845,6 @@ ${specialRequirements || '无'}`;
                     title={UI_TEXT.t82}>
 
 
-
-
-
                     <Type size={12} />
 
 
@@ -21945,13 +16899,7 @@ ${specialRequirements || '无'}`;
                     }} />
 
 
-
-
-
                 </div> :
-
-
-
 
 
                 <h1
@@ -21991,9 +16939,6 @@ ${specialRequirements || '无'}`;
 
 
                   }}>
-
-
-
 
 
                   {headerTitles.title.text}
@@ -22072,9 +17017,6 @@ ${specialRequirements || '无'}`;
         </header>
 
 
-
-
-
         {isEditingLayout ?
 
 
@@ -22093,19 +17035,10 @@ ${specialRequirements || '无'}`;
             style={{ position: 'relative' }}>
 
 
-
-
-
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
 
               {/* 输入表单面板 */}
-
-
-
-
-
-
 
 
               {/* 文档列表面板 */}
@@ -22144,9 +17077,6 @@ ${specialRequirements || '无'}`;
                 }>
 
 
-
-
-
                 <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
 
@@ -22180,9 +17110,6 @@ ${specialRequirements || '无'}`;
                     onDelete={() => handleDeleteBlock('document-list-panel')}>
 
 
-
-
-
                     <DocumentListPanelContent
                       docs={docs}
                       selectedDocId={selectedDocId}
@@ -22196,76 +17123,13 @@ ${specialRequirements || '无'}`;
                       replayDirConfigSaving={replayDirConfigSaving} />
 
 
-
-
-
                   </EditableContentBlock>
 
 
-
-
-
-                  {/* 可编辑的回放目录模块 */}
-
-
-                  <EditableContentBlock
-
-
-                    blockId="document-replay-ui"
-
-
-                    panelId="document-list-panel"
-
-
-                    isEditing={isEditingLayout}
-
-
-                    position={contentBlockPositions['document-replay-ui']}
-
-
-                    onPositionChange={(newPos) =>
-
-
-                      setContentBlockPositions((prev) => ({ ...prev, 'document-replay-ui': newPos }))
-
-
-                    }
-
-
-                    hidden={deletedBlocks.includes('document-replay-ui')}
-
-
-                    onDelete={() => handleDeleteBlock('document-replay-ui')}>
-
-
-
-
-
-                    <ReplayDirectoryPanelContent
-
-
-                      replayDirName={replayDirName}
-
-
-                      pickReplayDirectory={pickReplayDirectory}
-
-
-                      clearReplayDirectory={clearReplayDirectory}
-
-
-                      replayDirHandle={replayDirHandle} />
-
-
-
-
-
-                  </EditableContentBlock>
+                  {/* 回放目录配置已合并到文档列表面板中 */}
 
 
                   {/* 旧按钮系统已移除 */}
-
-
-
 
 
                 </div>
@@ -22310,13 +17174,7 @@ ${specialRequirements || '无'}`;
                 }>
 
 
-
-
-
                 <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-
-
-
 
 
                   <EditableContentBlock
@@ -22349,9 +17207,6 @@ ${specialRequirements || '无'}`;
                     onDelete={() => handleDeleteBlock('preview-textarea')}>
 
 
-
-
-
                     <div className="card" style={{ width: '100%', height: '100%', padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
 
@@ -22368,9 +17223,6 @@ ${specialRequirements || '无'}`;
 
 
                           style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-
-
-
 
 
                           <Copy size={14} />{UI_TEXT.t89}
@@ -22413,9 +17265,6 @@ ${specialRequirements || '无'}`;
 
 
                         style={{ border: 'none', width: '100%', height: '100%', resize: 'none', padding: '48px 12px 12px', boxSizing: 'border-box' }} />
-
-
-
 
 
                     </div>
@@ -22466,9 +17315,6 @@ ${specialRequirements || '无'}`;
                 }>
 
 
-
-
-
                 <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
 
@@ -22499,9 +17345,6 @@ ${specialRequirements || '无'}`;
                     allowChildPointerEvents>
 
 
-
-
-
                     <div className="editable-button-group processing-tabs-bar">
 
 
@@ -22530,9 +17373,6 @@ ${specialRequirements || '无'}`;
 
 
                           onClick={handleWorkbenchButtonClick} />
-
-
-
 
 
                       )}
@@ -22580,9 +17420,6 @@ ${specialRequirements || '无'}`;
                       onDelete={() => handleDeleteBlock('processing-panel')}>
 
 
-
-
-
                       <div
 
 
@@ -22610,9 +17447,6 @@ ${specialRequirements || '无'}`;
                         }}>
 
 
-
-
-
                         {/* 内容区域 */}
 
 
@@ -22625,19 +17459,7 @@ ${specialRequirements || '无'}`;
                             <div>
 
 
-
-
-
                               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px' }}>
-
-
-
-
-
-
-
-
-
 
 
                                 <button
@@ -22655,16 +17477,7 @@ ${specialRequirements || '无'}`;
                                   style={{ background: '#3b82f6', color: '#fff', border: 'none' }}>{UI_TEXT.t91}
 
 
-
-
-
-
-
-
                                 </button>
-
-
-
 
 
                                 {/* 清除按钮 - 也可以配置化，但由硬编码逻辑支持 */}
@@ -22682,28 +17495,16 @@ ${specialRequirements || '无'}`;
                                   style={{ color: '#ef4444', borderColor: '#ef4444' }}>{UI_TEXT.t92}
 
 
-
-
-
-
-
-
                                 </button>
 
 
                               </div>
 
 
-
-
-
                               {!template || !template.sections || template.sections.length === 0 ?
 
 
                                 <p style={{ fontSize: '13px', color: '#94a3b8', padding: '20px', textAlign: 'center' }}>{UI_TEXT.t93}</p> :
-
-
-
 
 
                                 template.sections.map((sec, idx) => renderOutlineNode({ section: sec, index: idx }))
@@ -22718,7 +17519,18 @@ ${specialRequirements || '无'}`;
                           }
 
 
-                          {processingTab === 'config' && renderAppButtonsConfigPanel()}
+                          {processingTab === 'config' && (
+                            <AppButtonsConfigPanel
+                              appButtonsConfig={appButtonsConfig}
+                              selectedAppButtonId={selectedAppButtonId}
+                              setSelectedAppButtonId={setSelectedAppButtonId}
+                              depositGroups={depositGroups}
+                              updateAppButtonLabel={updateAppButtonLabel}
+                              toggleAppButtonGroup={toggleAppButtonGroup}
+                              saveAppButtonsConfig={saveAppButtonsConfig}
+                              appButtonsSaving={appButtonsSaving}
+                            />
+                          )}
 
 
                         </div>
@@ -22764,9 +17576,6 @@ ${specialRequirements || '无'}`;
 
 
                         allowChildPointerEvents>
-
-
-
 
 
                         {/* 沉淀列表/沉淀集列表切换标签 */}
@@ -22830,9 +17639,6 @@ ${specialRequirements || '无'}`;
                         }>
 
 
-
-
-
                         <div className="sections history-scroll" style={{ height: '100%', overflow: 'auto' }}>
 
                           {/* 沉淀集列表模式 */}
@@ -22888,9 +17694,6 @@ ${specialRequirements || '无'}`;
                                     style={dragOverDepositId === dep.id ? { outline: '2px dashed #3b82f6', outlineOffset: 2 } : undefined}>
 
 
-
-
-
                                     <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
 
 
@@ -22910,9 +17713,6 @@ ${specialRequirements || '无'}`;
 
 
                                             onChange={(e) => toggleDepositSelected(dep.id, e.target.checked)} />
-
-
-
 
 
                                         </label>
@@ -22937,9 +17737,6 @@ ${specialRequirements || '无'}`;
 
 
                                           title={UI_TEXT.t64}>
-
-
-
 
 
                                           <GripVertical size={12} />
@@ -22978,12 +17775,6 @@ ${specialRequirements || '无'}`;
                                             onKeyDown={(e) => handleDepositOrderKeyDown(e, dep.id)} /> :
 
 
-
-
-
-
-
-
                                           <button
 
 
@@ -22997,9 +17788,6 @@ ${specialRequirements || '无'}`;
 
 
                                             title={UI_TEXT.t65}>
-
-
-
 
 
                                             {idx + 1}
@@ -23032,9 +17820,6 @@ ${specialRequirements || '无'}`;
                                             title={depositReason || UI_TEXT.t122}>
 
 
-
-
-
                                             {depositStatus}
 
 
@@ -23044,7 +17829,7 @@ ${specialRequirements || '无'}`;
                                           null}
 
 
-                                        {renderDepositModeSelect(dep)}
+                                        {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
 
                                         <button
@@ -23062,9 +17847,6 @@ ${specialRequirements || '无'}`;
                                           disabled={!!replayState?.[dep.id]?.running}>
 
 
-
-
-
                                           Replay
 
 
@@ -23072,9 +17854,6 @@ ${specialRequirements || '无'}`;
 
 
                                         <button className="ghost xsmall" type="button" onClick={() => deleteDepositsByIds([dep.id])}>{UI_TEXT.t25}
-
-
-
 
 
                                         </button>
@@ -23090,9 +17869,6 @@ ${specialRequirements || '无'}`;
 
 
                                           onClick={() => setExpandedLogs((prev) => ({ ...prev, [dep.id]: !prev[dep.id] }))}>
-
-
-
 
 
                                           {expandedLogs[dep.id] ? UI_TEXT.t142 : UI_TEXT.t143}
@@ -23242,13 +18018,7 @@ ${specialRequirements || '无'}`;
                                                         style={{ minWidth: 180 }} />
 
 
-
-
-
                                                     </> :
-
-
-
 
 
                                                     <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
@@ -23284,9 +18054,6 @@ ${specialRequirements || '无'}`;
                                                     <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)}>{UI_TEXT.t73}
 
 
-
-
-
                                                     </button> :
 
 
@@ -23314,9 +18081,6 @@ ${specialRequirements || '无'}`;
                                                         disabled={compiling}>
 
 
-
-
-
                                                         {compiling ? UI_TEXT.t124 : UI_TEXT.t125}
 
 
@@ -23335,13 +18099,7 @@ ${specialRequirements || '无'}`;
                                                     </> :
 
 
-
-
-
                                                     <button className="ghost xsmall" type="button" onClick={() => startEditDepositSection(dep.id, s)}>{UI_TEXT.t41}
-
-
-
 
 
                                                     </button>
@@ -23360,9 +18118,6 @@ ${specialRequirements || '无'}`;
 
 
                                                   <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
-
-
-
 
 
                                                   </button>
@@ -23402,9 +18157,6 @@ ${specialRequirements || '无'}`;
 
 
                                                             onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_input`, e.target.value)}>
-
-
-
 
 
                                                             <option value="required">{UI_TEXT.t75}</option>
@@ -23449,9 +18201,6 @@ ${specialRequirements || '无'}`;
                                                             onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_exec`, e.target.value)}>
 
 
-
-
-
                                                             <option value="required">{UI_TEXT.t75}</option>
 
 
@@ -23476,9 +18225,6 @@ ${specialRequirements || '无'}`;
                                                           onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                                       </label>
 
 
@@ -23498,9 +18244,6 @@ ${specialRequirements || '无'}`;
 
 
                                                             onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_summary`, e.target.value)}>
-
-
-
 
 
                                                             <option value="required">{UI_TEXT.t75}</option>
@@ -23530,9 +18273,6 @@ ${specialRequirements || '无'}`;
                                                           onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                                       </label>
 
 
@@ -23552,9 +18292,6 @@ ${specialRequirements || '无'}`;
 
 
                                                             onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_location`, e.target.value)}>
-
-
-
 
 
                                                             <option value="required">{UI_TEXT.t75}</option>
@@ -23581,9 +18318,6 @@ ${specialRequirements || '无'}`;
                                                           onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                                       </label>
 
 
@@ -23594,9 +18328,6 @@ ${specialRequirements || '无'}`;
 
 
                                                   </div> :
-
-
-
 
 
                                                   <>
@@ -23641,9 +18372,6 @@ ${specialRequirements || '无'}`;
                                                         style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e' }}>
 
 
-
-
-
                                                         {replay.message || UI_TEXT.t129}
 
 
@@ -23656,16 +18384,10 @@ ${specialRequirements || '无'}`;
                                                   </> :
 
 
-
-
-
                                                 null}
 
 
                                             </div>);
-
-
-
 
 
                                         })}
@@ -23678,9 +18400,6 @@ ${specialRequirements || '无'}`;
 
 
                                   </div>);
-
-
-
 
 
                               })}
@@ -23705,9 +18424,6 @@ ${specialRequirements || '无'}`;
 
 
                   {/* 旧按钮系统已移除 */}
-
-
-
 
 
                 </div>
@@ -23752,9 +18468,6 @@ ${specialRequirements || '无'}`;
                 }>
 
 
-
-
-
                 {/* 旧按钮系统已移除 */}
 
 
@@ -23780,45 +18493,6 @@ ${specialRequirements || '无'}`;
                   pointerEvents: 'none',
                 }}
                 /> */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
                 }
@@ -23854,9 +18528,6 @@ ${specialRequirements || '无'}`;
                   onDelete={() => handleDeleteBlock('operations-panel')}>
 
 
-
-
-
                   <div className="card">
 
 
@@ -23884,9 +18555,6 @@ ${specialRequirements || '无'}`;
                               onClick={() => setDispatchMode('doc')}>
 
 
-
-
-
                               <FileText size={14} />{UI_TEXT.t95}
 
 
@@ -23905,9 +18573,6 @@ ${specialRequirements || '无'}`;
                               onClick={() => setDispatchMode('result')}>
 
 
-
-
-
                               <Sparkles size={14} />{UI_TEXT.t96}
 
 
@@ -23915,9 +18580,6 @@ ${specialRequirements || '无'}`;
 
 
                           </> :
-
-
-
 
 
                           <button
@@ -23930,9 +18592,6 @@ ${specialRequirements || '无'}`;
 
 
                             onClick={() => setDispatchMode('batch_outline')}>
-
-
-
 
 
                             <Edit3 size={14} />{UI_TEXT.t97}
@@ -23978,9 +18637,6 @@ ${specialRequirements || '无'}`;
 
 
                       </button> :
-
-
-
 
 
                       <div className="hint">{UI_TEXT.t99}</div>
@@ -24034,16 +18690,10 @@ ${specialRequirements || '无'}`;
                 onDelete={handleDeleteButton} />
 
 
-
-
-
             </div>
 
 
           </LayoutEditContainer> :
-
-
-
 
 
           <div style={{
@@ -24068,9 +18718,6 @@ ${specialRequirements || '无'}`;
 
 
             {/* 输入表单面板已移除，功能合并至文档列?*/}
-
-
-
 
 
             {/* 文档列表面板 */}
@@ -24133,9 +18780,6 @@ ${specialRequirements || '无'}`;
                       style={{ pointerEvents: 'auto', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
 
 
-
-
-
                       <Upload size={14} /> {globalButtons.find((b) => b.kind === 'upload_file')?.label || UI_TEXT.t146}
 
 
@@ -24163,12 +18807,6 @@ ${specialRequirements || '无'}`;
                     style={{ pointerEvents: 'auto', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: docs.length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', opacity: docs.length === 0 ? 0.6 : 1 }}>{UI_TEXT.t92}
 
 
-
-
-
-
-
-
                   </button>
 
 
@@ -24176,9 +18814,6 @@ ${specialRequirements || '无'}`;
 
 
               }>
-
-
-
 
 
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -24205,9 +18840,6 @@ ${specialRequirements || '无'}`;
                   hidden={deletedBlocks.includes('document-list-panel')}>
 
 
-
-
-
                   <DocumentListPanelContent
                     docs={docs}
                     selectedDocId={selectedDocId}
@@ -24221,70 +18853,16 @@ ${specialRequirements || '无'}`;
                     replayDirConfigSaving={replayDirConfigSaving} />
 
 
-
-
-
                 </EditableContentBlock>
 
 
-
-
-
-                <EditableContentBlock
-
-
-                  blockId="document-replay-ui"
-
-
-                  panelId="document-list-panel"
-
-
-                  isEditing={false}
-
-
-                  position={contentBlockPositions['document-replay-ui']}
-
-
-                  onPositionChange={() => { }}
-
-
-                  hidden={deletedBlocks.includes('document-replay-ui')}>
-
-
-
-
-
-                  <ReplayDirectoryPanelContent
-
-
-                    replayDirName={replayDirName}
-
-
-                    pickReplayDirectory={pickReplayDirectory}
-
-
-                    clearReplayDirectory={clearReplayDirectory}
-
-
-                    replayDirHandle={replayDirHandle} />
-
-
-
-
-
-                </EditableContentBlock>
-
-
-                {/* 旧按钮系统已移除 */}
+                {/* 回放目录配置已合并到文档列表面板中 */}
 
 
               </div>
 
 
             </EditableLayoutPanel>
-
-
-
 
 
             {/* 内容预览面板 */}
@@ -24314,16 +18892,7 @@ ${specialRequirements || '无'}`;
               onPositionChange={() => { }}>
 
 
-
-
-
-
-
-
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-
-
-
 
 
                 <EditableContentBlock
@@ -24347,9 +18916,6 @@ ${specialRequirements || '无'}`;
                   hidden={deletedBlocks.includes('preview-textarea')}>
 
 
-
-
-
                   <div className="card" style={{ width: '100%', height: '100%', padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
 
@@ -24366,9 +18932,6 @@ ${specialRequirements || '无'}`;
 
 
                         style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-
-
-
 
 
                         <Copy size={14} />{UI_TEXT.t89}
@@ -24413,9 +18976,6 @@ ${specialRequirements || '无'}`;
                       style={{ border: 'none', width: '100%', height: '100%', resize: 'none', padding: '48px 12px 12px', boxSizing: 'border-box' }} />
 
 
-
-
-
                   </div>
 
 
@@ -24425,15 +18985,10 @@ ${specialRequirements || '无'}`;
                 {/* 旧按钮系统已移除 */}
 
 
-
-
               </div>
 
 
             </EditableLayoutPanel>
-
-
-
 
 
             {/* 文档处理面板 */}
@@ -24463,9 +19018,6 @@ ${specialRequirements || '无'}`;
               onPositionChange={() => { }}>
 
 
-
-
-
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
 
@@ -24488,9 +19040,6 @@ ${specialRequirements || '无'}`;
 
 
                   allowChildPointerEvents>
-
-
-
 
 
                   <div className="editable-button-group processing-tabs-bar">
@@ -24521,9 +19070,6 @@ ${specialRequirements || '无'}`;
 
 
                         onClick={handleWorkbenchButtonClick} />
-
-
-
 
 
                     )}
@@ -24562,9 +19108,6 @@ ${specialRequirements || '无'}`;
                     hidden={deletedBlocks.includes('processing-panel')}>
 
 
-
-
-
                     <div
 
 
@@ -24592,9 +19135,6 @@ ${specialRequirements || '无'}`;
                       }}>
 
 
-
-
-
                       {/* 内容区域 */}
 
 
@@ -24605,9 +19145,6 @@ ${specialRequirements || '无'}`;
 
 
                           <div>
-
-
-
 
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -24622,16 +19159,10 @@ ${specialRequirements || '无'}`;
                                 style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
 
 
-
-
-
                                 <History size={14} />{UI_TEXT.t101}
 
 
                               </button>
-
-
-
 
 
                               <div style={{ display: 'flex', gap: '8px' }}>
@@ -24664,9 +19195,6 @@ ${specialRequirements || '无'}`;
                                       style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
 
 
-
-
-
                                       {btn.label}
 
 
@@ -24688,16 +19216,7 @@ ${specialRequirements || '无'}`;
                                   style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>{UI_TEXT.t92}
 
 
-
-
-
-
-
-
                                 </button>
-
-
-
 
 
                                 <button
@@ -24710,12 +19229,6 @@ ${specialRequirements || '无'}`;
 
 
                                   style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', opacity: template?.sections?.length ? 1 : 0.5 }}>{UI_TEXT.t91}
-
-
-
-
-
-
 
 
                                 </button>
@@ -24733,9 +19246,6 @@ ${specialRequirements || '无'}`;
                               <p style={{ fontSize: '13px', color: '#94a3b8', padding: '20px', textAlign: 'center' }}>{UI_TEXT.t93}</p> :
 
 
-
-
-
                               template.sections.map((sec, idx) => renderOutlineNode({ section: sec, index: idx }))
 
 
@@ -24748,7 +19258,18 @@ ${specialRequirements || '无'}`;
                         }
 
 
-                        {processingTab === 'config' && renderAppButtonsConfigPanel()}
+                        {processingTab === 'config' && (
+                            <AppButtonsConfigPanel
+                              appButtonsConfig={appButtonsConfig}
+                              selectedAppButtonId={selectedAppButtonId}
+                              setSelectedAppButtonId={setSelectedAppButtonId}
+                              depositGroups={depositGroups}
+                              updateAppButtonLabel={updateAppButtonLabel}
+                              toggleAppButtonGroup={toggleAppButtonGroup}
+                              saveAppButtonsConfig={saveAppButtonsConfig}
+                              appButtonsSaving={appButtonsSaving}
+                            />
+                          )}
 
 
                         {processingTab === 'strategy' &&
@@ -24770,9 +19291,6 @@ ${specialRequirements || '无'}`;
 
 
                             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-
-
 
 
                               {/* 模块1: 用户行为采集配置 */}
@@ -24829,12 +19347,6 @@ ${specialRequirements || '无'}`;
                               </div>
 
 
-
-
-
-
-
-
                               <div className="card" style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', background: '#fff' }}>
 
 
@@ -24884,12 +19396,6 @@ ${specialRequirements || '无'}`;
 
 
                               </div>
-
-
-
-
-
-
 
 
                               <div className="card" style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', background: '#fff' }}>
@@ -24943,9 +19449,6 @@ ${specialRequirements || '无'}`;
                               </div>
 
 
-
-
-
                             </div>
 
 
@@ -24992,9 +19495,6 @@ ${specialRequirements || '无'}`;
 
 
                       allowChildPointerEvents>
-
-
-
 
 
                       {/* 沉淀列表/沉淀集列表切换标签 */}
@@ -25056,9 +19556,6 @@ ${specialRequirements || '无'}`;
                       onPositionChange={() => { }}>
 
 
-
-
-
                       <div className="sections history-scroll" style={{ height: '100%', overflow: 'auto' }}>
                         {/* 沉淀集列表模式 */}
                         {depositViewMode === 'groups' && renderDepositGroupsList()}
@@ -25111,9 +19608,6 @@ ${specialRequirements || '无'}`;
                                   style={dragOverDepositId === dep.id ? { outline: '2px dashed #3b82f6', outlineOffset: 2 } : undefined}>
 
 
-
-
-
                                   <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
 
 
@@ -25133,9 +19627,6 @@ ${specialRequirements || '无'}`;
 
 
                                           onChange={(e) => toggleDepositSelected(dep.id, e.target.checked)} />
-
-
-
 
 
                                       </label>
@@ -25160,9 +19651,6 @@ ${specialRequirements || '无'}`;
 
 
                                         title={UI_TEXT.t64}>
-
-
-
 
 
                                         <GripVertical size={12} />
@@ -25201,12 +19689,6 @@ ${specialRequirements || '无'}`;
                                           onKeyDown={(e) => handleDepositOrderKeyDown(e, dep.id)} /> :
 
 
-
-
-
-
-
-
                                         <button
 
 
@@ -25222,9 +19704,6 @@ ${specialRequirements || '无'}`;
                                           title={UI_TEXT.t65}>
 
 
-
-
-
                                           {idx + 1}
 
 
@@ -25232,9 +19711,6 @@ ${specialRequirements || '无'}`;
 
 
                                       }
-
-
-
 
 
                                       {/* Editable Deposit Name */}
@@ -25270,12 +19746,6 @@ ${specialRequirements || '无'}`;
                                           style={{ border: '1px solid #1a73e8', padding: '2px 6px', borderRadius: '4px', fontSize: '16px', width: '200px' }} /> :
 
 
-
-
-
-
-
-
                                         <span
 
 
@@ -25289,9 +19759,6 @@ ${specialRequirements || '无'}`;
 
 
                                           style={{ cursor: 'text', fontWeight: 500 }}>
-
-
-
 
 
                                           {dep.name || UI_TEXT.t144}
@@ -25321,9 +19788,6 @@ ${specialRequirements || '无'}`;
                                         style={{ width: 20, height: 20, padding: 2, opacity: 0.5 }}>
 
 
-
-
-
                                         <Edit3 size={12} />
 
 
@@ -25348,9 +19812,6 @@ ${specialRequirements || '无'}`;
                                           title={depositReason || UI_TEXT.t122}>
 
 
-
-
-
                                           {depositStatus}
 
 
@@ -25360,7 +19821,7 @@ ${specialRequirements || '无'}`;
                                         null}
 
 
-                                      {renderDepositModeSelect(dep)}
+                                      {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
 
                                       <button
@@ -25378,9 +19839,6 @@ ${specialRequirements || '无'}`;
                                         disabled={!!replayState?.[dep.id]?.running}>
 
 
-
-
-
                                         Replay
 
 
@@ -25388,9 +19846,6 @@ ${specialRequirements || '无'}`;
 
 
                                       <button className="ghost xsmall" type="button" onClick={() => deleteDepositsByIds([dep.id])}>{UI_TEXT.t25}
-
-
-
 
 
                                       </button>
@@ -25406,9 +19861,6 @@ ${specialRequirements || '无'}`;
 
 
                                         onClick={() => setExpandedLogs((prev) => ({ ...prev, [dep.id]: !prev[dep.id] }))}>
-
-
-
 
 
                                         {expandedLogs[dep.id] ? UI_TEXT.t142 : UI_TEXT.t143}
@@ -25558,13 +20010,7 @@ ${specialRequirements || '无'}`;
                                                       style={{ minWidth: 180 }} />
 
 
-
-
-
                                                   </> :
-
-
-
 
 
                                                   <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
@@ -25600,9 +20046,6 @@ ${specialRequirements || '无'}`;
                                                   <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)}>{UI_TEXT.t73}
 
 
-
-
-
                                                   </button> :
 
 
@@ -25630,9 +20073,6 @@ ${specialRequirements || '无'}`;
                                                       disabled={compiling}>
 
 
-
-
-
                                                       {compiling ? UI_TEXT.t124 : UI_TEXT.t125}
 
 
@@ -25651,13 +20091,7 @@ ${specialRequirements || '无'}`;
                                                   </> :
 
 
-
-
-
                                                   <button className="ghost xsmall" type="button" onClick={() => startEditDepositSection(dep.id, s)}>{UI_TEXT.t41}
-
-
-
 
 
                                                   </button>
@@ -25676,9 +20110,6 @@ ${specialRequirements || '无'}`;
 
 
                                                 <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
-
-
-
 
 
                                                 </button>
@@ -25718,9 +20149,6 @@ ${specialRequirements || '无'}`;
 
 
                                                           onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_input`, e.target.value)}>
-
-
-
 
 
                                                           <option value="required">{UI_TEXT.t75}</option>
@@ -25765,9 +20193,6 @@ ${specialRequirements || '无'}`;
                                                           onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_exec`, e.target.value)}>
 
 
-
-
-
                                                           <option value="required">{UI_TEXT.t75}</option>
 
 
@@ -25792,9 +20217,6 @@ ${specialRequirements || '无'}`;
                                                         onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                                     </label>
 
 
@@ -25814,9 +20236,6 @@ ${specialRequirements || '无'}`;
 
 
                                                           onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_summary`, e.target.value)}>
-
-
-
 
 
                                                           <option value="required">{UI_TEXT.t75}</option>
@@ -25846,9 +20265,6 @@ ${specialRequirements || '无'}`;
                                                         onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                                     </label>
 
 
@@ -25868,9 +20284,6 @@ ${specialRequirements || '无'}`;
 
 
                                                           onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_location`, e.target.value)}>
-
-
-
 
 
                                                           <option value="required">{UI_TEXT.t75}</option>
@@ -25897,9 +20310,6 @@ ${specialRequirements || '无'}`;
                                                         onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
 
 
-
-
-
                                                     </label>
 
 
@@ -25910,9 +20320,6 @@ ${specialRequirements || '无'}`;
 
 
                                                 </div> :
-
-
-
 
 
                                                 <>
@@ -25957,9 +20364,6 @@ ${specialRequirements || '无'}`;
                                                       style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e' }}>
 
 
-
-
-
                                                       {replay.message || UI_TEXT.t129}
 
 
@@ -25972,16 +20376,10 @@ ${specialRequirements || '无'}`;
                                                 </> :
 
 
-
-
-
                                               null}
 
 
                                           </div>);
-
-
-
 
 
                                       })}
@@ -25994,9 +20392,6 @@ ${specialRequirements || '无'}`;
 
 
                                 </div>);
-
-
-
 
 
                             })}
@@ -26047,58 +20442,13 @@ ${specialRequirements || '无'}`;
                 /> */
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                 }
 
 
               </div>
 
 
-
-
-
             </EditableLayoutPanel>
-
-
-
 
 
             {/* 操作调度面板 */}
@@ -26126,9 +20476,6 @@ ${specialRequirements || '无'}`;
 
 
               onPositionChange={() => { }}>
-
-
-
 
 
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -26167,9 +20514,6 @@ ${specialRequirements || '无'}`;
                     </button> :
 
 
-
-
-
                     <div className="hint">{UI_TEXT.t99}</div>
 
 
@@ -26204,45 +20548,6 @@ ${specialRequirements || '无'}`;
                   pointerEvents: 'none',
                 }}
                 /> */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
                 }
@@ -26296,22 +20601,10 @@ ${specialRequirements || '无'}`;
               onDelete={undefined} />
 
 
-
-
-
           </div>
 
 
-
-
-
         }
-
-
-
-
-
-
 
 
         {
@@ -26324,9 +20617,6 @@ ${specialRequirements || '无'}`;
 
 
             const globalButton = globalButtons.find((btn) => btn.id === editingButtonId);
-
-
-
 
 
             if (globalButton) {
@@ -26363,9 +20653,6 @@ ${specialRequirements || '无'}`;
 
 
                     onClick={() => setEditingButtonId(null)} />
-
-
-
 
 
                   <div style={{ position: 'fixed', right: 20, top: 60, zIndex: 10000 }}>
@@ -26425,22 +20712,13 @@ ${specialRequirements || '无'}`;
                       onClose={() => setEditingButtonId(null)} />
 
 
-
-
-
                   </div>
 
 
                 </>);
 
 
-
-
-
             }
-
-
-
 
 
             // 如果不是全局按钮，尝试作为旧格式面板按钮
@@ -26488,9 +20766,6 @@ ${specialRequirements || '无'}`;
                       onClick={() => setEditingButtonId(null)} />
 
 
-
-
-
                     <div style={{ position: 'fixed', right: 20, top: 60, zIndex: 10000 }}>
 
 
@@ -26536,16 +20811,10 @@ ${specialRequirements || '无'}`;
                         onClose={() => setEditingButtonId(null)} />
 
 
-
-
-
                     </div>
 
 
                   </>);
-
-
-
 
 
               }
@@ -26599,9 +20868,6 @@ ${specialRequirements || '无'}`;
             const currentStyle = panelPositions[editingTitleId]?.titleStyle || {};
 
 
-
-
-
             return (
 
 
@@ -26630,9 +20896,6 @@ ${specialRequirements || '无'}`;
 
 
                   onClick={() => setEditingTitleId(null)} />
-
-
-
 
 
                 <div style={{ position: 'fixed', right: 20, top: 60, zIndex: 10000 }}>
@@ -26693,15 +20956,10 @@ ${specialRequirements || '无'}`;
                   />
 
 
-
-
                 </div>
 
 
               </>);
-
-
-
 
 
           })()
@@ -26720,9 +20978,6 @@ ${specialRequirements || '无'}`;
 
 
             const titleConfig = headerTitles[editingHeaderTitle];
-
-
-
 
 
             return (
@@ -26753,9 +21008,6 @@ ${specialRequirements || '无'}`;
 
 
                   onClick={() => setEditingHeaderTitle(null)} />
-
-
-
 
 
                 <div style={{ position: 'fixed', right: 20, top: 60, zIndex: 10000 }}>
@@ -26816,15 +21068,10 @@ ${specialRequirements || '无'}`;
                   />
 
 
-
-
                 </div>
 
 
               </>);
-
-
-
 
 
           })()
@@ -26834,9 +21081,6 @@ ${specialRequirements || '无'}`;
 
 
         {toast && <div className="toast">{toast}</div>}
-
-
-
 
 
         {
@@ -26869,16 +21113,7 @@ ${specialRequirements || '无'}`;
             loading={historyLoading} />
 
 
-
-
-
-
-
-
         }
-
-
-
 
 
         {/* 最终文档预览Modal */}
@@ -26899,12 +21134,6 @@ ${specialRequirements || '无'}`;
           docName={docs.find((d) => d.id === selectedDocId)?.name || UI_TEXT.t135} />
 
 
-
-
-
-
-
-
         {/* GlobalButtonsContainer 移到最后，利用 DOM 顺序保证不被遮挡 */}
 
 
@@ -26917,391 +21146,6 @@ ${specialRequirements || '无'}`;
     </>);
 
 
-
-
-
 }
 
-
-
-
-
-const HistoryModal = ({ onClose, onSave, onUse, onDelete, onRename, historyList, loading }) => {
-
-
-  return (
-
-
-    <div style={{
-
-
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-
-
-      background: 'rgba(0,0,0,0.5)', zIndex: 10000,
-
-
-      display: 'flex', alignItems: 'center', justifyContent: 'center'
-
-
-    }}>
-
-
-      <div className="card" style={{
-
-
-        width: '500px',
-
-
-        maxHeight: '80vh',
-
-
-        display: 'flex',
-
-
-        flexDirection: 'column',
-
-
-        background: '#fff',
-
-
-        color: '#333',
-
-
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-
-
-        borderRadius: '16px',
-
-
-        overflow: 'hidden',
-
-
-        border: '1px solid rgba(0,0,0,0.05)',
-
-
-        position: 'relative'
-
-
-      }}>
-
-
-        <button
-
-
-          className="ghost icon-btn"
-
-
-          onClick={onClose}
-
-
-          style={{ color: '#666', width: '28px', height: '28px', position: 'absolute', top: '12px', right: '12px', zIndex: 2 }}>
-
-
-
-
-
-          <X size={20} />
-
-
-        </button>
-
-
-        <div className="card-head" style={{ justifyContent: 'space-between', borderBottom: '1px solid #eee', padding: '16px 20px', background: '#fafafa' }}>
-
-
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#111', margin: 0 }}>{UI_TEXT.t111}</h3>
-
-
-        </div>
-
-
-
-
-
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #eee' }}>
-
-
-          <button style={{ width: '100%', borderRadius: '8px', padding: '10px', background: '#3b82f6', color: '#fff', border: 'none', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} onClick={onSave}>
-
-
-            <Save size={16} />{UI_TEXT.t112}
-
-
-          </button>
-
-
-        </div>
-
-
-
-
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
-
-
-          {loading ?
-
-
-            <div className="hint text-center" style={{ padding: '20px' }}>{UI_TEXT.t113}</div> :
-
-
-            historyList.length === 0 ?
-
-
-              <div className="hint text-center" style={{ padding: '40px' }}>{UI_TEXT.t114}</div> :
-
-
-
-
-
-              <HistoryList list={historyList} onUse={onUse} onDelete={onDelete} onRename={onRename} />
-
-
-          }
-
-
-        </div>
-
-
-      </div>
-
-
-    </div>);
-
-
-
-
-
-};
-
-
-
-
-
-const HistoryList = ({ list, onUse, onDelete, onRename }) => {
-
-
-  const [editingId, setEditingId] = useState(null);
-
-
-  const [editValue, setEditValue] = useState('');
-
-
-
-
-
-  const startEdit = (item) => {
-
-
-    setEditingId(item.id);
-
-
-    setEditValue(item.title || item.docName || UI_TEXT.t136);
-
-
-  };
-
-
-
-
-
-  const submitEdit = () => {
-
-
-    if (editingId && editValue.trim()) {
-
-
-      onRename(editingId, editValue.trim());
-
-
-    }
-
-
-    setEditingId(null);
-
-
-  };
-
-
-
-
-
-  return (
-
-
-    <div style={{ padding: '0' }}>
-
-
-      {list.map((item) =>
-
-
-        <div key={item.id} className="list-item" style={{
-
-
-          cursor: 'default',
-
-
-          flexDirection: 'column',
-
-
-          alignItems: 'flex-start',
-
-
-          gap: '8px',
-
-
-          padding: '16px 20px',
-
-
-          borderBottom: '1px solid #f0f0f0',
-
-
-          margin: 0,
-
-
-          borderRadius: 0
-
-
-        }}>
-
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-
-
-            {editingId === item.id ?
-
-
-              <div style={{ display: 'flex', gap: '8px', flex: 1, alignItems: 'center' }}>
-
-
-                <input
-
-
-                  autoFocus
-
-
-                  value={editValue}
-
-
-                  onChange={(e) => setEditValue(e.target.value)}
-
-
-                  onKeyDown={(e) => e.key === 'Enter' && submitEdit()}
-
-
-                  onBlur={submitEdit}
-
-
-                  style={{
-
-
-                    flex: 1,
-
-
-                    padding: '4px 8px',
-
-
-                    borderRadius: '4px',
-
-
-                    border: '1px solid #ddd',
-
-
-                    fontSize: '14px'
-
-
-                  }} />
-
-
-
-
-
-              </div> :
-
-
-
-
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-
-
-                <div style={{ fontWeight: 600, fontSize: '14px', color: '#333' }}>
-
-
-                  {item.title || item.docName || UI_TEXT.t136}
-
-
-                </div>
-
-
-                <button
-
-
-                  className="ghost icon-btn small"
-
-
-                  onClick={() => startEdit(item)}
-
-
-                  style={{ width: '24px', height: '24px', color: '#666', opacity: 0.6 }}
-
-
-                  title={UI_TEXT.t67}>
-
-
-
-
-
-                  <Edit3 size={14} />
-
-
-                </button>
-
-
-              </div>
-
-
-            }
-
-
-            <div className="hint" style={{ fontSize: '12px', color: '#999' }}>{new Date(item.timestamp).toLocaleString()}</div>
-
-
-          </div>
-
-
-          <div className="hint" style={{ fontSize: '12px', color: '#666' }}>{UI_TEXT.t115}
-
-
-            {item.template?.sections?.length || 0}{UI_TEXT.t116}
-
-
-          </div>
-
-
-          <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'flex-end', marginTop: '8px' }}>
-
-
-            <button onClick={() => onDelete(item.id)} style={{ background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 14px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>{UI_TEXT.t25}</button>
-
-
-            <button onClick={() => onUse(item)} style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>{UI_TEXT.t134}</button>
-
-
-          </div>
-
-
-        </div>
-
-
-      )}
-
-
-    </div>);
-
-
-
-
-
-};
+// HistoryModal 和 HistoryList 已迁移到 ./sop/SOPHistory.jsx

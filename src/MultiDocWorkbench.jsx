@@ -1,1319 +1,344 @@
 import React, { useState, useEffect } from 'react';
 
 
-
 import { SourcesPanel, ChatPanel, StudioPanel } from './MultiPanelComponents';
-
 
 
 import { EditableButtonsContainer } from './EditableButton';
 
 
-
 import { EditableLayoutPanel, LayoutEditContainer } from './EditablePanel';
-
 
 
 import { StyleEditor, StyleEditorOverlay } from './StyleEditor';
 
 
-
 import { GalleryVerticalEnd, Layout as LayoutIcon, Save, X, RotateCcw, Pencil, MousePointer2, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
-
 
 
 import './style.css';
 
 
-
 import './fonts.css';
 
+// ========== 从拆分模块导入常量 ==========
+import {
+  UI_TEXT,
+  REPLAY_META_MARKER,
+  SHARED_SCENE_KEY,
+  DEFAULT_DISPATCH_SYSTEM_PROMPT,
+  DEFAULT_APP_BUTTONS,
+  PANEL_IDS,
+  DEFAULT_PANEL_VISIBILITY,
+  DEFAULT_PANEL_POSITIONS,
+  LEGACY_PANEL_MAP,
+  MOCK_SOURCES,
+  MOCK_MESSAGES,
+  MOCK_NOTES
+} from './multi/MultiConstants';
 
-
-
-
+// ========== 从拆分模块导入工具函数 ==========
+import {
+  fetchJson,
+  extractReplayMeta,
+  pickLineByPrefix,
+  stripLinePrefix,
+  parseSectionContent,
+  loadSharedScene,
+  isDocxName,
+  loadMammoth,
+  readFileText,
+  htmlToStructuredText,
+  parseDocxFileToStructuredText,
+  formatDocSize
+} from './multi/MultiUtils';
 
 
 // 模拟数据接口 (用于内容演示)
-const UI_TEXT = { t1: "拖动", t2: "样式设置", t3: "切换后台管理工作台", t4: "编辑工作台布局", t5: "重置", t6: "取消", t7: "保存", t8: "隐藏", t9: "已隐藏面板", t10: "收起", t11: "暂无隐藏面板", t12: "恢复", t13: "页面渲染失败，请刷新" };
+// UI_TEXT 已迁移
 
 
-const MOCK_SOURCES = [];
+// MOCK_SOURCES 已迁移
 
 
+// MOCK_MESSAGES 已迁移
 
 
+// MOCK_NOTES 已迁移
 
 
+// REPLAY_META_MARKER 已迁移
+// DEFAULT_DISPATCH_SYSTEM_PROMPT 已迁移
 
 
+// extractReplayMeta 已迁移
 
 
+// pickLineByPrefix 已迁移
 
-const MOCK_MESSAGES = [
 
+// stripLinePrefix 已迁移
 
 
-{
+// parseSectionContent 已迁移
 
 
+// SHARED_SCENE_KEY 已迁移
 
-  id: '1',
 
+// fetchJson 已迁移
 
 
-  role: 'assistant',
+// loadSharedScene 已迁移
 
 
+// isDocxName 已迁移
 
-  content: '您好！我已经阅读了这些文档。您可以问我任何关于产品需求或用户反馈的问题。'
 
+// loadMammoth 已迁移
 
 
+// htmlToStructuredText 已迁移
 
 
+// readFileText 已迁移
 
-}];
 
+// parseDocxFileToStructuredText 已迁移
 
 
+// formatDocSize 已迁移
 
 
-
-
-
-
-
-
-const MOCK_NOTES = [
-
-
-
-{
-
-
-
-  id: '1',
-
-
-
-  title: '核心需求',
-
-
-
-  content: '用户主要关注移动端的易用性和响应速度。'
-
-
-
-
-
-
-}];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const REPLAY_META_MARKER = '__REPLAY_META__';
-
-const DEFAULT_DISPATCH_SYSTEM_PROMPT =
-  `
-请输出JSON：
-- summary: 简要摘要
-- detail: 详细说明
-- edits: [{sectionId, field:'title'|'summary', content}]
-只输出JSON。
-`.trim();
-
-
-
-
-
-
-
-const extractReplayMeta = (content) => {
-
-
-
-  const raw = (content || '').toString();
-
-
-
-  const idx = raw.indexOf(REPLAY_META_MARKER);
-
-
-
-  if (idx == -1) return null;
-
-
-
-  const json = raw.slice(idx + REPLAY_META_MARKER.length).trim();
-
-
-
-  try {
-
-
-
-    const parsed = JSON.parse(json);
-
-
-
-    return parsed && typeof parsed === 'object' ? parsed : null;
-
-
-
-  } catch (_) {
-
-
-
-    return null;
-
-
-
-  }
-
-
-
-};
-
-
-
-
-
-
-
-const pickLineByPrefix = (lines, prefixes) =>
-
-
-
-lines.find((line) => prefixes.some((prefix) => line.startsWith(prefix)));
-
-
-
-
-
-
-
-const stripLinePrefix = (line, prefixes) => {
-
-
-
-  if (!line) return '';
-
-
-
-  const found = prefixes.find((prefix) => line.startsWith(prefix));
-
-
-
-  if (!found) return line.trim();
-
-
-
-  return line.slice(found.length).replace(/^[:\uff1a]/, '').trim();
-
-
-
-};
-
-
-
-
-
-
-
-const parseSectionContent = (content) => {
-
-
-
-  const raw = (content || '').toString();
-
-
-
-  const lines = raw.
-
-
-
-  split(/\r?\n/).
-
-
-
-  map((line) => line.trim()).
-
-
-
-  filter(Boolean);
-
-
-
-  const inputLine = pickLineByPrefix(lines, ['\u8f93\u5165\u6765\u6e90', '\u8f93\u5165\u6765\u6e90\uff1a', '\u8f93\u5165\uff1a']);
-
-
-
-  const actionLine = pickLineByPrefix(lines, ['\u52a8\u4f5c\u6267\u884c', '\u52a8\u4f5c\u6267\u884c\uff1a', '\u52a8\u4f5c\uff1a']);
-
-
-
-  const summaryLine = pickLineByPrefix(lines, ['\u6267\u884c\u6458\u8981', '\u6267\u884c\u6458\u8981\uff1a', '\u6458\u8981\uff1a', '\u8f93\u51fa\u6458\u8981\uff1a']);
-
-
-
-  const locationLine = pickLineByPrefix(lines, ['\u8bb0\u5f55\u4f4d\u7f6e', '\u8bb0\u5f55\u4f4d\u7f6e\uff1a', '\u4f4d\u7f6e\uff1a']);
-
-
-
-  return { inputLine, actionLine, summaryLine, locationLine };
-
-
-
-};
-
-
-
-
-
-
-
-const SHARED_SCENE_KEY = 'shared_scene_id';
-
-
-
-
-
-
-
-const fetchJson = async (url, options = {}) => {
-
-
-
-  const res = await fetch(url, {
-
-
-
-    headers: { 'Content-Type': 'application/json' },
-
-
-
-    ...options,
-
-
-
-    body: options.body ? JSON.stringify(options.body) : undefined
-
-
-
-  });
-
-
-
-  const text = await res.text();
-
-
-
-  if (!res.ok) {
-
-
-
-    let message = text;
-
-
-
-    try {
-
-
-
-      const parsed = JSON.parse(text);
-
-
-
-      message = parsed?.error || message;
-
-
-
-    } catch (_) {
-
-
-
-
-
-
-
-      /* ignore */}
-
-
-
-    throw new Error(message || '请求失败');
-
-
-
-  }
-
-
-
-  return text ? JSON.parse(text) : {};
-
-
-
-};
-
-
-
-
-
-
-
-const loadSharedScene = async () => {
-
-
-
-  const cachedId = localStorage.getItem(SHARED_SCENE_KEY);
-
-
-
-  if (cachedId) {
-
-
-
-    try {
-
-
-
-      const data = await fetchJson(`/api/scene/${cachedId}`);
-
-
-
-      if (data?.scene) return data.scene;
-    } catch (err) {
-      // Scene 不存在（可能服务器重启后丢失），清除无效的缓存 ID
-      console.warn('Cached scene not found, creating new one:', cachedId);
-      localStorage.removeItem(SHARED_SCENE_KEY);
-    }
-  }
-
-
-
-  // 创建新的 scene，并关联已有的文档
-  let existingDocIds = [];
-  try {
-    const docsRes = await fetch('/api/docs');
-    if (docsRes.ok) {
-      const docsData = await docsRes.json();
-      if (Array.isArray(docsData?.docs)) {
-        existingDocIds = docsData.docs.map(d => d.id).filter(Boolean);
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load docs for new scene', e);
-  }
-  const created = await fetchJson('/api/scene', { method: 'POST', body: { docIds: existingDocIds } });
-
-
-
-  if (created?.scene?.id) {
-
-
-
-    localStorage.setItem(SHARED_SCENE_KEY, created.scene.id);
-
-
-
-  }
-
-
-
-  return created?.scene || null;
-
-
-
-};
-
-
-
-
-
-
-
-
-
-
-
-const isDocxName = (name) => (name || '').toString().trim().toLowerCase().endsWith('.docx');
-
-
-
-
-
-
-
-const loadMammoth = async () => {
-
-
-
-  const mod = await import('mammoth/mammoth.browser');
-
-
-
-  return mod?.default || mod;
-
-
-
-};
-
-
-
-
-
-
-
-const htmlToStructuredText = (html) => {
-
-
-
-  const raw = (html || '').toString();
-
-
-
-  if (!raw.trim()) return '';
-
-
-
-  let parsed;
-
-
-
-  try {
-
-
-
-    parsed = new DOMParser().parseFromString(raw, 'text/html');
-
-
-
-  } catch (_) {
-
-
-
-    return raw.replace(/<[^>]+>/g, ' ').replace(/\s+\n/g, '\n').trim();
-
-
-
-  }
-
-
-
-
-
-
-
-  const lines = [];
-
-
-
-  const push = (s = '') => {
-
-
-
-    const t = (s || '').toString().replace(/\s+/g, ' ').trim();
-
-
-
-    if (!t) return;
-
-
-
-    lines.push(t);
-
-
-
-  };
-
-
-
-  const pushBlank = () => {
-
-
-
-    if (!lines.length) return;
-
-
-
-    if (lines[lines.length - 1] !== '') lines.push('');
-
-
-
-  };
-
-
-
-
-
-
-
-  const walk = (node, listDepth = 0) => {
-
-
-
-    if (!node) return;
-
-
-
-    if (node.nodeType === 3) return;
-
-
-
-    const el = node;
-
-
-
-    if (!el.tagName) {
-
-
-
-      Array.from(el.childNodes || []).forEach((c) => walk(c, listDepth));
-
-
-
-      return;
-
-
-
-    }
-
-
-
-    const tag = el.tagName.toUpperCase();
-
-
-
-    if (/^H[1-6]$/.test(tag)) {
-
-
-
-      const lvl = Math.max(1, Math.min(6, Number(tag.slice(1)) || 1));
-
-
-
-      const text = (el.textContent || '').toString().trim();
-
-
-
-      if (text) push(`${'#'.repeat(lvl)} ${text}`);
-
-
-
-      pushBlank();
-
-
-
-      return;
-
-
-
-    }
-
-
-
-    if (tag === 'P') {
-
-
-
-      const text = (el.textContent || '').toString().trim();
-
-
-
-      if (text) push(text);
-
-
-
-      pushBlank();
-
-
-
-      return;
-
-
-
-    }
-
-
-
-    if (tag === 'LI') {
-
-
-
-      const text = (el.textContent || '').toString().trim();
-
-
-
-      if (text) push(`${'  '.repeat(Math.max(0, listDepth))}- ${text}`);
-
-
-
-      return;
-
-
-
-    }
-
-
-
-    if (tag === 'UL' || tag === 'OL') {
-
-
-
-      Array.from(el.children || []).forEach((c) => walk(c, listDepth + 1));
-
-
-
-      pushBlank();
-
-
-
-      return;
-
-
-
-    }
-
-
-
-    if (tag === 'BR') {
-
-
-
-      pushBlank();
-
-
-
-      return;
-
-
-
-    }
-
-
-
-    Array.from(el.childNodes || []).forEach((c) => walk(c, listDepth));
-
-
-
-  };
-
-
-
-
-
-
-
-  Array.from(parsed.body?.childNodes || []).forEach((c) => walk(c, 0));
-
-
-
-  return lines.
-
-
-
-  join('\n').
-
-
-
-  replace(/\n{3,}/g, '\n\n').
-
-
-
-  trim();
-
-
-
-};
-
-
-
-
-
-
-
-const readFileText = (file) =>
-
-
-
-new Promise((resolve, reject) => {
-
-
-
-  const reader = new FileReader();
-
-
-
-  reader.onload = () => resolve(reader.result.toString());
-
-
-
-  reader.onerror = reject;
-
-
-
-  reader.readAsText(file, 'utf-8');
-
-
-
-});
-
-
-
-
-
-
-
-const parseDocxFileToStructuredText = async (file) => {
-
-
-
-  const buf = await file.arrayBuffer();
-
-
-
-  const mammoth = await loadMammoth();
-
-
-
-  const res = await mammoth.convertToHtml({ arrayBuffer: buf });
-
-
-
-  const html = (res?.value || '').toString();
-
-
-
-  const structured = htmlToStructuredText(html);
-
-
-
-  return structured.trim() ? structured : '';
-
-
-
-};
-
-
-
-
-
-
-
-const formatDocSize = (content) => {
-
-
-
-  const len = (content || '').toString().length;
-
-
-
-  if (len < 1024) return `${len}B`;
-
-
-
-  if (len < 1024 * 1024) return `${(len / 1024).toFixed(1)}KB`;
-
-
-
-  return `${(len / (1024 * 1024)).toFixed(1)}MB`;
-
-
-
-};
-
-
-
-
-
-
-
-const DEFAULT_APP_BUTTONS = [
-
-
-
-{
-
-
-
-  id: 'app_btn_daily_merge',
-
-
-
-  label: '日报合并写作（主任版）',
-
-
-
-  groupIds: []
-
-
-
-},
-
-
-
-{ id: 'app_btn_competitor_report', label: '竞品分析报告写作', groupIds: [] },
-
-
-
-{ id: 'app_btn_custom_write', label: '自定义写作', groupIds: [] }];
-
-
-
-
-
-
-
-
-
-
-
-
-
+// DEFAULT_APP_BUTTONS 已迁移
 
 
 // 面板 ID 定义
 
 
-
-const PANEL_IDS = {
-
-
-
-  SOURCES: 'sources-panel',
-
-
-
-  CHAT: 'chat-panel',
-
-
-
-  STUDIO: 'studio-panel',
-
-
-
-  HEADER: 'header-panel'
-
-
-
-};
-
-
-
-
-
-
-
-const DEFAULT_PANEL_VISIBILITY = {
-
-
-
-  [PANEL_IDS.SOURCES]: true,
-
-
-
-  [PANEL_IDS.CHAT]: true,
-
-
-
-  [PANEL_IDS.STUDIO]: true
-
-
-
-};
-
-
-
-
-
-
-
-const DEFAULT_PANEL_POSITIONS = {
-
-
-
-  [PANEL_IDS.SOURCES]: { left: 20, top: 40, width: 320, height: 900 },
-
-
-
-  [PANEL_IDS.CHAT]: { left: 360, top: 40, width: 800, height: 900 },
-
-
-
-  [PANEL_IDS.STUDIO]: { left: 1180, top: 40, width: 460, height: 900 }
-
-
-
-};
-
-
-
-
-
-
-
-const LEGACY_PANEL_MAP = {
-
-
-
-  'doc-classify': PANEL_IDS.SOURCES,
-
-
-
-  'info-extract': PANEL_IDS.CHAT,
-
-
-
-  'cross-analysis': PANEL_IDS.STUDIO
-
-
-
-};
-
-
-
-
-
+// PANEL_IDS, DEFAULT_PANEL_VISIBILITY, DEFAULT_PANEL_POSITIONS, LEGACY_PANEL_MAP 已迁移
 
 
 function MultiDocWorkbench({ onSwitch }) {
 
 
-
   // --- 基础状态 ---
-
 
 
   const [docs, setDocs] = useState([]);
 
 
-
   const [selectedSourceIds, setSelectedSourceIds] = useState({});
-
 
 
   const [messages, setMessages] = useState(MOCK_MESSAGES);
 
 
-
   const [notes, setNotes] = useState(MOCK_NOTES);
-
 
 
   const [thinking, setThinking] = useState(false);
 
 
-
   const [appButtons, setAppButtons] = useState(DEFAULT_APP_BUTTONS);
-
 
 
   const [depositGroups, setDepositGroups] = useState([]);
 
 
-
-
-
-
-
   const sources = docs.map((doc) => {
-
 
 
     const name = (doc?.name || '').toString();
 
 
-
     const ext = name.includes('.') ? name.split('.').pop().toUpperCase() : 'TXT';
-
 
 
     return {
 
 
-
       id: doc?.id || name,
-
 
 
       name: name || '\u672a\u547d\u540d\u6587\u6863',
 
 
-
       type: ext || 'TXT',
-
 
 
       size: formatDocSize(doc?.content || ''),
 
 
-
       selected: !!selectedSourceIds[doc?.id]
 
 
-
     };
-
 
 
   });
 
 
-
-
-
-
-
   // --- 沉淀记录状态 ---
-
 
 
   const [isRecordingRecord, setIsRecordingRecord] = useState(false);
 
 
-
   const [precipitationRecords, setPrecipitationRecords] = useState([]);
-
 
 
   const [currentSessionSections, setCurrentSessionSections] = useState([]); // 录制中的 Sections
 
 
-
-
-
-
-
   // --- 录制控制 ---
-
 
 
   const handleStartRecording = () => {
 
 
-
     setIsRecordingRecord(true);
-
 
 
     setCurrentSessionSections([]); // 重置当前会话
 
 
-
   };
-
-
-
-
-
 
 
   const handleStopRecording = async () => {
 
 
-
     setIsRecordingRecord(false);
-
 
 
     if (currentSessionSections.length === 0) {
 
 
-
       alert('\u672c\u6b21\u672a\u5f55\u5236\u4efb\u4f55\u64cd\u4f5c');
-
 
 
       return;
 
 
-
     }
-
-
-
-
-
 
 
     const newRecord = {
 
 
-
       id: `rec_${Date.now()}`,
-
 
 
       title: `沉淀记录 ${new Date().toLocaleString()}`,
 
 
-
       createdAt: Date.now(),
-
 
 
       sections: [...currentSessionSections]
 
 
-
     };
 
 
-
-
-
-
-
     try {
-
 
 
       const res = await fetch('/api/multi/precipitation/records', {
 
 
-
         method: 'POST',
-
 
 
         headers: { 'Content-Type': 'application/json' },
 
 
-
         body: JSON.stringify(newRecord)
-
 
 
       });
 
 
-
       if (res.ok) {
-
 
 
         setPrecipitationRecords((prev) => [newRecord, ...prev]);
 
 
-
         setCurrentSessionSections([]);
-
 
 
       } else {
 
 
-
         console.error('Save failed');
-
 
 
         alert('保存记录失败');
 
 
-
       }
 
 
-
     } catch (err) {
-
 
 
       console.error('Failed to save record', err);
 
 
-
       alert('保存记录出错');
-
 
 
     }
 
 
-
   };
-
-
-
-
-
 
 
   const refreshDocs = async () => {
 
 
-
     try {
-
 
 
       const res = await fetch('/api/docs');
 
 
-
       if (!res.ok) throw new Error('load docs failed');
-
 
 
       const data = await res.json();
 
 
-
       if (Array.isArray(data?.docs)) {
-
 
 
         setDocs(data.docs);
 
 
-
         return data.docs;
-
 
 
       }
 
 
-
     } catch (err) {
-
 
 
       console.error('Failed to load docs', err);
 
 
-
     }
-
 
 
     return null;
 
 
-
   };
 
 
-
-
-
-
-
   useEffect(() => {
-
 
 
     refreshDocs();
@@ -1329,45 +354,31 @@ function MultiDocWorkbench({ onSwitch }) {
       .catch(err => console.log('加载对话缓存失败', err));
 
 
-
   }, []);
-
-
-
-
-
 
 
   useEffect(() => {
 
 
-
     setSelectedSourceIds((prev) => {
-
 
 
       const next = {};
 
 
-
       docs.forEach((doc) => {
-
 
 
         if (prev[doc.id]) next[doc.id] = true;
 
 
-
       });
-
 
 
       return next;
 
 
-
     });
-
 
 
   }, [docs]);
@@ -1385,185 +396,118 @@ function MultiDocWorkbench({ onSwitch }) {
   }, [messages]);
 
 
-
-
-
-
-
   // 加载已有记录
 
 
-
   useEffect(() => {
-
 
 
     fetch('/api/multi/precipitation/records').
 
 
-
     then((res) => res.json()).
 
 
-
     then((data) => {
-
 
 
       if (Array.isArray(data)) {
 
 
-
         setPrecipitationRecords(data.sort((a, b) => b.createdAt - a.createdAt));
-
 
 
       }
 
 
-
     }).
-
 
 
     catch((err) => console.error('Failed to load records', err));
 
 
-
   }, []);
-
-
-
-
-
 
 
   useEffect(() => {
 
 
-
     fetch('/api/multi/precipitation/groups').
-
 
 
     then((res) => res.ok ? res.json() : []).
 
 
-
     then((data) => {
-
 
 
       if (Array.isArray(data)) setDepositGroups(data);
 
 
-
     }).
-
 
 
     catch((err) => console.error('Failed to load deposit groups', err));
 
 
-
   }, []);
-
-
-
-
-
 
 
   // (Moved handleReplayRecord to above)
 
 
-
-
-
-
-
   const [isReplaying, setIsReplaying] = useState(false);
-
 
 
   const [replayStatus, setReplayStatus] = useState('');
 
 
-
-
-
-
-
   const normalizeAppButtons = (payload) => {
-
 
 
     if (!payload || !Array.isArray(payload.buttons)) return DEFAULT_APP_BUTTONS;
 
 
-
     return payload.buttons.
-
 
 
     map((btn, idx) => {
 
 
-
       if (!btn || typeof btn !== 'object') return null;
-
 
 
       const id = typeof btn.id === 'string' && btn.id.trim() ? btn.id.trim() : `app_btn_${idx}`;
 
 
-
       const label = typeof btn.label === 'string' ? btn.label.trim() : '';
-
 
 
       if (!label) return null;
 
 
-
       const groupIds = Array.isArray(btn.groupIds) ? btn.groupIds.filter(Boolean) : [];
-
 
 
       return { id, label, groupIds };
 
 
-
     }).
-
 
 
     filter(Boolean);
 
 
-
   };
-
-
-
-
-
 
 
   const appendAssistantMessage = (content) => {
 
 
-
     setMessages((prev) => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content }]);
 
 
-
   };
-
-
-
-
-
 
 
   const replaySections = async (sections, title, options = {}) => {
@@ -1593,7 +537,6 @@ function MultiDocWorkbench({ onSwitch }) {
     if (!cachedDocs.length && docs.length) cachedDocs = docs;
 
 
-
     const syncDocs = async () => {
 
 
@@ -1614,21 +557,16 @@ function MultiDocWorkbench({ onSwitch }) {
       return cachedDocs;
 
 
-
     };
-
 
 
     const loadDocsSnapshot = async () => {
 
 
-
       if (!cachedDocs.length) return syncDocs();
 
 
-
       return cachedDocs;
-
 
 
     };
@@ -2777,113 +1715,76 @@ ${specialRequirements || '无'}`;
   };
 
 
-
   const replayRecords = async (records, title) => {
-
 
 
     if (isReplaying) return;
 
 
-
     setIsReplaying(true);
-
 
 
     setReplayStatus(`准备复现: ${title}`);
 
 
-
-
-
-
-
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 
 
     try {
 
 
-
       for (const record of records) {
-
 
 
         const sections = Array.isArray(record.sections) ? record.sections : [];
 
 
-
         if (sections.length === 0) continue;
-
 
 
         await replaySections(sections, record.name || record.title || title);
 
 
-
       }
-
 
 
       setReplayStatus('复现完成');
 
 
-
     } catch (error) {
-
 
 
       console.error('Replay error', error);
 
 
-
       setReplayStatus('复现出错');
-
 
 
     } finally {
 
 
-
       await delay(1200);
-
 
 
       setIsReplaying(false);
 
 
-
       setReplayStatus('');
-
 
 
     }
 
 
-
   };
-
-
-
-
-
 
 
   const handleReplayRecord = async (record) => {
 
 
-
     await replayRecords([record], record.title || '沉淀记录');
 
 
-
   };
-
-
-
-
-
 
 
   // =====================================================
@@ -3455,1857 +2356,1240 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
   };
 
 
-
   const [isEditingLayout, setIsEditingLayout] = useState(false);
-
 
 
   const [showHiddenSidebar, setShowHiddenSidebar] = useState(false);
 
 
-
-
-
-
-
   const [layoutSize, setLayoutSize] = useState({ width: 1680, height: 1050 });
-
-
-
-
-
 
 
   // 标题配置
 
 
-
   const [headerTitles, setHeaderTitles] = useState(() => {
 
 
-
     try {
-
 
 
       const saved = localStorage.getItem('multidoc_header_titles');
 
 
-
       if (saved) return JSON.parse(saved);
-
 
 
     } catch (e) {}
 
 
-
     return {
-
 
 
       title: { text: '多文档处理工作台', style: { fontSize: '24px', fontWeight: 400, color: '#202124', textAlign: 'left' }, position: { left: 0, top: 0 }, width: 300, height: 40 },
 
 
-
       eyebrow: { text: 'KNOWLEDGE STUDIO', style: { fontSize: '11px', letterSpacing: '1px', color: '#5f6368', textTransform: 'uppercase', textAlign: 'left' }, position: { left: 0, top: 0 }, width: 200, height: 30 }
-
 
 
     };
 
 
-
   });
-
 
 
   const [draggingHeaderTitle, setDraggingHeaderTitle] = useState(null);
 
 
-
   const [resizingHeaderTitle, setResizingHeaderTitle] = useState(null);
-
 
 
   const [editingHeaderTitle, setEditingHeaderTitle] = useState(null);
 
 
-
-
-
-
-
   // 自动保存标题
 
 
-
   useEffect(() => {
-
 
 
     if (headerTitles) {
 
 
-
       localStorage.setItem('multidoc_header_titles', JSON.stringify(headerTitles));
 
 
-
     }
-
 
 
   }, [headerTitles]);
 
 
-
-
-
-
-
   useEffect(() => {
-
 
 
     if (isEditingLayout) {
 
 
-
       setShowHiddenSidebar(true);
 
 
-
     } else {
-
 
 
       setShowHiddenSidebar(false);
 
 
-
     }
-
 
 
   }, [isEditingLayout]);
 
 
-
-
-
-
-
   const [panelPositions, setPanelPositions] = useState(DEFAULT_PANEL_POSITIONS);
-
 
 
   const [panelTitles, setPanelTitles] = useState({
 
 
-
     [PANEL_IDS.SOURCES]: '来源',
-
 
 
     [PANEL_IDS.CHAT]: '对话',
 
 
-
     [PANEL_IDS.STUDIO]: 'Studio'
-
 
 
   });
 
 
-
   const [panelVisibility, setPanelVisibility] = useState(DEFAULT_PANEL_VISIBILITY);
-
-
-
-
-
 
 
   const [buttonPositions, setButtonPositions] = useState({}); // { panelId: [buttonConfig] }
 
 
-
   const [editingButton, setEditingButton] = useState(null); // { panelId, buttonId, button }
-
-
-
-
-
 
 
   // 备份用于取消
 
 
-
   const [originalConfig, setOriginalConfig] = useState(null); // Includes buttons and panels
-
-
-
-
-
 
 
   const normalizePanelVisibility = (raw) => {
 
 
-
     const base = { ...DEFAULT_PANEL_VISIBILITY };
-
 
 
     if (raw && typeof raw === 'object') {
 
 
-
       Object.keys(base).forEach((key) => {
-
 
 
         base[key] = raw[key] !== false;
 
 
-
       });
 
 
-
     }
-
 
 
     return base;
 
 
-
   };
-
-
-
-
-
 
 
   const normalizePanelPositions = (raw) => {
 
 
-
     const next = { ...DEFAULT_PANEL_POSITIONS };
-
 
 
     if (!raw || typeof raw !== 'object') return next;
 
 
-
     const applyPosition = (targetKey, pos) => {
-
 
 
       if (!pos || typeof pos !== 'object') return;
 
 
-
       const left = Number(pos.left);
-
 
 
       const top = Number(pos.top);
 
 
-
       const width = Number(pos.width);
-
 
 
       const height = Number(pos.height);
 
 
-
       if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) return;
-
 
 
       if (width <= 0 || height <= 0) return;
 
 
-
       next[targetKey] = { left, top, width, height };
 
 
-
     };
-
-
-
-
-
 
 
     let applied = false;
 
 
-
     Object.entries(LEGACY_PANEL_MAP).forEach(([legacyKey, panelKey]) => {
-
 
 
       if (raw[legacyKey]) {
 
 
-
         applied = true;
-
 
 
         applyPosition(panelKey, raw[legacyKey]);
 
 
-
       }
 
 
-
     });
-
 
 
     if (applied) return next;
 
 
-
-
-
-
-
     Object.values(PANEL_IDS).forEach((panelKey) => {
-
 
 
       if (raw[panelKey]) applyPosition(panelKey, raw[panelKey]);
 
 
-
     });
-
 
 
     return next;
 
 
-
   };
-
-
-
-
-
 
 
   const hidePanel = (panelId) => {
 
 
-
     setPanelVisibility((prev) => ({ ...prev, [panelId]: false }));
 
 
-
   };
-
-
-
-
-
 
 
   const showPanel = (panelId) => {
 
 
-
     setPanelVisibility((prev) => ({ ...prev, [panelId]: true }));
 
 
-
   };
-
-
-
-
-
 
 
   // --- 按钮配置 ---
 
 
-
   useEffect(() => {
-
 
 
     // 加载按钮配置
 
 
-
     fetch('/api/multi/buttons').
-
 
 
     then((res) => res.ok ? res.json() : {}).
 
 
-
     then((data) => setButtonPositions(data)).
-
 
 
     catch((err) => console.error('Failed to load buttons:', err));
 
 
-
-
-
-
-
     fetch('/api/multi/app-buttons').
-
 
 
     then((res) => res.ok ? res.json() : null).
 
 
-
     then((data) => {
-
 
 
       const normalized = normalizeAppButtons(data);
 
 
-
       if (normalized.length) setAppButtons(normalized);
 
 
-
     }).
-
 
 
     catch((err) => console.error('Failed to load app buttons:', err));
 
 
-
-
-
-
-
     fetch('/api/multi/layout').
-
 
 
     then((res) => res.ok ? res.json() : null).
 
 
-
     then((data) => {
-
 
 
       if (!data) return;
 
 
-
       if (data.layoutSize) setLayoutSize(data.layoutSize);
-
 
 
       if (data.panelPositions) {
 
 
-
         setPanelPositions(normalizePanelPositions(data.panelPositions));
-
 
 
       } else if (data['doc-classify']) {
 
 
-
         setPanelPositions(normalizePanelPositions(data));
 
 
-
       }
-
 
 
       if (data.panelTitles) setPanelTitles(data.panelTitles);
 
 
-
       if (data.panelVisibility) setPanelVisibility(normalizePanelVisibility(data.panelVisibility));
 
 
-
     }).
-
 
 
     catch((err) => console.error('Failed to load layout from server:', err));
 
 
-
-
-
-
-
     // 加载布局配置
 
 
-
     try {
-
 
 
       const storedLayout = localStorage.getItem('multidoc_layout_config');
 
 
-
       if (storedLayout) {
-
 
 
         const parsed = JSON.parse(storedLayout);
 
 
-
         if (parsed.layoutSize) setLayoutSize(parsed.layoutSize);
-
 
 
         if (parsed.panelPositions) setPanelPositions(normalizePanelPositions(parsed.panelPositions));
 
 
-
         if (parsed.panelTitles) setPanelTitles(parsed.panelTitles);
-
 
 
         if (parsed.panelVisibility) setPanelVisibility(normalizePanelVisibility(parsed.panelVisibility));
 
 
-
       }
-
 
 
     } catch (e) {
 
 
-
       console.error('Failed to load layout:', e);
 
 
-
     }
-
-
-
-
-
 
 
     fetch('/api/multi/panels').
 
 
-
     then((res) => res.ok ? res.json() : null).
-
 
 
     then((data) => {
 
 
-
       if (data) setPanelVisibility(normalizePanelVisibility(data));
-
 
 
     }).
 
 
-
     catch((err) => console.error('Failed to load panel visibility:', err));
-
 
 
   }, []);
 
 
-
-
-
-
-
   // --- 编辑逻辑处理 ---
-
-
-
-
-
 
 
   // 保存配置
 
 
-
   const saveConfiguration = async () => {
-
 
 
     try {
 
 
-
       // 保存按钮
-
 
 
       await fetch('/api/multi/buttons', {
 
 
-
         method: 'POST',
 
 
-
         headers: { 'Content-Type': 'application/json' },
-
 
 
         body: JSON.stringify(buttonPositions)
 
 
-
       });
-
-
-
-
-
 
 
       // 保存布局
 
 
-
       const layoutConfig = {
-
 
 
         layoutSize,
 
 
-
         panelPositions,
-
 
 
         panelTitles,
 
 
-
         panelVisibility
-
 
 
       };
 
 
-
       localStorage.setItem('multidoc_layout_config', JSON.stringify(layoutConfig));
-
-
-
-
-
 
 
       await fetch('/api/multi/layout', {
 
 
-
         method: 'POST',
 
 
-
         headers: { 'Content-Type': 'application/json' },
-
 
 
         body: JSON.stringify(layoutConfig)
 
 
-
       });
-
-
-
-
-
 
 
       await fetch('/api/multi/panels', {
 
 
-
         method: 'POST',
-
 
 
         headers: { 'Content-Type': 'application/json' },
 
 
-
         body: JSON.stringify(panelVisibility)
 
 
-
       });
-
-
-
-
-
 
 
       // console.log('Configuration saved');
 
 
-
     } catch (err) {
-
 
 
       console.error('Failed to save configuration:', err);
 
 
-
       alert('\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u7f51\u7edc\u6216\u670d\u52a1\u7aef');
-
 
 
     }
 
 
-
   };
-
-
-
-
-
 
 
   // 切换编辑模式
 
 
-
   const handleToggleEdit = () => {
-
 
 
     if (!isEditingLayout) {
 
 
-
       setOriginalConfig({
-
 
 
         buttons: JSON.parse(JSON.stringify(buttonPositions)),
 
 
-
         panels: JSON.parse(JSON.stringify(panelPositions)),
-
 
 
         titles: JSON.parse(JSON.stringify(panelTitles)),
 
 
-
         visibility: JSON.parse(JSON.stringify(panelVisibility)),
-
 
 
         size: { ...layoutSize }
 
 
-
       });
-
 
 
       setIsEditingLayout(true);
 
 
-
     } else {
-
 
 
       handleSaveEdit();
 
 
-
     }
 
 
-
   };
-
-
-
-
-
 
 
   const handleSaveEdit = async () => {
 
 
-
     await saveConfiguration();
-
 
 
     setIsEditingLayout(false);
 
 
-
     setEditingButton(null);
-
 
 
     setOriginalConfig(null);
 
 
-
   };
-
-
-
-
-
 
 
   const handleCancelEdit = () => {
 
 
-
     if (originalConfig) {
-
 
 
       setButtonPositions(originalConfig.buttons);
 
 
-
       setPanelPositions(originalConfig.panels);
-
 
 
       setPanelTitles(originalConfig.titles);
 
 
-
       if (originalConfig.visibility) {
-
 
 
         setPanelVisibility(normalizePanelVisibility(originalConfig.visibility));
 
 
-
       }
-
 
 
       setLayoutSize(originalConfig.size);
 
 
-
     }
-
 
 
     setIsEditingLayout(false);
 
 
-
     setEditingButton(null);
-
 
 
     setOriginalConfig(null);
 
 
-
   };
-
-
-
-
-
 
 
   const handleResetLayout = async () => {
 
 
-
     if (confirm('\u786e\u5b9a\u8981\u91cd\u7f6e\u5f53\u524d\u7f16\u8f91\u7684\u66f4\u6539\u5417\uff1f\u8fd9\u5c06\u6062\u590d\u5230\u4e0a\u6b21\u4fdd\u5b58\u7684\u72b6\u6001\u3002\u5982\u679c\u4ece\u672a\u4fdd\u5b58\u8fc7\uff0c\u5c06\u6062\u590d\u9ed8\u8ba4\u8bbe\u7f6e\u3002')) {
-
 
 
       try {
 
 
-
         // 优先恢复已保存配置
-
 
 
         const savedConfigStr = localStorage.getItem('multidoc_layout_config');
 
 
-
         const savedHeaderTitlesStr = localStorage.getItem('multidoc_header_titles');
-
-
-
-
-
 
 
         if (savedConfigStr) {
 
 
-
           const savedConfig = JSON.parse(savedConfigStr);
-
 
 
           if (savedConfig.layoutSize) setLayoutSize(savedConfig.layoutSize);
 
 
-
           if (savedConfig.panelPositions) setPanelPositions(normalizePanelPositions(savedConfig.panelPositions));
-
 
 
           if (savedConfig.panelTitles) setPanelTitles(savedConfig.panelTitles);
 
 
-
           if (savedConfig.panelVisibility) {
-
 
 
             setPanelVisibility(normalizePanelVisibility(savedConfig.panelVisibility));
 
 
-
           }
-
 
 
           // 按钮位置通常存储在后端，这里重新获取
 
 
-
           const res = await fetch('/api/multi/buttons');
 
 
-
           if (res.ok) {
-
 
 
             const buttons = await res.json();
 
 
-
             setButtonPositions(buttons);
 
 
-
           }
-
 
 
           if (savedHeaderTitlesStr) {
 
 
-
             setHeaderTitles(JSON.parse(savedHeaderTitlesStr));
 
 
-
           }
-
 
 
         } else {
 
 
-
           // 使用默认配置 (Factory Default)
-
 
 
           const res = await fetch('/api/multi/buttons/reset', { method: 'POST' });
 
 
-
           if (res.ok) {
-
 
 
             const defaultButtons = await res.json();
 
 
-
             setButtonPositions(defaultButtons);
-
 
 
           }
 
 
-
           localStorage.removeItem('multidoc_layout_config');
-
 
 
           setPanelPositions(DEFAULT_PANEL_POSITIONS);
 
 
-
           setPanelTitles({
-
 
 
             [PANEL_IDS.SOURCES]: '来源',
 
 
-
             [PANEL_IDS.CHAT]: '对话',
-
 
 
             [PANEL_IDS.STUDIO]: 'Studio'
 
 
-
           });
-
 
 
           setPanelVisibility(DEFAULT_PANEL_VISIBILITY);
 
 
-
           setHeaderTitles({
-
 
 
             title: { text: '多文档处理工作台', style: { fontSize: '24px', fontWeight: 400, color: '#202124', textAlign: 'left' }, position: { left: 0, top: 0 }, width: 300, height: 40 },
 
 
-
             eyebrow: { text: 'KNOWLEDGE STUDIO', style: { fontSize: '11px', letterSpacing: '1px', color: '#5f6368', textTransform: 'uppercase', textAlign: 'left' }, position: { left: 0, top: 0 }, width: 200, height: 30 }
-
 
 
           });
 
 
-
           localStorage.removeItem('multidoc_header_titles');
-
 
 
           setLayoutSize({ width: 1680, height: 1050 });
 
 
-
         }
-
-
-
-
-
 
 
         setEditingButton(null);
 
 
-
         // 清理编辑态
-
 
 
         // 关闭编辑模式
 
 
-
         setIsEditingLayout(false);
-
 
 
         setOriginalConfig(null);
 
 
-
-
-
-
-
       } catch (err) {
-
 
 
         console.error('Reset failed', err);
 
 
-
         alert('重置失败');
-
 
 
       }
 
 
-
     }
 
 
-
   };
-
-
-
-
-
 
 
   // 标题拖拽
 
 
-
   const handleHeaderTitleMouseDown = (e, titleKey) => {
-
 
 
     if (!isEditingLayout) return;
 
 
-
     e.preventDefault();e.stopPropagation();
 
 
-
     const startX = e.clientX;const startY = e.clientY;
-
 
 
     const startPos = headerTitles[titleKey].position || { left: 0, top: 0 };
 
 
-
     setDraggingHeaderTitle({ titleKey, startX, startY, startPos });
-
 
 
   };
 
 
-
-
-
-
-
   useEffect(() => {
-
 
 
     if (!draggingHeaderTitle) return;
 
 
-
     const handleMouseMove = (e) => {
-
 
 
       const deltaX = e.clientX - draggingHeaderTitle.startX;
 
 
-
       const deltaY = e.clientY - draggingHeaderTitle.startY;
-
 
 
       setHeaderTitles((prev) => ({
 
 
-
         ...prev,
-
 
 
         [draggingHeaderTitle.titleKey]: { ...prev[draggingHeaderTitle.titleKey], position: { left: draggingHeaderTitle.startPos.left + deltaX, top: draggingHeaderTitle.startPos.top + deltaY } }
 
 
-
       }));
 
 
-
     };
-
 
 
     const handleMouseUp = () => setDraggingHeaderTitle(null);
 
 
-
     document.addEventListener('mousemove', handleMouseMove);
-
 
 
     document.addEventListener('mouseup', handleMouseUp);
 
 
-
     return () => {document.removeEventListener('mousemove', handleMouseMove);document.removeEventListener('mouseup', handleMouseUp);};
-
 
 
   }, [draggingHeaderTitle]);
 
 
-
-
-
-
-
   // 标题缩放
-
 
 
   const handleHeaderTitleResizeMouseDown = (e, titleKey, direction) => {
 
 
-
     if (!isEditingLayout) return;
-
 
 
     e.preventDefault();e.stopPropagation();
 
 
-
     const startX = e.clientX;const startY = e.clientY;
-
 
 
     const startSize = { width: headerTitles[titleKey].width || 200, height: headerTitles[titleKey].height || 30 };
 
 
-
     setResizingHeaderTitle({ titleKey, startX, startY, startSize, direction });
 
 
-
   };
-
-
-
-
-
 
 
   useEffect(() => {
 
 
-
     if (!resizingHeaderTitle) return;
-
 
 
     const handleMouseMove = (e) => {
 
 
-
       const deltaX = e.clientX - resizingHeaderTitle.startX;
-
 
 
       const deltaY = e.clientY - resizingHeaderTitle.startY;
 
 
-
       setHeaderTitles((prev) => {
-
 
 
         const newWidth = Math.max(50, resizingHeaderTitle.startSize.width + deltaX);
 
 
-
         const newHeight = Math.max(20, resizingHeaderTitle.startSize.height + deltaY);
-
 
 
         return { ...prev, [resizingHeaderTitle.titleKey]: { ...prev[resizingHeaderTitle.titleKey], width: newWidth, height: newHeight } };
 
 
-
       });
 
 
-
     };
-
 
 
     const handleMouseUp = () => setResizingHeaderTitle(null);
 
 
-
     document.addEventListener('mousemove', handleMouseMove);
-
 
 
     document.addEventListener('mouseup', handleMouseUp);
 
 
-
     return () => {document.removeEventListener('mousemove', handleMouseMove);document.removeEventListener('mouseup', handleMouseUp);};
-
 
 
   }, [resizingHeaderTitle]);
 
 
-
-
-
-
-
   // 鎸夐挳鎷栨嫿涓庣缉鏀?
-
 
 
   const handleButtonMouseDown = (e, panelId, buttonId, type) => {
 
 
-
     if (!isEditingLayout) return;
-
 
 
     e.stopPropagation();
 
 
-
-
-
-
-
     const btnList = buttonPositions[panelId] || [];
-
 
 
     const btnIndex = btnList.findIndex((b) => b.id === buttonId);
 
 
-
     if (btnIndex === -1) return;
-
 
 
     const btn = btnList[btnIndex];
 
 
-
-
-
-
-
     const startX = e.clientX;
-
 
 
     const startY = e.clientY;
 
 
-
     const startLeft = btn.left;
-
 
 
     const startTop = btn.top;
 
 
-
     const startW = btn.width;
-
 
 
     const startH = btn.height;
 
 
-
-
-
-
-
     const handleMove = (moveEvent) => {
-
 
 
       const deltaX = moveEvent.clientX - startX;
 
 
-
       const deltaY = moveEvent.clientY - startY;
-
 
 
       const newBtn = { ...btn };
 
 
-
-
-
-
-
       if (type === 'move') {
-
 
 
         newBtn.left = startLeft + deltaX;
 
 
-
         newBtn.top = startTop + deltaY;
-
 
 
       } else if (type === 'resize-e') {
 
 
-
         newBtn.width = Math.max(20, startW + deltaX);
-
 
 
       } else if (type === 'resize-s') {
 
 
-
         newBtn.height = Math.max(20, startH + deltaY);
-
 
 
       } else if (type === 'resize-se') {
 
 
-
         newBtn.width = Math.max(20, startW + deltaX);
-
 
 
         newBtn.height = Math.max(20, startH + deltaY);
 
 
-
       }
 
 
-
-
-
-
-
       setButtonPositions((prev) => {
-
 
 
         const newList = [...(prev[panelId] || [])];
 
 
-
         newList[btnIndex] = newBtn;
-
 
 
         return { ...prev, [panelId]: newList };
 
 
-
       });
 
 
-
     };
-
-
-
-
-
 
 
     const handleUp = () => {
 
 
-
       document.removeEventListener('mousemove', handleMove);
-
 
 
       document.removeEventListener('mouseup', handleUp);
 
 
-
     };
-
-
-
-
-
 
 
     document.addEventListener('mousemove', handleMove);
 
 
-
     document.addEventListener('mouseup', handleUp);
 
 
-
   };
-
-
-
-
-
 
 
   // 样式编辑
 
 
-
   const handleStyleEdit = (panelId, buttonId) => {
-
 
 
     const btnList = buttonPositions[panelId] || [];
 
 
-
     const button = btnList.find((b) => b.id === buttonId);
-
 
 
     if (button) {
 
 
-
       setEditingButton({ panelId, buttonId, button });
-
 
 
     }
 
 
-
   };
-
-
-
-
-
 
 
   // 删除按钮
 
 
-
   const handleDeleteButton = () => {
-
 
 
     if (!editingButton) return;
 
 
-
     const { panelId, buttonId } = editingButton;
-
 
 
     if (confirm('\u786e\u5b9a\u8981\u5220\u9664\u8fd9\u4e2a\u6309\u94ae\u5417\uff1f')) {
 
 
-
       setButtonPositions((prev) => {
-
 
 
         const newList = (prev[panelId] || []).filter((b) => b.id !== buttonId);
 
 
-
         return { ...prev, [panelId]: newList };
-
 
 
       });
 
 
-
       setEditingButton(null);
-
 
 
     }
 
 
-
   };
-
-
-
-
-
 
 
   // 按钮/样式更新
 
 
-
   const handleButtonUpdate = ({ style, label }) => {
-
 
 
     if (!editingButton) return;
 
 
-
     const { panelId, buttonId } = editingButton;
-
-
-
-
-
 
 
     setButtonPositions((prev) => {
 
 
-
       const btnList = [...(prev[panelId] || [])];
-
 
 
       const btnIndex = btnList.findIndex((b) => b.id === buttonId);
 
 
-
       if (btnIndex !== -1) {
-
 
 
         // 更新 label 与 style
 
 
-
         btnList[btnIndex] = {
-
 
 
           ...btnList[btnIndex],
 
 
-
           label: label !== undefined ? label : btnList[btnIndex].label,
-
 
 
           style: { ...btnList[btnIndex].style, ...style }
 
 
-
         };
 
 
-
       }
-
 
 
       return { ...prev, [panelId]: btnList };
 
 
-
     });
 
 
-
   };
-
-
-
-
-
 
 
   // 添加新按钮
 
 
-
   const handleAddButton = (targetPanelId) => {
-
 
 
     const newButton = {
 
 
-
       id: `btn_${Date.now()}`,
-
 
 
       label: '\u65b0\u6309\u94ae',
 
 
-
       kind: 'action',
-
 
 
       left: 20,
 
 
-
       top: 20,
-
 
 
       width: 100,
 
 
-
       height: 36,
-
 
 
       enabled: true,
 
 
-
       style: {
-
 
 
         backgroundColor: '#ffffff',
 
 
-
         color: '#1e293b',
-
 
 
         borderColor: '#e2e8f0',
 
 
-
         borderWidth: 1,
-
 
 
         borderRadius: 6,
 
 
-
         fontSize: 14,
-
 
 
         fontWeight: 500
 
 
-
       }
-
 
 
     };
 
 
-
-
-
-
-
     setButtonPositions((prev) => ({
-
 
 
       ...prev,
 
 
-
       [targetPanelId]: [...(prev[targetPanelId] || []), newButton]
-
 
 
     }));
 
 
-
   };
-
-
-
-
-
 
 
   // 按钮点击 (通用处理)
 
 
-
   const handleButtonClick = (button) => {
-
 
 
     if (isEditingLayout) return;
 
 
-
     console.log('Button clicked:', button.label, button.kind);
-
-
-
-
-
 
 
     // --- 录制钩子 (Recording Hook) ---
@@ -5315,7 +3599,6 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
     //   2. 动作执行：用户点击了什么按钮
     //   3. 记录位置：回写作用在什么地方（使用标题定位，而非序号）
     //   4. 执行摘要：结果输出了什么
-
 
 
     if (isRecordingRecord) {
@@ -5330,656 +3613,455 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
       const newSection = {
 
 
-
         id: `sec_${Date.now()}`,
 
 
-
         order: currentSessionSections.length + 1,
-
 
 
         // === 要素2：动作执行（按钮操作） ===
         buttonId: button.id,
 
 
-
         buttonLabel: button.label,
-
 
 
         buttonKind: button.kind,
 
 
-
         timestamp: Date.now(),
-
 
 
         // === 要素1：输入来源（类型和上下文，不记录具体内容） ===
         input: {
 
 
-
           sourceType: button.kind || 'button_click',
-
 
 
           inputContext: inputContext, // 输入文档的上下文信息
           selectedDocCount: selectedDocs.length
 
 
-
         },
-
 
 
         // === 动作信息（仅记录按钮，不记录编辑框内容） ===
         action: {
 
 
-
           type: 'button_click',
-
 
 
           buttonKind: button.kind,
           buttonLabel: button.label
 
 
-
         },
-
 
 
         // === 要素3 & 4：记录位置和执行摘要（在执行完成后更新） ===
         output: {
 
 
-
           targetLocation: 'pending', // 执行后更新
           status: 'pending'
-
 
 
         }
 
 
-
       };
-
 
 
       setCurrentSessionSections((prev) => [...prev, newSection]);
 
 
-
     }
-
-
-
-
-
 
 
     switch (button.kind) {
 
 
-
       case 'switch':onSwitch?.();break;
-
 
 
       case 'edit':handleToggleEdit();break;
 
 
-
       case 'action':
-
 
 
         // TODO: 需要补充按钮动作逻辑
 
 
-
         alert(`触发指令: ${button.label}`);
-
 
 
         break;
 
 
-
     }
 
 
-
   };
-
-
-
-
-
 
 
   // 面板标题编辑
 
 
-
   const handleTitleEdit = (panelId) => {
-
 
 
     const currentTitle = panelTitles[panelId];
 
 
-
     const newTitle = prompt('请输入新标题', currentTitle);
-
 
 
     if (newTitle !== null && newTitle.trim() !== '') {
 
 
-
       setPanelTitles((prev) => ({
-
 
 
         ...prev,
 
 
-
         [panelId]: newTitle.trim()
-
 
 
       }));
 
 
-
     }
 
 
-
   };
-
-
-
-
-
 
 
   // --- 内容交互处理 ---
 
 
-
   const handleUpload = async (e) => {
-
 
 
     const inputEl = e?.target;
 
 
-
     const files = Array.from(inputEl?.files || []);
-
 
 
     if (!files.length) return;
 
 
-
-
-
-
-
     const createdDocs = [];
-
 
 
     const failedFiles = [];
 
 
-
-
-
-
-
     for (const file of files) {
-
 
 
       try {
 
 
-
         const name = file?.name || '\u672a\u547d\u540d\u6587\u6863';
-
 
 
         const isDocx = isDocxName(name);
 
 
-
         const rawText = isDocx ? await parseDocxFileToStructuredText(file) : await readFileText(file);
-
 
 
         const text = typeof rawText === 'string' ? rawText : String(rawText ?? '');
 
 
-
         const normalizedText = text.trim() ? text : '\uff08\u7a7a\u767d\u6587\u6863\uff09';
-
 
 
         const res = await fetch('/api/docs', {
 
 
-
           method: 'POST',
-
 
 
           headers: { 'Content-Type': 'application/json' },
 
 
-
           body: JSON.stringify({ name, content: normalizedText })
 
 
-
         });
-
 
 
         if (!res.ok) {
 
 
-
           const msg = await res.text();
-
 
 
           throw new Error(msg || '上传失败');
 
 
-
         }
-
 
 
         const data = await res.json();
 
 
-
         if (data?.doc) createdDocs.push(data.doc);
-
 
 
       } catch (err) {
 
 
-
         console.error(err);
-
 
 
         failedFiles.push({ name: file?.name || '(unknown)', reason: err?.message });
 
 
-
       }
 
 
-
     }
-
-
-
-
-
 
 
     if (createdDocs.length) {
 
 
-
       setDocs((prev) => {
-
 
 
         const byId = new Map((prev || []).filter(Boolean).map((d) => [d.id, d]));
 
 
-
         createdDocs.forEach((doc) => {
-
 
 
           if (doc?.id) byId.set(doc.id, doc);
 
 
-
         });
-
 
 
         return Array.from(byId.values());
 
 
-
       });
 
 
-
     }
-
 
 
     await refreshDocs();
 
 
-
-
-
-
-
     if (inputEl) inputEl.value = '';
-
-
-
-
-
 
 
     if (failedFiles.length) {
 
 
-
       const details = failedFiles.
-
 
 
       map((f) => f.reason ? `${f.name} (${f.reason})` : f.name).
 
 
-
       join(', ');
-
 
 
       appendAssistantMessage(`\u4e0a\u4f20\u5931\u8d25\uff1a${details}`);
 
 
-
     }
-
-
-
-
-
 
 
     if (isRecordingRecord) {
 
 
-
       const fileNames = files.map((f) => f.name).join(', ');
-
 
 
       const newSection = {
 
 
-
         id: `sec_${Date.now()}`,
-
 
 
         order: currentSessionSections.length + 1,
 
 
-
         buttonId: 'source_upload_trigger',
-
 
 
         buttonLabel: '上传文件',
 
 
-
         buttonKind: 'action',
-
 
 
         timestamp: Date.now(),
 
 
-
         input: {
-
 
 
           sourceType: 'file_system',
 
 
-
           contentPreview: `上传 ${files.length} 个文件：${fileNames}`
 
 
-
         },
-
 
 
         action: {
 
 
-
           type: 'upload_file',
-
 
 
           buttonData: { label: '上传文件', kind: 'upload' }
 
 
-
         },
-
 
 
         output: {
 
 
-
           targetLocation: 'sources_list',
-
 
 
           summary: `已上传 ${files.length} 个文件`
 
 
-
         },
-
 
 
         meta: {
 
 
-
           fileCount: files.length,
-
 
 
           fileDetails: createdDocs.map((doc) => ({ id: doc.id, name: doc.name })),
 
 
-
           reproducibility: {
-
 
 
             requiresLocalFile: true,
 
 
-
             fileNames: files.map((f) => f.name)
-
 
 
           }
 
 
-
         }
-
 
 
       };
 
 
-
       setCurrentSessionSections((prev) => [...prev, newSection]);
-
 
 
     }
 
 
-
   };
-
-
-
-
-
 
 
   const handleDeleteSource = async (id) => {
 
 
-
     try {
-
 
 
       await fetch(`/api/docs/${id}`, { method: 'DELETE' });
 
 
-
       await refreshDocs();
-
 
 
       setSelectedSourceIds((prev) => {
 
 
-
         const next = { ...prev };
-
 
 
         delete next[id];
 
 
-
         return next;
-
 
 
       });
 
 
-
     } catch (err) {
-
 
 
       console.error('Failed to delete doc', err);
 
 
-
     }
 
 
-
   };
-
-
-
-
-
 
 
   const handleClearSources = async () => {
 
 
-
     if (!docs.length) return;
-
 
 
     if (!confirm('\u786e\u5b9a\u8981\u6e05\u9664\u6765\u6e90\u5217\u8868\u4e2d\u7684\u5168\u90e8\u6587\u4ef6\u5417\uff1f\u6b64\u64cd\u4f5c\u4e0d\u53ef\u64a4\u9500\u3002')) return;
 
 
-
     try {
-
 
 
       for (const doc of docs) {
 
 
-
         await fetch(`/api/docs/${doc.id}`, { method: 'DELETE' });
-
 
 
       }
 
 
-
       await refreshDocs();
-
 
 
       setSelectedSourceIds({});
 
 
-
     } catch (err) {
-
 
 
       console.error('Failed to clear docs', err);
 
 
-
     }
-
 
 
   };
 
 
-
-
-
-
-
   const handleSelectSource = (id) =>
 
 
-
   setSelectedSourceIds((prev) => ({ ...prev, [id]: !prev[id] }));
-
-
-
-
-
 
 
   // 清除对话记录
@@ -6069,737 +4151,478 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
   };
 
 
-
-
-
-
-
   const handleAddNote = () => setNotes((prev) => [{ id: `n_${Date.now()}`, title: '', content: '' }, ...prev]);
-
 
 
   const handleDeleteNote = (id) => setNotes((prev) => prev.filter((n) => n.id !== id));
 
 
-
-
-
-
-
   // 编辑按钮覆盖层
-
 
 
   const renderButtonsOverlay = (panelId) =>
 
 
-
   <EditableButtonsContainer
-
 
 
     panelId={panelId}
 
 
-
     buttons={buttonPositions[panelId] || []}
-
 
 
     isEditing={isEditingLayout}
 
 
-
     onButtonMouseDown={handleButtonMouseDown}
-
 
 
     onStyleEdit={handleStyleEdit}
 
 
-
     onClick={handleButtonClick}
-
 
 
     style={{
 
 
-
       position: 'absolute',
-
 
 
       top: 0, left: 0, right: 0, bottom: 0,
 
 
-
       zIndex: 10,
-
 
 
       pointerEvents: isEditingLayout ? 'none' : 'none' // 编辑模式下禁止点击内部按钮
 
 
-
     }} />;
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
   // 头部标题文本更新
 
 
-
   const handleHeaderTitleChange = (key, newText) => {
-
 
 
     setHeaderTitles((prev) => ({
 
 
-
       ...prev,
-
 
 
       [key]: { ...prev[key], text: newText }
 
 
-
     }));
 
 
-
   };
-
-
-
-
-
 
 
   const hiddenPanelIds = Object.keys(DEFAULT_PANEL_VISIBILITY).filter((id) => panelVisibility[id] === false);
 
 
-
   const getPanelLabel = (panelId) => {
-
 
 
     if (panelTitles?.[panelId]) return panelTitles[panelId];
 
 
-
     if (panelId === PANEL_IDS.SOURCES) return '来源';
-
 
 
     if (panelId === PANEL_IDS.CHAT) return '对话';
 
 
-
     if (panelId === PANEL_IDS.STUDIO) return 'Studio';
-
 
 
     return panelId;
 
 
-
   };
-
-
-
-
-
 
 
   return (
 
 
-
     <div
-
 
 
       className={`layout-multi ${isEditingLayout ? 'editing-mode' : ''}`}
 
 
-
       style={{ position: 'relative', height: '100%', padding: '16px', boxSizing: 'border-box' }}>
-
-
-
-
-
 
 
             {/* Header */}
 
 
-
             <header className="hero multi-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-
 
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
 
-
                         <LayoutIcon size={22} style={{ color: 'var(--primary-accent)', marginTop: '4px' }} />
-
 
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
 
 
-
                         {isEditingLayout ?
 
 
-
             <>
-
 
 
                                 {/* Editable Title (Top) */}
 
 
-
                                 <div
-
 
 
                 style={{
 
 
-
                   position: 'relative',
-
 
 
                   display: 'inline-flex',
 
 
-
                   alignItems: 'center',
-
 
 
                   width: `${headerTitles.title.width}px`,
 
 
-
                   height: `${headerTitles.title.height}px`,
-
 
 
                   border: '1px dashed #94a3b8',
 
 
-
                   borderRadius: '4px',
-
 
 
                   zIndex: draggingHeaderTitle?.titleKey === 'title' ? 200 : 100,
 
 
-
                   transform: `translate(${headerTitles.title.position?.left || 0}px, ${headerTitles.title.position?.top || 0}px)`,
-
 
 
                   transition: draggingHeaderTitle?.titleKey === 'title' ? 'none' : 'transform 0.2s'
 
 
-
                 }}>
-
-
-
-
-
 
 
                                     {/* Control Bar (Outside Top) */}
 
 
-
                                     <div style={{ position: 'absolute', top: '-24px', left: 0, display: 'flex', gap: '4px', background: '#f1f5f9', padding: '2px 4px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
 
 
-
                                         <div
-
 
 
                     onMouseDown={(e) => handleHeaderTitleMouseDown(e, 'title')}
 
 
-
                     style={{ cursor: 'move', display: 'flex', alignItems: 'center', color: '#64748b' }}
-
 
 
                     title={UI_TEXT.t1}>
 
 
-
-
-
-
-
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="19 9 22 12 19 15"></polyline><polyline points="9 19 12 22 15 19"></polyline><circle cx="12" cy="12" r="1"></circle></svg>
-
 
 
                                         </div>
 
 
-
                                         <div
-
 
 
                     onClick={() => setEditingHeaderTitle('title')}
 
 
-
                     style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b' }}
-
 
 
                     title={UI_TEXT.t2}>
 
 
-
-
-
-
-
                                             <Settings size={14} />
-
 
 
                                         </div>
 
 
-
                                     </div>
 
 
-
-
-
-
-
                                     <input
-
 
 
                   value={headerTitles.title.text}
 
 
-
                   onChange={(e) => handleHeaderTitleChange('title', e.target.value)}
 
 
-
                   style={{
-
 
 
                     ...headerTitles.title.style,
 
 
-
                     margin: 0,
-
 
 
                     width: '100%',
 
 
-
                     height: '100%',
-
 
 
                     border: 'none',
 
 
-
                     background: 'transparent',
-
 
 
                     outline: 'none',
 
 
-
                     padding: 0
 
 
-
                   }} />
-
-
-
-
-
-
-
-
-
 
 
                                     <div className="resize-handle e" onMouseDown={(e) => handleHeaderTitleResizeMouseDown(e, 'title', 'e')} />
 
 
-
                                     <div className="resize-handle s" onMouseDown={(e) => handleHeaderTitleResizeMouseDown(e, 'title', 's')} />
-
 
 
                                     <div className="resize-handle se" onMouseDown={(e) => handleHeaderTitleResizeMouseDown(e, 'title', 'se')} />
 
 
-
                                 </div>
-
-
-
-
-
 
 
                                 {/* Editable Eyebrow (Bottom) */}
 
 
-
                                 <div
-
 
 
                 style={{
 
 
-
                   position: 'relative',
-
 
 
                   display: 'inline-flex',
 
 
-
                   alignItems: 'center',
-
 
 
                   width: `${headerTitles.eyebrow.width}px`,
 
 
-
                   height: `${headerTitles.eyebrow.height}px`,
-
 
 
                   border: '1px dashed #94a3b8',
 
 
-
                   borderRadius: '4px',
-
 
 
                   zIndex: draggingHeaderTitle?.titleKey === 'eyebrow' ? 200 : 100,
 
 
-
                   transform: `translate(${headerTitles.eyebrow.position?.left || 0}px, ${headerTitles.eyebrow.position?.top || 0}px)`,
-
 
 
                   transition: draggingHeaderTitle?.titleKey === 'eyebrow' ? 'none' : 'transform 0.2s'
 
 
-
                 }}>
-
-
-
-
-
 
 
                                     {/* Control Bar */}
 
 
-
                                     <div style={{ position: 'absolute', top: '-24px', left: 0, display: 'flex', gap: '4px', background: '#f1f5f9', padding: '2px 4px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
 
 
-
                                         <div
-
 
 
                     onMouseDown={(e) => handleHeaderTitleMouseDown(e, 'eyebrow')}
 
 
-
                     style={{ cursor: 'move', display: 'flex', alignItems: 'center', color: '#64748b' }}
-
 
 
                     title={UI_TEXT.t1}>
 
 
-
-
-
-
-
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="19 9 22 12 19 15"></polyline><polyline points="9 19 12 22 15 19"></polyline><circle cx="12" cy="12" r="1"></circle></svg>
 
 
-
                                         </div>
-
 
 
                                         <div
 
 
-
                     onClick={() => setEditingHeaderTitle('eyebrow')}
-
 
 
                     style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b' }}
 
 
-
                     title={UI_TEXT.t2}>
-
-
-
-
-
 
 
                                             <Settings size={14} />
 
 
-
                                         </div>
-
 
 
                                     </div>
 
 
-
-
-
-
-
                                     <input
-
 
 
                   value={headerTitles.eyebrow.text}
 
 
-
                   onChange={(e) => handleHeaderTitleChange('eyebrow', e.target.value)}
-
 
 
                   style={{
 
 
-
                     ...headerTitles.eyebrow.style,
-
 
 
                     margin: 0,
 
 
-
                     width: '100%',
-
 
 
                     height: '100%',
 
 
-
                     border: 'none',
-
 
 
                     background: 'transparent',
 
 
-
                     outline: 'none',
-
 
 
                     padding: 0
 
 
-
                   }} />
-
-
-
-
-
-
-
-
-
 
 
                                     <div className="resize-handle e" onMouseDown={(e) => handleHeaderTitleResizeMouseDown(e, 'eyebrow', 'e')} />
 
 
-
                                     <div className="resize-handle s" onMouseDown={(e) => handleHeaderTitleResizeMouseDown(e, 'eyebrow', 's')} />
-
 
 
                                     <div className="resize-handle se" onMouseDown={(e) => handleHeaderTitleResizeMouseDown(e, 'eyebrow', 'se')} />
 
 
-
                                 </div>
-
 
 
                             </> :
 
 
-
-
-
-
-
             <>
-
 
 
                                 <h1 style={{ ...headerTitles.title.style, margin: 0, width: `${headerTitles.title.width}px`, height: `${headerTitles.title.height}px`, display: 'flex', alignItems: 'center', transform: `translate(${headerTitles.title.position?.left || 0}px, ${headerTitles.title.position?.top || 0}px)`, transition: 'transform 0.2s' }}>{headerTitles.title.text}</h1>
 
 
-
                                 <p className="eyebrow" style={{ ...headerTitles.eyebrow.style, margin: 0, width: `${headerTitles.eyebrow.width}px`, height: `${headerTitles.eyebrow.height}px`, display: 'flex', alignItems: 'center', transform: `translate(${headerTitles.eyebrow.position?.left || 0}px, ${headerTitles.eyebrow.position?.top || 0}px)`, transition: 'transform 0.2s' }}>{headerTitles.eyebrow.text}</p>
-
 
 
                             </>
 
 
-
             }
-
 
 
                     </div>
 
 
-
                 </div>
-
-
-
-
-
 
 
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
 
 
-
                     <button
-
 
 
             onClick={onSwitch}
 
 
-
             className="ghost"
-
 
 
             style={{
 
 
-
               display: 'inline-flex',
-
 
 
               alignItems: 'center',
 
 
-
               gap: '6px',
-
 
 
               padding: '4px 10px',
 
 
-
               borderRadius: '999px',
-
 
 
               fontSize: '16px',
 
 
-
               fontWeight: 600
-
 
 
             }}>
 
 
-
-
-
-
-
                         <GalleryVerticalEnd size={18} /> {UI_TEXT.t3}
 
 
-
                     </button>
-
-
-
-
-
 
 
                                         {/* 编辑模式下显示工具栏 */}
@@ -6812,29 +4635,16 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
                     )}
 
 
-
                 </div>
-
-
-
-
-
 
 
                 {/* Header 按钮覆盖层（编辑中） */}
 
 
-
                 {renderButtonsOverlay(PANEL_IDS.HEADER)}
 
 
-
             </header>
-
-
-
-
-
 
 
             {/* 右下角固定定位的编辑按钮（非编辑模式） */}
@@ -6858,966 +4668,632 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
             {/* Main Layout Area - Replaced Grid with LayoutEditContainer */}
 
 
-
             <div className="multi-content-area" style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-
 
 
                 <LayoutEditContainer
 
 
-
           isEditing={isEditingLayout}
-
 
 
           size={layoutSize}
 
 
-
           onSizeChange={setLayoutSize}
-
 
 
           minWidth={1200}
 
 
-
           minHeight={800}
-
 
 
           style={{ background: '#f8fafc' }}>
 
 
-
-
-
-
-
                     {/* Left: Sources */}
-
 
 
                     {panelVisibility[PANEL_IDS.SOURCES] !== false &&
 
 
-
           <EditableLayoutPanel
-
 
 
             panelId={PANEL_IDS.SOURCES}
 
 
-
             panelName={panelTitles[PANEL_IDS.SOURCES]}
 
 
-
             isEditing={isEditingLayout}
-
 
 
             position={panelPositions[PANEL_IDS.SOURCES]}
 
 
-
             onPositionChange={(newPos) => setPanelPositions((prev) => ({ ...prev, [PANEL_IDS.SOURCES]: newPos }))}
-
 
 
             onTitleEdit={handleTitleEdit}
 
 
-
             editHeaderActions={isEditingLayout ?
-
 
 
             <button
 
 
-
               type="button"
 
 
-
               className="ghost"
-
 
 
               onClick={(e) => {e.stopPropagation();hidePanel(PANEL_IDS.SOURCES);}}
 
 
-
               style={{ padding: '4px 8px', fontSize: '12px' }}>{UI_TEXT.t8}
-
-
-
-
-
-
-
-
-
 
 
             </button> :
 
 
-
             null}>
-
-
-
-
-
 
 
                             <SourcesPanel
 
 
-
               sources={sources}
-
 
 
               onUpload={handleUpload}
 
 
-
               onDelete={handleDeleteSource}
-
 
 
               onSelect={handleSelectSource}
 
 
-
               onClearAll={handleClearSources} />
-
-
-
-
-
 
 
                             {renderButtonsOverlay(PANEL_IDS.SOURCES)}
 
 
-
                         </EditableLayoutPanel>
-
 
 
           }
 
 
-
-
-
-
-
                     {/* Middle: Chat */}
-
 
 
                     {panelVisibility[PANEL_IDS.CHAT] !== false &&
 
 
-
           <EditableLayoutPanel
-
 
 
             panelId={PANEL_IDS.CHAT}
 
 
-
             panelName={panelTitles[PANEL_IDS.CHAT]}
-
 
 
             isEditing={isEditingLayout}
 
 
-
             position={panelPositions[PANEL_IDS.CHAT]}
-
 
 
             onPositionChange={(newPos) => setPanelPositions((prev) => ({ ...prev, [PANEL_IDS.CHAT]: newPos }))}
 
 
-
             onTitleEdit={handleTitleEdit}
-
 
 
             editHeaderActions={isEditingLayout ?
 
 
-
             <button
-
 
 
               type="button"
 
 
-
               className="ghost"
-
 
 
               onClick={(e) => {e.stopPropagation();hidePanel(PANEL_IDS.CHAT);}}
 
 
-
               style={{ padding: '4px 8px', fontSize: '12px' }}>{UI_TEXT.t8}
-
-
-
-
-
-
-
-
-
 
 
             </button> :
 
 
-
             null}>
-
-
-
-
-
 
 
                             <ChatPanel
 
 
-
               messages={messages}
-
 
 
               onSendMessage={handleSendMessage}
 
 
-
               thinking={thinking}
 
 
-
               appButtons={appButtons}
-
 
 
               onAppButtonClick={handleAppButtonClick}
               onClearMessages={handleClearMessages} />
 
 
-
-
-
-
-
                             {renderButtonsOverlay(PANEL_IDS.CHAT)}
-
 
 
                         </EditableLayoutPanel>
 
 
-
           }
-
-
-
-
-
 
 
                     {/* Right: Studio */}
 
 
-
                     {panelVisibility[PANEL_IDS.STUDIO] !== false &&
-
 
 
           <EditableLayoutPanel
 
 
-
             panelId={PANEL_IDS.STUDIO}
-
 
 
             panelName={panelTitles[PANEL_IDS.STUDIO]}
 
 
-
             isEditing={isEditingLayout}
-
 
 
             position={panelPositions[PANEL_IDS.STUDIO]}
 
 
-
             onPositionChange={(newPos) => setPanelPositions((prev) => ({ ...prev, [PANEL_IDS.STUDIO]: newPos }))}
-
 
 
             onTitleEdit={handleTitleEdit}
 
 
-
             editHeaderActions={isEditingLayout ?
-
 
 
             <button
 
 
-
               type="button"
-
 
 
               className="ghost"
 
 
-
               onClick={(e) => {e.stopPropagation();hidePanel(PANEL_IDS.STUDIO);}}
-
 
 
               style={{ padding: '4px 8px', fontSize: '12px' }}>{UI_TEXT.t8}
 
 
-
-
-
-
-
-
-
-
-
             </button> :
-
 
 
             null}>
 
 
-
-
-
-
-
                             <StudioPanel
-
 
 
               notes={notes}
 
 
-
               onAddNote={handleAddNote}
-
 
 
               onDeleteNote={handleDeleteNote} />
 
 
-
-
-
-
-
                             {renderButtonsOverlay(PANEL_IDS.STUDIO)}
-
 
 
                         </EditableLayoutPanel>
 
 
-
           }
-
-
-
-
-
 
 
                 </LayoutEditContainer>
 
 
-
             </div>
-
-
-
-
-
 
 
             {isEditingLayout &&
 
 
-
       <>
-
 
 
                     <div className={`multi-hidden-sidebar ${showHiddenSidebar ? 'is-open' : 'is-closed'}`}>
 
 
-
                         <div className="multi-hidden-header">
-
 
 
                             <div className="multi-hidden-title">{UI_TEXT.t9}
 
 
-
-
-
-
-
               <span className="multi-hidden-count">{hiddenPanelIds.length}</span>
-
 
 
                             </div>
 
 
-
                             <button
-
 
 
               type="button"
 
 
-
               className="ghost icon-btn multi-hidden-close"
-
 
 
               onClick={() => setShowHiddenSidebar(false)}
 
 
-
               title={UI_TEXT.t10}>
-
-
-
-
-
 
 
                                 <ChevronRight size={18} />
 
 
-
                             </button>
 
 
-
                         </div>
-
 
 
                         <div className="multi-hidden-body">
 
 
-
                             {hiddenPanelIds.length === 0 ?
-
 
 
             <div className="multi-hidden-empty">{UI_TEXT.t11}</div> :
 
 
-
-
-
-
-
             hiddenPanelIds.map((panelId) =>
-
 
 
             <div key={panelId} className="multi-hidden-item">
 
 
-
                                         <span className="multi-hidden-name">{getPanelLabel(panelId)}</span>
-
 
 
                                         <button
 
 
-
                 type="button"
-
 
 
                 className="ghost multi-hidden-restore"
 
 
-
                 onClick={(e) => {e.stopPropagation();showPanel(panelId);}}>{UI_TEXT.t12}
-
-
-
-
-
-
-
-
-
 
 
               </button>
 
 
-
                                     </div>
-
 
 
             )
 
 
-
             }
-
 
 
                         </div>
 
 
-
                     </div>
-
 
 
                     {!showHiddenSidebar &&
 
 
-
         <button
-
 
 
           type="button"
 
 
-
           className="multi-hidden-toggle"
-
 
 
           onClick={() => setShowHiddenSidebar(true)}
 
 
-
           title={UI_TEXT.t9}>
-
-
-
-
-
 
 
                             <ChevronLeft size={16} />
 
 
-
                             <span>{UI_TEXT.t9}</span>
-
 
 
                         </button>
 
 
-
         }
-
 
 
                 </>
 
 
-
       }
-
-
-
-
-
 
 
             {/* Replay Status Overlay */}
 
 
-
             {isReplaying &&
-
 
 
       <div style={{
 
 
-
         position: 'fixed',
-
 
 
         top: '80px',
 
 
-
         left: '50%',
-
 
 
         transform: 'translateX(-50%)',
 
 
-
         background: 'rgba(30, 41, 59, 0.9)',
-
 
 
         color: 'white',
 
 
-
         padding: '12px 24px',
-
 
 
         borderRadius: '999px',
 
 
-
         zIndex: 9999,
-
 
 
         display: 'flex',
 
 
-
         alignItems: 'center',
-
 
 
         gap: '12px',
 
 
-
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-
 
 
         backdropFilter: 'blur(4px)',
 
 
-
         fontSize: '14px',
-
 
 
         fontWeight: 500
 
 
-
       }}>
-
 
 
                     <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
 
 
-
                     <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-
 
 
                     {replayStatus}
 
 
-
                 </div>
 
 
-
       }
-
-
-
-
-
 
 
             {/* Style Editor Overlay */}
 
 
-
             {editingButton &&
 
 
-
       <>
-
 
 
                     <StyleEditorOverlay onClose={() => setEditingButton(null)} />
 
 
-
                     <StyleEditor
-
 
 
           button={editingButton.button}
 
 
-
           onStyleChange={handleButtonUpdate}
-
 
 
           onDelete={handleDeleteButton}
 
 
-
           onClose={() => setEditingButton(null)} />
-
-
-
-
-
 
 
                 </>
 
 
-
       }
-
 
 
             {/* Header Title Editor Overlay */}
 
 
-
             {editingHeaderTitle &&
-
 
 
       <>
 
 
-
                     <StyleEditorOverlay onClose={() => setEditingHeaderTitle(null)} />
-
 
 
                     <StyleEditor
 
 
-
           button={{
-
 
 
             label: headerTitles[editingHeaderTitle].text,
 
 
-
             style: headerTitles[editingHeaderTitle].style
 
 
-
           }}
-
 
 
           onStyleChange={(updates) => {
 
 
-
             setHeaderTitles((prev) => ({
-
 
 
               ...prev,
 
 
-
               [editingHeaderTitle]: {
-
 
 
                 ...prev[editingHeaderTitle],
 
 
-
                 text: updates.label,
-
 
 
                 style: { ...prev[editingHeaderTitle].style, ...updates.style }
 
 
-
               }
-
 
 
             }));
 
 
-
           }}
-
 
 
           onClose={() => setEditingHeaderTitle(null)}
 
 
-
           onDelete={() => {/* Disable delete for header titles */}} />
-
-
-
-
-
 
 
                 </>
 
 
-
       }
-
 
 
         </div>);
 
 
-
-
-
-
-
 }
-
-
-
-
-
 
 
 // 错误边界
 
 
-
 class ErrorBoundary extends React.Component {
-
 
 
   constructor(props) {
 
 
-
     super(props);
-
 
 
     this.state = { hasError: false };
 
 
-
   }
-
 
 
   static getDerivedStateFromError(error) {
 
 
-
     return { hasError: true };
 
 
-
   }
-
 
 
   render() {
 
 
-
     if (this.state.hasError) return <div>{UI_TEXT.t13}</div>;
-
 
 
     return this.props.children;
 
 
-
   }
-
 
 
 }
 
 
-
-
-
-
-
 export default function WrappedMultiDocWorkbench(props) {
-
 
 
   return (
 
 
-
     <ErrorBoundary>
-
 
 
             <MultiDocWorkbench {...props} />
 
 
-
         </ErrorBoundary>);
-
-
-
-
-
 
 
 }

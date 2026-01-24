@@ -7,6 +7,36 @@ dotenv.config();
 
 const DATA_DIR = path.join(process.cwd(), "data");
 
+// ========== AI配置常量 ==========
+export const AI_CONFIG = {
+  // API配置
+  TIMEOUT: 120000,          // 120秒超时
+  RETRY_TIMES: 3,           // 重试次数
+  RETRY_DELAY: 1000,        // 初始重试延迟（毫秒）
+  
+  // 默认模型
+  DEFAULT_MODEL: 'qwen-plus',
+  
+  // 默认端点
+  DEFAULT_ENDPOINT: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+};
+
+// ========== 默认Prompt常量 ==========
+export const DEFAULT_PROMPTS = {
+  // 大纲抽取
+  OUTLINE_SYSTEM: "你是中文文档的提纲抽取助手，快速输出标题及摘要。返回 JSON 数组，每项包含 id/title/summary/hint/level，level 仅为 1/2/3，基于语义判断层级，不做硬性分级。",
+  
+  // 指令调度
+  DISPATCH_SYSTEM: `请输出JSON：
+- summary: 简要摘要
+- detail: 详细说明
+- edits: [{sectionId, field:'title'|'summary', content}]
+只输出JSON。`,
+
+  // 最终文档生成
+  FINAL_SYSTEM: "请输出 Markdown 格式的最终文档。"
+};
+
 export const logger = {
     info: (tag, msg, data) => console.log(`[${new Date().toISOString()}] [INFO] ${tag}: ${msg}`, data || ''),
     error: (tag, msg, err) => console.error(`[${new Date().toISOString()}] [ERROR] ${tag}: ${msg}`, err || ''),
@@ -41,6 +71,47 @@ export function writeJsonFile(filePath, data) {
         logger.error("STORAGE", `写入 ${path.basename(filePath)} 失败`, err);
         return false;
     }
+}
+
+/**
+ * 带重试和超时的fetch函数
+ * @param {string} url - 请求URL
+ * @param {Object} options - fetch选项
+ * @param {number} retries - 重试次数
+ * @returns {Promise<Response>}
+ */
+export async function fetchWithRetry(url, options = {}, retries = AI_CONFIG.RETRY_TIMES) {
+  const timeout = options.timeout || AI_CONFIG.TIMEOUT;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok && attempt < retries) {
+        const delay = AI_CONFIG.RETRY_DELAY * Math.pow(2, attempt);
+        logger.debug('FETCH', `请求失败，${delay}ms 后重试 (${attempt + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      return response;
+    } catch (err) {
+      if (attempt === retries) {
+        throw err;
+      }
+      const delay = AI_CONFIG.RETRY_DELAY * Math.pow(2, attempt);
+      logger.debug('FETCH', `请求异常，${delay}ms 后重试 (${attempt + 1}/${retries}): ${err.message}`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
 }
 
 /**

@@ -11,12 +11,12 @@
       "borderRadius": 6,
       "textAlign": "center"
     },
-    "width": 249,
-    "height": 40,
     "position": {
       "left": 13,
       "top": 39
-    }
+    },
+    "width": 249,
+    "height": 40
   },
   "title": {
     "text": "经验沉淀工作台",

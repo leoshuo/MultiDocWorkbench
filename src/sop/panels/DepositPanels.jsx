@@ -1,0 +1,312 @@
+/**
+ * DepositPanels - 沉淀相关面板组件
+ * 从 SOPWorkbench.jsx 提取的独立组件
+ */
+import React from 'react';
+import { Edit3 } from 'lucide-react';
+import { UI_TEXT } from '../SOPConstants';
+import { normalizePrecipitationMode, sanitizeText } from '../SOPUtils';
+
+/**
+ * 沉淀模式选择组件
+ * @param {Object} props
+ * @param {Object} props.deposit - 沉淀对象
+ * @param {Function} props.updateDepositMode - 更新沉淀模式的函数
+ */
+export const DepositModeSelect = ({ deposit, updateDepositMode }) => (
+  <label className="deposit-mode">
+    <select
+      value={normalizePrecipitationMode(deposit?.precipitationMode)}
+      onChange={(e) => updateDepositMode(deposit.id, e.target.value)}>
+      <option value="llm">{UI_TEXT.t11}</option>
+      <option value="script">{UI_TEXT.t12}</option>
+    </select>
+  </label>
+);
+
+/**
+ * 沉淀集选择器组件
+ * @param {Object} props
+ * @param {string} props.selectedDepositGroupId - 当前选中的沉淀集ID
+ * @param {Function} props.setSelectedDepositGroupId - 设置选中沉淀集的函数
+ * @param {Array} props.depositGroups - 沉淀集列表
+ */
+export const DepositGroupSelector = ({
+  selectedDepositGroupId,
+  setSelectedDepositGroupId,
+  depositGroups,
+}) => (
+  <div className="deposit-group-selector">
+    <span className="hint">{UI_TEXT.t13}</span>
+    <select
+      value={selectedDepositGroupId}
+      onChange={(e) => setSelectedDepositGroupId(e.target.value)}>
+      <option value="">{UI_TEXT.t14}</option>
+      {depositGroups.length === 0 ? (
+        <option value="" disabled>
+          {UI_TEXT.t6}
+        </option>
+      ) : null}
+      {depositGroups.map((g) => (
+        <option key={g.id} value={g.id}>
+          {sanitizeText(g.name, g.name || '')}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+/**
+ * 沉淀集列表组件
+ * @param {Object} props
+ * @param {Array} props.depositGroups - 沉淀集列表
+ * @param {string} props.selectedDepositGroupId - 当前选中的沉淀集ID
+ * @param {Function} props.setSelectedDepositGroupId - 设置选中沉淀集的函数
+ * @param {Function} props.renameDepositGroup - 重命名沉淀集的函数
+ * @param {Function} props.replayDepositGroup - 重放沉淀集的函数
+ * @param {Object} props.depositGroupReplay - 沉淀集重放状态
+ */
+export const DepositGroupsList = ({
+  depositGroups,
+  selectedDepositGroupId,
+  setSelectedDepositGroupId,
+  renameDepositGroup,
+  replayDepositGroup,
+  depositGroupReplay,
+}) => {
+  if (depositGroups.length === 0) {
+    return (
+      <p className="hint" style={{ padding: '20px', textAlign: 'center' }}>
+        {UI_TEXT.t6}
+      </p>
+    );
+  }
+  return (
+    <div
+      className="deposit-groups-list"
+      style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {depositGroups.map((group) => {
+        const isSelected = selectedDepositGroupId === group.id;
+        const depositCount = (group.depositIds || []).length;
+        return (
+          <div
+            key={group.id}
+            className={`section deposit-group-item ${isSelected ? 'selected' : ''}`}
+            style={{
+              padding: '12px 16px',
+              borderRadius: '8px',
+              background: isSelected ? '#e0f2fe' : '#f8fafc',
+              border: isSelected ? '2px solid #0ea5e9' : '1px solid #e2e8f0',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onClick={() => setSelectedDepositGroupId(isSelected ? '' : group.id)}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => setSelectedDepositGroupId(isSelected ? '' : group.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                <span style={{ fontWeight: 500, fontSize: '14px' }}>
+                  {sanitizeText(group.name, group.id)}
+                </span>
+                <span className="pill muted" style={{ fontSize: '12px' }}>
+                  {depositCount} 条沉淀
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="ghost xsmall"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDepositGroupId(group.id);
+                    renameDepositGroup();
+                  }}>
+                  {UI_TEXT.t67}
+                </button>
+                <button
+                  type="button"
+                  className="ghost xsmall"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDepositGroupId(group.id);
+                    setTimeout(() => replayDepositGroup(), 0);
+                  }}
+                  disabled={depositGroupReplay[group.id]}>
+                  {depositGroupReplay[group.id] ? UI_TEXT.t119 : 'Replay'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/**
+ * 选中沉淀集详情面板组件
+ * @param {Object} props
+ * @param {Array} props.depositGroups - 沉淀集列表
+ * @param {string} props.selectedDepositGroupId - 当前选中的沉淀集ID
+ * @param {Array} props.deposits - 沉淀列表
+ * @param {Object} props.depositEditing - 沉淀编辑状态
+ * @param {Function} props.startEditDeposit - 开始编辑沉淀的函数
+ * @param {Function} props.applyDepositName - 应用沉淀名称的函数
+ * @param {Function} props.handleDepositNameKeyDown - 处理沉淀名称键盘事件
+ * @param {Function} props.replayDepositGroup - 重放沉淀集的函数
+ * @param {Function} props.replayDeposit - 重放单个沉淀的函数
+ * @param {Object} props.depositGroupReplay - 沉淀集重放状态
+ * @param {Object} props.replayState - 重放状态
+ * @param {Function} props.getDepositReplayStatus - 获取沉淀重放状态
+ * @param {Function} props.getDepositReplayReason - 获取沉淀重放原因
+ */
+export const SelectedDepositGroupPanel = ({
+  depositGroups,
+  selectedDepositGroupId,
+  deposits,
+  depositEditing,
+  startEditDeposit,
+  applyDepositName,
+  handleDepositNameKeyDown,
+  replayDepositGroup,
+  replayDeposit,
+  depositGroupReplay,
+  replayState,
+  getDepositReplayStatus,
+  getDepositReplayReason,
+}) => {
+  const group = depositGroups.find((g) => g.id === selectedDepositGroupId);
+  if (!group) return null;
+
+  // 支持一个沉淀被多次添加到同一个沉淀集，保留重复项
+  const groupDeposits = (group.depositIds || [])
+    .map((id, idx) => {
+      const dep = deposits.find((d) => d.id === id);
+      return dep ? { ...dep, _groupIdx: idx } : null;
+    })
+    .filter(Boolean);
+
+  return (
+    <div className="section deposit-group-panel">
+      <div
+        className="section-head"
+        style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          className="section-title"
+          style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>
+            {UI_TEXT.t15}
+            {group.name}
+          </span>
+          <span className="pill muted">{groupDeposits.length}</span>
+        </div>
+        <div className="section-actions" style={{ gap: 6 }}>
+          <button
+            className="ghost xsmall"
+            type="button"
+            onClick={replayDepositGroup}
+            disabled={depositGroupReplay[group.id]}>
+            {depositGroupReplay[group.id] ? UI_TEXT.t119 : 'Replay'}
+          </button>
+        </div>
+      </div>
+
+      <div className="sections" style={{ gap: 6 }}>
+        {groupDeposits.length === 0 && <div className="hint">{UI_TEXT.t16}</div>}
+        {groupDeposits.map((dep, idx) => (
+          <div key={`${dep.id}_${dep._groupIdx}`} className="section">
+            <div
+              className="section-head"
+              style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <div
+                className="section-title"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  flexWrap: 'nowrap',
+                  flex: 1,
+                  minWidth: 0,
+                }}>
+                <span className="pill muted">{idx + 1}</span>
+                {depositEditing[`${dep.id}||name`] !== undefined ? (
+                  <input
+                    className="deposit-name-input"
+                    value={depositEditing[`${dep.id}||name`]}
+                    onChange={(e) => startEditDeposit(dep.id, 'name', e.target.value)}
+                    onBlur={() => void applyDepositName(dep.id)}
+                    onKeyDown={(e) => handleDepositNameKeyDown(e, dep.id)}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      border: '1px solid #1a73e8',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '16px',
+                      width: '200px',
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="deposit-name"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      startEditDeposit(dep.id, 'name', dep.name || dep.id);
+                    }}
+                    title={UI_TEXT.t120}
+                    style={{ cursor: 'text', fontWeight: 500 }}>
+                    {dep.name || UI_TEXT.t144}
+                  </span>
+                )}
+                <button
+                  className="icon-btn tiny"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditDeposit(dep.id, 'name', dep.name || dep.id);
+                  }}
+                  title={UI_TEXT.t67}
+                  style={{ width: 20, height: 20, padding: 2, opacity: 0.5 }}>
+                  <Edit3 size={12} />
+                </button>
+              </div>
+              <div className="section-actions" style={{ gap: 6 }}>
+                {getDepositReplayStatus(dep) ? (
+                  <span
+                    className={`status ${getDepositReplayStatus(dep).replace(' ', '-')}`}
+                    title={getDepositReplayReason(dep) || UI_TEXT.t122}>
+                    {getDepositReplayStatus(dep)}
+                  </span>
+                ) : null}
+                <button
+                  className="ghost xsmall"
+                  type="button"
+                  onClick={() => void replayDeposit(dep.id)}
+                  disabled={!!replayState?.[dep.id]?.running}>
+                  Replay
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default {
+  DepositModeSelect,
+  DepositGroupSelector,
+  DepositGroupsList,
+  SelectedDepositGroupPanel,
+};

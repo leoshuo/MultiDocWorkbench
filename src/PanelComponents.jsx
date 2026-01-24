@@ -24,11 +24,7 @@ import {
 export function InputFormPanelContent({
   uploadInputRef,
   handleCreateDoc,
-  handleFilePick,
-  replayDirName,
-  pickReplayDirectory,
-  clearReplayDirectory,
-  replayDirHandle
+  handleFilePick
 }) {
   return (
     <form className="card fixed input-form" onSubmit={(e) => e.preventDefault()} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -42,34 +38,15 @@ export function InputFormPanelContent({
         style={{ display: 'none' }}
         onChange={(e) => void handleFilePick(e)} />
       
-
-      <div className="file-row" style={{ justifyContent: 'space-between', marginTop: '12px', padding: '8px', background: 'var(--surface-bg)', borderRadius: '8px' }}>
-        <div className="hint" style={{ flex: 1, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {replayDirName ?
-          <span style={{ color: 'var(--primary-accent)', fontWeight: 500 }}>{replayDirName}</span> :
-
-          <span>{UI_TEXT.t1}</span>
-          }
-        </div>
-        <div className="actions" style={{ gap: 4 }}>
-          <button
-            className="ghost icon-btn"
-            type="button"
-            title={UI_TEXT.t2}
-            onClick={() => void pickReplayDirectory()}>
-            
-            <FolderOpen size={14} />
-          </button>
-          <button
-            className="ghost icon-btn"
-            type="button"
-            title={UI_TEXT.t3}
-            onClick={() => void clearReplayDirectory()}
-            disabled={!replayDirHandle}>
-            
-            <X size={14} />
-          </button>
-        </div>
+      <div className="file-row" style={{ justifyContent: 'center', marginTop: '12px', padding: '8px', background: 'var(--surface-bg)', borderRadius: '8px' }}>
+        <button
+          className="ghost small"
+          type="button"
+          onClick={() => uploadInputRef.current?.click()}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Upload size={14} />
+          <span>上传文件</span>
+        </button>
       </div>
     </form>);
 
@@ -95,12 +72,46 @@ export function DocumentListPanelContent({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-      {/* 服务端目录配置 - 应用端和后管端共用 */}
+      {/* 文档列表 */}
+      <div className="list" style={{ flex: 1, overflowY: 'auto' }}>
+        {docs.length === 0 &&
+        <div className="hint" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px' }}>
+            <FileText size={32} opacity={0.2} />
+            <span>{UI_TEXT.t4}</span>
+          </div>
+        }
+        {docs.map((d) =>
+        <div
+          key={d.id}
+          className={`list-item ${selectedDocId === d.id ? 'active' : ''}`}
+          onClick={() => setSelectedDocId(d.id)}>
+          
+            <div style={{ fontWeight: 500 }}>{d.name}</div>
+
+            <div className="section-actions" style={{ justifyContent: 'flex-end' }}>
+              <button
+              type="button"
+              className="ghost icon-btn"
+              title={UI_TEXT.t5}
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteDoc(d.id);
+              }}
+              style={{ width: '24px', height: '24px', padding: '4px' }}>
+              
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 服务端目录配置 - 移到文档列表下方 */}
       <div style={{ 
         padding: '8px 10px', 
         background: '#f8fafc', 
-        borderBottom: '1px solid #e2e8f0',
-        borderRadius: '6px 6px 0 0',
+        borderTop: '1px solid #e2e8f0',
+        borderRadius: '0 0 6px 6px',
         flexShrink: 0
       }}>
         <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -135,39 +146,6 @@ export function DocumentListPanelContent({
         </div>
       </div>
 
-      <div className="list" style={{ flex: 1, overflowY: 'auto' }}>
-        {docs.length === 0 &&
-        <div className="hint" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px' }}>
-            <FileText size={32} opacity={0.2} />
-            <span>{UI_TEXT.t4}</span>
-          </div>
-        }
-        {docs.map((d) =>
-        <div
-          key={d.id}
-          className={`list-item ${selectedDocId === d.id ? 'active' : ''}`}
-          onClick={() => setSelectedDocId(d.id)}>
-          
-            <div style={{ fontWeight: 500 }}>{d.name}</div>
-
-            <div className="section-actions" style={{ justifyContent: 'flex-end' }}>
-              <button
-              type="button"
-              className="ghost icon-btn"
-              title={UI_TEXT.t5}
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteDoc(d.id);
-              }}
-              style={{ width: '24px', height: '24px', padding: '4px' }}>
-              
-                <Trash2 size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
       <input
         type="file"
         accept=".txt,.md,.pdf,.docx"
@@ -175,7 +153,6 @@ export function DocumentListPanelContent({
         ref={uploadInputRef}
         style={{ display: 'none' }}
         onChange={(e) => void handleFilePick(e)} />
-      
 
     </div>);
 
@@ -183,41 +160,21 @@ export function DocumentListPanelContent({
 }
 
 /**
- * 回放目录面板内容
+ * 回放目录面板内容 - 显示服务端配置的目录
+ * 目录配置已统一到文档列表面板
  */
 export function ReplayDirectoryPanelContent({
-  replayDirName,
-  pickReplayDirectory,
-  clearReplayDirectory,
-  replayDirHandle
+  replayDirConfig
 }) {
+  const dirPath = replayDirConfig?.dirPath || '';
   return (
-    <div className="file-row" style={{ height: '100%', padding: '0px 4px', background: '#ffffff', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxSizing: 'border-box' }}>
+    <div className="file-row" style={{ height: '100%', padding: '0px 8px', background: '#ffffff', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxSizing: 'border-box' }}>
       <div className="hint" style={{ flex: 1, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
-        {replayDirName ?
-        <span style={{ color: 'var(--primary-accent)', fontWeight: 500, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{replayDirName}</span> :
-
-        <span style={{ color: 'var(--text-secondary)' }}>{UI_TEXT.t1}</span>
+        <FolderOpen size={14} style={{ color: dirPath ? 'var(--primary-accent)' : '#94a3b8', flexShrink: 0 }} />
+        {dirPath ?
+          <span style={{ color: 'var(--primary-accent)', fontWeight: 500, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{dirPath}</span> :
+          <span style={{ color: '#94a3b8' }}>请在文档列表中配置目录</span>
         }
-      </div>
-      <div className="actions" style={{ gap: 4, display: 'flex' }}>
-        <button
-          className="ghost icon-btn"
-          type="button"
-          title={UI_TEXT.t2}
-          onClick={() => void pickReplayDirectory()}>
-          
-          <FolderOpen size={14} />
-        </button>
-        <button
-          className="ghost icon-btn"
-          type="button"
-          title={UI_TEXT.t3}
-          onClick={() => void clearReplayDirectory()}
-          disabled={!replayDirHandle}>
-          
-          <X size={14} />
-        </button>
       </div>
     </div>);
 
@@ -233,11 +190,7 @@ export function InputPanelContent({
   uploadInputRef,
   handleCreateDoc,
   handleFilePick,
-  deleteDoc,
-  replayDirName,
-  pickReplayDirectory,
-  clearReplayDirectory,
-  replayDirHandle
+  deleteDoc
 }) {
   return (
     <>
@@ -277,35 +230,6 @@ export function InputPanelContent({
               title={UI_TEXT.t10}>
               
               <Upload size={18} />
-            </button>
-          </div>
-        </div>
-
-        <div className="file-row" style={{ justifyContent: 'space-between', marginTop: '12px', padding: '8px', background: 'var(--surface-bg)', borderRadius: '8px' }}>
-          <div className="hint" style={{ flex: 1, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {replayDirName ?
-            <span style={{ color: 'var(--primary-accent)', fontWeight: 500 }}>{replayDirName}</span> :
-
-            <span>{UI_TEXT.t1}</span>
-            }
-          </div>
-          <div className="actions" style={{ gap: 4 }}>
-            <button
-              className="ghost icon-btn"
-              type="button"
-              title={UI_TEXT.t2}
-              onClick={() => void pickReplayDirectory()}>
-              
-              <FolderOpen size={14} />
-            </button>
-            <button
-              className="ghost icon-btn"
-              type="button"
-              title={UI_TEXT.t3}
-              onClick={() => void clearReplayDirectory()}
-              disabled={!replayDirHandle}>
-              
-              <X size={14} />
             </button>
           </div>
         </div>

@@ -2944,6 +2944,100 @@ const readFileContent = (filePath) => {
     }
 };
 
+// 列出配置目录中的文件 - 供前端调用
+router.get("/replay/files", (req, res) => {
+    try {
+        const replayConfig = readJsonFile(REPLAY_CONFIG_PATH) || {};
+        const dirPath = replayConfig.dirPath;
+        
+        if (!dirPath) {
+            return res.json({ files: [], dirPath: '', error: '未配置目录路径' });
+        }
+        
+        if (!fs.existsSync(dirPath)) {
+            return res.json({ files: [], dirPath, error: '目录不存在' });
+        }
+        
+        const files = listFilesInDir(dirPath);
+        res.json({ files, dirPath });
+    } catch (error) {
+        logger.error('REPLAY', '获取目录文件列表失败', error);
+        res.status(500).json({ error: '获取目录文件列表失败' });
+    }
+});
+
+// 从配置目录读取单个文件 - 供前端 Replay 使用
+router.post("/replay/read-file", async (req, res) => {
+    try {
+        const { fileName, customDirPath } = req.body || {};
+        
+        if (!fileName || typeof fileName !== 'string') {
+            return res.status(400).json({ error: 'fileName 必须是非空字符串' });
+        }
+        
+        // 获取配置的目录路径
+        const replayConfig = readJsonFile(REPLAY_CONFIG_PATH) || {};
+        const dirPath = customDirPath || replayConfig.dirPath;
+        
+        if (!dirPath) {
+            return res.status(400).json({ error: '未配置 Replay 目录路径，请先在文档列表面板中配置' });
+        }
+        
+        if (!fs.existsSync(dirPath)) {
+            return res.status(404).json({ error: `目录不存在: ${dirPath}` });
+        }
+        
+        // 构建完整文件路径
+        const filePath = path.join(dirPath, fileName);
+        
+        // 安全检查：确保文件路径在配置目录内
+        const resolvedPath = path.resolve(filePath);
+        const resolvedDir = path.resolve(dirPath);
+        if (!resolvedPath.startsWith(resolvedDir)) {
+            return res.status(403).json({ error: '不允许访问目录外的文件' });
+        }
+        
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: `文件不存在: ${fileName}` });
+        }
+        
+        // 读取文件内容
+        const ext = path.extname(fileName).toLowerCase();
+        let content;
+        
+        if (['.txt', '.md', '.json', '.html', '.xml', '.csv'].includes(ext)) {
+            content = fs.readFileSync(filePath, 'utf-8');
+        } else if (ext === '.docx') {
+            // DOCX 文件返回 base64，让前端处理
+            const buffer = fs.readFileSync(filePath);
+            content = buffer.toString('base64');
+            return res.json({ 
+                name: fileName, 
+                content, 
+                isBase64: true, 
+                ext,
+                needsParsing: true 
+            });
+        } else {
+            // 其他文件类型尝试读取为文本
+            try {
+                content = fs.readFileSync(filePath, 'utf-8');
+            } catch {
+                const buffer = fs.readFileSync(filePath);
+                content = buffer.toString('base64');
+                return res.json({ name: fileName, content, isBase64: true, ext });
+            }
+        }
+        
+        logger.info('REPLAY', `已读取文件: ${fileName}`, { dirPath });
+        res.json({ name: fileName, content, isBase64: false, ext });
+        
+    } catch (error) {
+        logger.error('REPLAY', '读取文件失败', error);
+        res.status(500).json({ error: error.message || '读取文件失败' });
+    }
+});
+
 // 执行沉淀集 Replay - 核心 API
 // 应用端按钮点击后调用此接口，服务端从配置的目录加载文件，执行所有沉淀步骤
 router.post("/replay/execute", async (req, res) => {
