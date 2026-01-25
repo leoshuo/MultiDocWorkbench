@@ -1,8 +1,8 @@
-﻿version: "3.8"
+version: "3.8"
 
 services:
   app:
-    image: document-workspace:1.6.1
+    image: document-workspace:1.6.4
     container_name: document-workspace
     restart: unless-stopped
     ports:

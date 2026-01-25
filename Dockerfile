@@ -1,4 +1,4 @@
-﻿# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1
 
 # ============ Build Stage ============
 FROM node:20-alpine AS build
@@ -24,7 +24,7 @@ RUN npm run build && \
 FROM node:20-alpine AS runtime
 
 LABEL maintainer="Document Workspace Team"
-LABEL version="1.6.3"
+LABEL version="1.6.4"
 LABEL description="Document Processing and Experience Precipitation Platform"
 
 WORKDIR /app
