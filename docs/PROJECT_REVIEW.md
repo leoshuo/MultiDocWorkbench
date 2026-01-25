@@ -1,10 +1,41 @@
-﻿# Document Workspace 1.6.3 项目总结与评审文档
+# Document Workspace 1.6.4 项目总结与评审文档
 
-> 版本: 1.6.3  
-> 更新日期: 2026-01-22  
+> 版本: 1.6.4  
+> 更新日期: 2026-01-25  
 > 文档类型: 项目Review文档
 
-## v1.6.3 更新摘要（最新）
+## v1.6.4 更新摘要（最新）
+
+### 核心功能增强
+
+#### Replay 智能跳过机制
+- **业务级 pass 状态**：Replay 时如果未找到符合录制要求的输入源信息，返回 `pass` 状态（区别于系统级 `fail`）
+- **目标内容保护**：pass 时目标位置内容保持不变，不会被错误覆盖
+- **双工作台提示**：在两个工作台都显示跳过原因说明（如"未找到有效输入源"、"目标标题不存在"等）
+
+#### 沉淀校验模式
+- **新增 validationMode 字段**：每个沉淀可设置"强校验"或"不校验"模式
+- **强校验**：要求在当前文档中找到与录制时相似的内容特征（前后文、摘要等），未找到则 pass
+- **不校验**（默认）：不做严格校验，努力找到目标位置并执行
+
+#### 统一沉淀编辑
+- **弹窗编辑模式**：复用 DepositConfirmModal 作为唯一沉淀编辑入口
+- **移除内联编辑**：删除沉淀列表中每个 section 的单独编辑/编译功能
+- **编辑保存**：修改后保存即替换原沉淀记录
+
+### Bug 修复
+- **React key 重复警告**：修复沉淀列表渲染时的 `key` 重复问题，使用复合 key
+- **布局持久化**：修复切换工作台后布局配置丢失的问题，优先使用 localStorage 配置
+- **面板调整**：修复 LayoutEditContainer 底部/右侧调整被阻挡的问题
+
+### UI 改进
+- **操作调度输入框**：高度可垂直拖拽调整，并自动持久化到 localStorage
+- **沉淀校验标签**：每个 section 旁显示校验模式标记（🔒强校验 / 🔓不校验）
+- **pass 状态样式**：新增 `.status.pass` CSS 样式区分业务级跳过
+
+---
+
+## v1.6.3 更新摘要
 
 ### 核心修复
 - **修复 dispatch API 响应处理 Bug**: 应用端原来检查 `dispatchRes?.result`，但 API 返回的是 `{ summary, detail, edits, usedModel }`，导致 edits 从未被应用。现已正确处理 API 响应格式。
@@ -350,7 +381,7 @@ npm run dev
 
 ```bash
 # 构建镜像
-docker build -t document-workspace:1.6.3 .
+docker build -t document-workspace:1.6.4 .
 
 # 运行容器
 docker run -d \
@@ -360,7 +391,7 @@ docker run -d \
   -e QWEN_API_KEY="<API密钥>" \
   -e SERVE_DIST=1 \
   -v /opt/data:/app/data \
-  document-workspace:1.6.3
+  document-workspace:1.6.4
 ```
 
 ### 6.3 环境变量
@@ -491,6 +522,6 @@ cp -r data/ backup_$(date +%Y%m%d)/
 
 ---
 
-*Document Workspace 1.6.3 - 智能文档处理与经验沉淀平台*
+*Document Workspace 1.6.4 - 智能文档处理与经验沉淀平台*
 
 

@@ -280,6 +280,22 @@ export default function SOPWorkbench({ onSwitch }) {
 
   const [dispatchMode, setDispatchMode] = useState('doc'); // 'doc' | 'result'
 
+  // 操作调度输入框高度（可拖拽调整并持久化）
+  const [dispatchInputHeight, setDispatchInputHeight] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dispatch_input_height');
+      if (saved) return Number(saved) || 60;
+    } catch (e) {}
+    return 60; // 默认高度
+  });
+
+  // 保存 dispatchInputHeight 到 localStorage
+  useEffect(() => {
+    if (dispatchInputHeight && dispatchInputHeight !== 60) {
+      localStorage.setItem('dispatch_input_height', String(dispatchInputHeight));
+    }
+  }, [dispatchInputHeight]);
+
 
   const [selectedLogTexts, setSelectedLogTexts] = useState({});
 
@@ -642,10 +658,10 @@ export default function SOPWorkbench({ onSwitch }) {
     'processing-tabs': { left: 10, top: 10, width: 560, height: 44 },
 
 
-    'processing-records-toolbar': { left: 10, top: 60, width: 560, height: 36 },
+    'processing-records-toolbar': { left: 10, top: 60, width: 560, height: 80 },
 
 
-    'processing-records-list': { left: 10, top: 108, width: 1060, height: 650 },
+    'processing-records-list': { left: 10, top: 150, width: 1060, height: 610 },
 
 
     'operations-panel': { left: 10, top: 10, width: 1100, height: 300 }
@@ -675,13 +691,7 @@ export default function SOPWorkbench({ onSwitch }) {
         const merged = { ...DEFAULT_CONTENT_BLOCKS, ...parsed };
 
 
-        const toolbar = merged['processing-records-toolbar'];
-
-
-        // 工具栏高度已改为单行布局，不再需要强制设置高度
-        if (toolbar && Number(toolbar.height) > 50) {
-          merged['processing-records-toolbar'] = { ...toolbar, height: 36 };
-        }
+        // 不再强制限制工具栏高度，允许用户自定义调整
 
 
         return merged;
@@ -1800,6 +1810,7 @@ export default function SOPWorkbench({ onSwitch }) {
   const [showDepositConfirmModal, setShowDepositConfirmModal] = useState(false);
   const [depositConfirmData, setDepositConfirmData] = useState(null); // { sections, userRequirements, aiOptimizedContent, isProcessing }
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(-1); // -1 表示显示全部，>=0 表示选中某个 section
+  const [editingDepositId, setEditingDepositId] = useState(null); // 编辑现有沉淀时的沉淀 ID，null 表示新建模式
 
   // 更新沉淀集弹窗状态
   const [showUpdateGroupModal, setShowUpdateGroupModal] = useState(false);
@@ -4076,8 +4087,10 @@ ${combinedRequirements}
   const confirmSaveDeposit = async () => {
     if (!depositConfirmData) return;
     
-    const nextSeq = (depositSeq || 0) + 1;
-    const depositId = `沉淀_${nextSeq}`;
+    // 判断是编辑模式还是新建模式
+    const isEditMode = !!editingDepositId;
+    const nextSeq = isEditMode ? depositSeq : (depositSeq || 0) + 1;
+    const depositId = isEditMode ? editingDepositId : `沉淀_${nextSeq}`;
     const precipitationMode = depositConfirmData.precipitationMode || 'llm';
     const depositName = depositConfirmData.depositName?.trim() || depositId;
     const structuredScript = depositConfirmData.structuredScript?.trim() || '';
@@ -4356,6 +4369,10 @@ ${combinedRequirements}
       title: depositName, // 兼容显示
       createdAt: Date.now(), 
       precipitationMode,
+      // 校验模式：'strict'（强校验）或 'none'（不校验，默认）
+      // 强校验：必须校验满足相似的前后特征或相似内容才可处理，较容易导致 pass
+      // 不校验：不做强制校验要求，基于提供信息努力找到目标位置执行
+      validationMode: depositConfirmData.validationMode || 'none',
       sections: sectionsWithBoth,  // 包含大模型记录和脚本记录的 sections
       // 大模型模式：保存完整的结构化脚本（AI 优化版）
       // 脚本模式：不保存结构化脚本
@@ -4370,21 +4387,45 @@ ${combinedRequirements}
       supportsScriptFallback: true
     };
     
-    setDepositSeq(nextSeq);
-    setDeposits(prev => [...prev, newDeposit]);
+    if (isEditMode) {
+      // 编辑模式：更新现有沉淀
+      setDeposits(prev => prev.map(d => d.id === depositId ? newDeposit : d));
+      showToast(`沉淀已更新（${precipitationMode === 'llm' ? '🤖 大模型Replay' : '📜 脚本Replay'}）`);
+      
+      // 更新到服务端
+      try {
+        await api(`/api/multi/precipitation/records/${depositId}`, { method: 'PUT', body: newDeposit });
+      } catch (e) {
+        console.error('更新沉淀记录失败', e);
+        // 如果 PUT 不支持，尝试 POST 覆盖
+        try {
+          await api(`/api/multi/precipitation/records`, { method: 'POST', body: newDeposit });
+        } catch (e2) {
+          console.error('保存沉淀记录失败', e2);
+        }
+      }
+    } else {
+      // 新建模式：添加新沉淀
+      setDepositSeq(nextSeq);
+      setDeposits(prev => [...prev, newDeposit]);
+      showToast(`沉淀已保存（${precipitationMode === 'llm' ? '🤖 大模型Replay' : '📜 脚本Replay'}）`);
+      
+      // 保存到服务端
+      try {
+        await api(`/api/multi/precipitation/records`, { method: 'POST', body: newDeposit });
+      } catch (e) {
+        console.error('保存沉淀记录失败', e);
+      }
+    }
     
-    setIsDepositing(false);
-    setDepositSections([]);
+    // 重置状态
+    if (!isEditMode) {
+      setIsDepositing(false);
+      setDepositSections([]);
+    }
     setShowDepositConfirmModal(false);
     setDepositConfirmData(null);
-    showToast(`沉淀已保存（${precipitationMode === 'llm' ? '🤖 大模型Replay' : '📜 脚本Replay'}）`);
-
-    // 保存到服务端
-    try {
-      await api(`/api/multi/precipitation/records`, { method: 'POST', body: newDeposit });
-    } catch (e) {
-      console.error('保存沉淀记录失败', e);
-    }
+    setEditingDepositId(null);  // 重置编辑状态
   };
 
   // 从结构化脚本中提取指定字段
@@ -4400,7 +4441,58 @@ ${combinedRequirements}
     setShowDepositConfirmModal(false);
     setDepositConfirmData(null);
     setSelectedSectionIndex(-1);  // 重置选中状态
+    setEditingDepositId(null);  // 重置编辑状态
     // 不结束录制状态，让用户可以继续
+  };
+
+  // 编辑现有沉淀 - 打开弹窗并加载沉淀数据
+  const editDeposit = (depositId) => {
+    const deposit = deposits.find(d => d.id === depositId);
+    if (!deposit) {
+      showToast('未找到该沉淀');
+      return;
+    }
+    
+    // 构建结构化脚本内容 - 如果有保存的脚本则使用，否则从 sections 生成
+    let structuredScript = deposit.structuredScript || '';
+    if (!structuredScript && deposit.sections?.length > 0) {
+      // 从 sections 生成结构化脚本
+      structuredScript = deposit.sections.map((s, idx) => {
+        const llm = s.llmScript || {};
+        const lines = [`[步骤${idx + 1}] ${s.action || llm.description || '操作'}`];
+        
+        if (llm.description) lines.push(`- 描述: ${llm.description}`);
+        if (llm.instructions || llm.promptContent) lines.push(`- 指令内容: ${llm.instructions || llm.promptContent}`);
+        if (llm.inputSourceDesc) lines.push(`- 输入来源: ${llm.inputSourceDesc}`);
+        if (llm.targetTitle || llm.outputTargetDesc) lines.push(`- 目标位置: ${llm.targetTitle || llm.outputTargetDesc}`);
+        if (llm.aiGuidance) lines.push(`- AI 指导: ${llm.aiGuidance}`);
+        if (llm.specialRequirements) lines.push(`- 特殊要求: ${llm.specialRequirements}`);
+        
+        // 如果有原始 content，也可以包含
+        if (s.content && !llm.description) {
+          lines.push(`- 原始记录: ${s.content.substring(0, 200)}${s.content.length > 200 ? '...' : ''}`);
+        }
+        
+        return lines.join('\n');
+      }).join('\n\n---\n\n');
+    }
+    
+    // 设置弹窗数据
+    setDepositConfirmData({
+      sections: deposit.sections || [],
+      depositName: deposit.name || deposit.id,
+      precipitationMode: deposit.precipitationMode || 'llm',
+      validationMode: deposit.validationMode || 'none',
+      structuredScript,
+      userRequirements: '',
+      accumulatedRequirements: deposit.accumulatedRequirements || '',
+      optimizeCount: deposit.optimizeCount || 0,
+      isProcessing: false
+    });
+    
+    setEditingDepositId(depositId);  // 标记为编辑模式
+    setSelectedSectionIndex(-1);
+    setShowDepositConfirmModal(true);
   };
 
 
@@ -6954,10 +7046,22 @@ ${combinedRequirements}
     if (!statuses.length) return '';
 
 
+    // 完全成功
     if (statuses.every((s) => s === 'done')) return 'done';
-
-
+    
+    // 完全失败（系统层面）
     if (statuses.every((s) => s === 'fail')) return 'fail';
+    
+    // 完全跳过（业务层面无法执行）
+    if (statuses.every((s) => s === 'pass')) return 'pass';
+    
+    // 混合状态：包含 pass（业务跳过）
+    const hasDone = statuses.some((s) => s === 'done');
+    const hasPass = statuses.some((s) => s === 'pass');
+    const hasFail = statuses.some((s) => s === 'fail');
+    
+    if (hasDone && !hasFail) return 'partial done';
+    if (hasPass && !hasFail && !hasDone) return 'pass';
 
 
     return 'partial done';
@@ -7011,9 +7115,36 @@ ${combinedRequirements}
   };
 
 
-  // renderDepositGroupsList 已迁移到 ./sop/panels/DepositPanels.jsx
+  // renderDepositGroupsList - 包装组件以传递 props
+  const renderDepositGroupsList = () => (
+    <DepositGroupsList
+      depositGroups={depositGroups}
+      selectedDepositGroupId={selectedDepositGroupId}
+      setSelectedDepositGroupId={setSelectedDepositGroupId}
+      renameDepositGroup={renameDepositGroup}
+      replayDepositGroup={replayDepositGroup}
+      depositGroupReplay={depositGroupReplay}
+    />
+  );
 
-  // renderSelectedDepositGroupPanel 已迁移到 ./sop/panels/DepositPanels.jsx
+  // renderSelectedDepositGroupPanel - 包装组件以传递 props
+  const renderSelectedDepositGroupPanel = () => (
+    <SelectedDepositGroupPanel
+      depositGroups={depositGroups}
+      selectedDepositGroupId={selectedDepositGroupId}
+      deposits={deposits}
+      depositEditing={depositEditing}
+      startEditDeposit={startEditDeposit}
+      applyDepositName={applyDepositName}
+      handleDepositNameKeyDown={handleDepositNameKeyDown}
+      replayDepositGroup={replayDepositGroup}
+      replayDeposit={replayDeposit}
+      depositGroupReplay={depositGroupReplay}
+      replayState={replayState}
+      getDepositReplayStatus={getDepositReplayStatus}
+      getDepositReplayReason={getDepositReplayReason}
+    />
+  );
 
 
   const addDeposit = () => {
@@ -12242,6 +12373,11 @@ ${combinedRequirements}
     const mode = normalizePrecipitationMode(deposit?.precipitationMode);
 
 
+    // 获取校验模式：'strict'（强校验）或 'none'（不校验，默认）
+    const validationMode = deposit?.validationMode || 'none';
+    const isStrictValidation = validationMode === 'strict';
+
+
     const softErrors = [];
 
 
@@ -13171,6 +13307,30 @@ ${specialRequirements || '无'}`;
 
       const outlineIds = Array.isArray(meta?.selectedSectionIds) ? meta.selectedSectionIds : [];
 
+      // ========== 强校验模式：检查是否有记录输入来源 ==========
+      if (isStrictValidation) {
+        const llmScriptInfo = section?.llmScript || {};
+        const hasInputSource = !!(
+          inputKind ||
+          meta?.inputSourceDesc ||
+          meta?.docName ||
+          meta?.selectedDocName ||
+          llmScriptInfo?.inputSourceDesc ||
+          (Array.isArray(meta?.inputs) && meta.inputs.length > 0) ||
+          (Array.isArray(meta?.selectedSectionIds) && meta.selectedSectionIds.length > 0) ||
+          (Array.isArray(meta?.selectedSectionTitles) && meta.selectedSectionTitles.length > 0)
+        );
+        
+        if (!hasInputSource) {
+          console.warn('[dispatch replay] 🔒 强校验：未记录输入来源信息，跳过执行');
+          return finalizeReplayResult({
+            status: 'pass',
+            message: '⏭️ 强校验跳过：沉淀记录中未包含输入来源信息，无法校验数据一致性，目标位置内容保持不变',
+            replayMode: 'skipped',
+            passReason: 'strict_no_input_source'
+          });
+        }
+      }
 
       let docContent = '';
 
@@ -13234,17 +13394,129 @@ ${specialRequirements || '无'}`;
           picked = allSections.filter(s => currentSelectedIds.includes(s.id));
         }
         
-        console.log('[dispatch replay] 定位结果:', { picked: picked.map(p => p?.title) });
+        console.log('[dispatch replay] 定位结果:', { picked: picked.map(p => p?.title), isStrictValidation });
 
         // 验证 picked 中的 section 有内容
         if (picked.length === 0) {
-          throw new Error('无法定位目标大纲标题，请确保大纲中存在对应的标题');
+          // 返回 pass 状态：无法定位到目标标题，业务层面无法执行
+          return finalizeReplayResult({
+            status: 'pass',
+            message: '⏭️ 跳过执行：当前大纲中未找到符合录制要求的目标标题，目标位置内容保持不变',
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+        
+        // ========== 强校验模式：检查内容相似性 ==========
+        if (isStrictValidation) {
+          console.log('[dispatch replay] 🔒 强校验模式启用');
+          
+          // 获取录制时的特征信息
+          const recordedContextBefore = llmScriptInfo?.contextBefore || meta?.contextBefore || '';
+          const recordedContextAfter = llmScriptInfo?.contextAfter || meta?.contextAfter || '';
+          const recordedInputContent = llmScriptInfo?.inputContentExcerpt || meta?.inputContentExcerpt || meta?.inputContent || '';
+          const recordedSummaryExcerpts = (detailsToUse.length > 0 ? detailsToUse : llmTargetSectionsDetail)
+            .map(d => d.originalSummary || '').filter(Boolean);
+          
+          // 检查当前内容与录制时的相似性
+          let similarityCheckPassed = false;
+          const validationErrors = [];
+          
+          // 简单的相似性检查函数（检查是否包含关键特征）
+          const hasSimilarContent = (current, recorded) => {
+            if (!recorded || !current) return false;
+            // 取录制内容的前50个字符作为特征
+            const feature = recorded.substring(0, 50).trim();
+            if (!feature) return false;
+            return current.includes(feature) || recorded.includes(current.substring(0, 50));
+          };
+          
+          // 检查前后文特征
+          if (recordedContextBefore || recordedContextAfter) {
+            for (const sec of picked) {
+              const currentContent = sec.summary || sec.hint || '';
+              const hasBeforeMatch = !recordedContextBefore || hasSimilarContent(currentContent, recordedContextBefore);
+              const hasAfterMatch = !recordedContextAfter || hasSimilarContent(currentContent, recordedContextAfter);
+              
+              if (hasBeforeMatch || hasAfterMatch) {
+                similarityCheckPassed = true;
+                break;
+              }
+            }
+            
+            if (!similarityCheckPassed) {
+              validationErrors.push('前后文特征不匹配');
+            }
+          }
+          
+          // 检查录制时的摘要内容与当前内容的相似性
+          if (!similarityCheckPassed && recordedSummaryExcerpts.length > 0) {
+            for (let i = 0; i < picked.length; i++) {
+              const sec = picked[i];
+              const currentContent = sec.summary || sec.hint || '';
+              const recordedContent = recordedSummaryExcerpts[i] || '';
+              
+              if (recordedContent && hasSimilarContent(currentContent, recordedContent)) {
+                similarityCheckPassed = true;
+                break;
+              }
+            }
+            
+            if (!similarityCheckPassed) {
+              validationErrors.push('摘要内容与录制时不相似');
+            }
+          }
+          
+          // 如果没有可检查的特征，则检查标题是否完全匹配
+          if (!recordedContextBefore && !recordedContextAfter && recordedSummaryExcerpts.length === 0) {
+            const recordedTitles = (detailsToUse.length > 0 ? detailsToUse : targetTitles.map(t => ({ title: t })))
+              .map(d => d.title).filter(Boolean);
+            const currentTitles = picked.map(p => p.title);
+            
+            const allTitlesMatch = recordedTitles.every(rt => currentTitles.includes(rt));
+            if (allTitlesMatch) {
+              similarityCheckPassed = true;
+            } else {
+              validationErrors.push('标题不完全匹配');
+            }
+          }
+          
+          // 强校验失败，返回 pass
+          if (!similarityCheckPassed && validationErrors.length > 0) {
+            console.warn('[dispatch replay] 🔒 强校验失败:', validationErrors);
+            return finalizeReplayResult({
+              status: 'pass',
+              message: `⏭️ 强校验跳过：原文未找到相似数据（${validationErrors.join('、')}），目标位置内容保持不变`,
+              replayMode: 'skipped',
+              passReason: 'strict_validation_failed'
+            });
+          }
+          
+          console.log('[dispatch replay] 🔒 强校验通过');
         }
         
         // 检查是否有空内容的 section
         const emptySections = picked.filter(sec => !(sec.summary || sec.hint));
+        
+        // ========== 核心修改：当所有目标 section 内容为空时，返回 pass 状态 ==========
+        // 如果录制时的输入源要求是大纲内容，但当前大纲中对应位置没有内容，
+        // 则无法执行，应该跳过并保持目标位置内容不变
+        if (emptySections.length === picked.length) {
+          // 所有目标 section 都为空 - 无法执行
+          const emptyTitles = emptySections.map(s => s.title).join('、');
+          console.warn('[dispatch replay] 所有输入源内容为空，跳过执行:', emptyTitles);
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：输入源「${emptyTitles}」的内容为空，无法满足录制时的执行要求，目标位置内容保持不变`,
+            replayMode: 'skipped',
+            passReason: 'input_source_empty'
+          });
+        }
+        
+        // 部分为空时给出警告但继续执行
         if (emptySections.length > 0) {
-          console.warn('[dispatch replay] 部分 section 内容为空:', emptySections.map(s => s.title));
+          console.warn('[dispatch replay] 部分 section 内容为空，将使用有内容的部分继续执行:', emptySections.map(s => s.title));
+          softErrors.push(`部分输入源内容为空：${emptySections.map(s => s.title).join('、')}`);
         }
 
         outlineSegments = picked.map((sec, idx) => ({
@@ -13349,14 +13621,42 @@ ${specialRequirements || '无'}`;
         }
 
 
-        if (!docObj) throw new Error(`未找到输入文档：${preferDocName || '(空)'}`);
+        // 未找到文档 - 返回 pass 状态
+        if (!docObj) {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：未在文档列表中找到「${preferDocName || '(空)'}」，无法满足录制时的输入源要求，目标位置内容保持不变`,
+            replayMode: 'skipped',
+            passReason: 'input_doc_not_found'
+          });
+        }
 
 
         docContent = (docObj?.content || '').toString();
+        
+        // 文档内容为空 - 返回 pass 状态
+        if (!docContent.trim()) {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：文档「${docObj.name || preferDocName}」内容为空，无法满足录制时的输入源要求，目标位置内容保持不变`,
+            replayMode: 'skipped',
+            passReason: 'input_doc_empty'
+          });
+        }
 
 
       }
 
+      // ========== 最终输入源验证 ==========
+      // 在调用 API 之前，确保有有效的输入内容
+      if (!docContent.trim() && outlineSegments.length === 0) {
+        return finalizeReplayResult({
+          status: 'pass',
+          message: '⏭️ 跳过执行：未找到有效的输入源内容，目标位置内容保持不变',
+          replayMode: 'skipped',
+          passReason: 'no_valid_input'
+        });
+      }
 
       const result = await api('/api/dispatch', {
 
@@ -14981,7 +15281,7 @@ ${specialRequirements || '无'}`;
                   <div
 
 
-                    key={dep.id}
+                    key={`${dep.id}-${idx}`}
 
 
                     className="section"
@@ -15206,13 +15506,34 @@ ${specialRequirements || '无'}`;
                           type="button"
 
 
+                          onClick={() => editDeposit(dep.id)}
+
+
+                          title="编辑沉淀内容">
+
+
+                          ✏️ 编辑
+
+
+                        </button>
+
+
+                        <button
+
+
+                          className="ghost xsmall"
+
+
+                          type="button"
+
+
                           onClick={() => void replayDeposit(dep.id)}
 
 
                           disabled={!!replayState?.[dep.id]?.running}>
 
 
-                          Reply
+                          Replay
 
 
                         </button>
@@ -15299,84 +15620,11 @@ ${specialRequirements || '无'}`;
                         {(dep.sections || []).map((s, i) => {
 
 
-                          // 新字段 keys（基于 llmScript）
-                          const typeKey = `${dep.id}||${s.id}||type`;
-                          const descriptionKey = `${dep.id}||${s.id}||description`;
-                          const instructionsKey = `${dep.id}||${s.id}||instructions`;
-                          const inputSourceDescKey = `${dep.id}||${s.id}||inputSourceDesc`;
-                          const targetTitleKey = `${dep.id}||${s.id}||targetTitle`;
-                          const aiGuidanceKey = `${dep.id}||${s.id}||aiGuidance`;
-                          
-                          // 旧字段 keys（兼容）
-                          const actionKey = `${dep.id}||${s.id}||action`;
-
-
-                          const execKey = `${dep.id}||${s.id}||exec`;
-
-
-                          const summaryKey = `${dep.id}||${s.id}||summary`;
-
-
-                          const locationKey = `${dep.id}||${s.id}||location`;
-
-
-                          const reqInputKey = `${dep.id}||${s.id}||req_input`;
-
-
-                          const reqExecKey = `${dep.id}||${s.id}||req_exec`;
-
-
-                          const reqSummaryKey = `${dep.id}||${s.id}||req_summary`;
-
-
-                          const reqLocationKey = `${dep.id}||${s.id}||req_location`;
-
-
-                          const editing =
-
-
-                            depositEditing[typeKey] !== undefined ||
-                            depositEditing[descriptionKey] !== undefined ||
-                            depositEditing[actionKey] !== undefined ||
-
-
-                            depositEditing[execKey] !== undefined ||
-
-
-                            depositEditing[summaryKey] !== undefined ||
-
-
-                            depositEditing[locationKey] !== undefined;
-
-
-                          const parsed = parseDepositSectionContent(s?.content || '');
-
-
-                          const requirements = getSectionRequirements(s);
-
-
-                          const sectionMeta = extractReplayMeta(s?.content || '');
-
-
-                          const canFlexUpload =
-
-
-                            !editing &&
-
-
-                            sectionMeta?.type === 'add_doc' && (
-
-
-                              sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
-
-
+                          // section 状态
                           const replay = replayState?.[dep.id]?.bySection?.[s.id];
-
-
-                          const compiling = !!compilingDepositSections[`${dep.id}||${s.id}`];
-
-
-                          const expanded = editing ? true : isDepositSectionExpanded(dep.id, s.id);
+                          const sectionMeta = extractReplayMeta(s?.content || '');
+                          const canFlexUpload = sectionMeta?.type === 'add_doc' && (
+                            sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
 
 
                           return (
@@ -15394,37 +15642,25 @@ ${specialRequirements || '无'}`;
                                   <span className="pill muted">{i + 1}</span>
 
 
-                                  {editing ?
+                                  <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
 
 
-                                    <>
-
-
-                                      <span className="hint">{UI_TEXT.t72}</span>
-
-
-                                      <input
-
-
-                                        value={depositEditing[actionKey] ?? s.action ?? ''}
-
-
-                                        onChange={(e) => startEditDeposit(dep.id, `${s.id}||action`, e.target.value)}
-
-
-                                        onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)}
-
-
-                                        style={{ minWidth: 180 }} />
-
-
-                                    </> :
-
-
-                                    <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
-
-
-                                  }
+                                  {/* 校验模式标记 */}
+                                  <span 
+                                    style={{ 
+                                      fontSize: '10px', 
+                                      padding: '2px 5px', 
+                                      borderRadius: '3px',
+                                      background: dep.validationMode === 'strict' ? '#fef3c7' : '#f0fdf4',
+                                      color: dep.validationMode === 'strict' ? '#b45309' : '#059669',
+                                      marginLeft: '4px'
+                                    }}
+                                    title={dep.validationMode === 'strict' 
+                                      ? '强校验：必须满足相似特征才执行' 
+                                      : '不校验：努力找到目标位置执行'}
+                                  >
+                                    {dep.validationMode === 'strict' ? '🔒' : '🔓'}
+                                  </span>
 
 
                                   {replay?.status ?
@@ -15460,51 +15696,6 @@ ${specialRequirements || '无'}`;
                                     null}
 
 
-                                  {editing ?
-
-
-                                    <>
-
-
-                                      <button className="ghost xsmall" type="button" onClick={() => void applyDepositSection(dep.id, s.id)} disabled={compiling}>
-
-
-                                        {compiling ? UI_TEXT.t124 : UI_TEXT.t125}
-
-
-                                      </button>
-
-
-                                      <button className="ghost xsmall" type="button" onClick={() => cancelEditDepositSection(dep.id, s.id)}>
-
-
-                                        {UI_TEXT.t22}
-
-
-                                      </button>
-
-
-                                    </> :
-
-
-                                    <button className="ghost xsmall" type="button" onClick={() => startEditDepositSection(dep.id, s)}>{UI_TEXT.t41}
-
-
-                                    </button>
-
-
-                                  }
-
-
-                                  <button className="ghost xsmall" type="button" onClick={() => toggleDepositSectionExpanded(dep.id, s.id)}>
-
-
-                                    {expanded ? UI_TEXT.t142 : UI_TEXT.t143}
-
-
-                                  </button>
-
-
                                   <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
 
 
@@ -15517,345 +15708,23 @@ ${specialRequirements || '无'}`;
                               </div>
 
 
-                              {expanded ?
-
-
-                                editing ?
-
-
-                                  <div className="section" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '10px', borderRadius: 8 }}>
-
-
-                                    <div style={{ display: 'grid', gap: 8 }}>
-
-                                      {/* 操作类型 */}
-                                      <label style={{ display: 'grid', gap: 4 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <span className="hint">操作类型</span>
-                                          <span className="hint" style={{ fontSize: 10, color: '#94a3b8' }}>必填</span>
-                                        </div>
-                                        <input
-                                          value={depositEditing[typeKey] ?? ''}
-                                          placeholder="如: dispatch, insert_to_summary, outline_extract"
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||type`, e.target.value)}
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-                                      </label>
-
-                                      {/* 动作描述 */}
-                                      <label style={{ display: 'grid', gap: 4 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <span className="hint">动作描述</span>
-                                          <span className="hint" style={{ fontSize: 10, color: '#94a3b8' }}>必填</span>
-                                        </div>
-                                        <input
-                                          value={depositEditing[descriptionKey] ?? ''}
-                                          placeholder="如: 对已勾选大纲标题的内容执行指令「扩写摘要到5句话。」"
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||description`, e.target.value)}
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-                                      </label>
-
-                                      {/* 指令内容 */}
-                                      <label style={{ display: 'grid', gap: 4 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <span className="hint">指令内容</span>
-                                          <span className="hint" style={{ fontSize: 10, color: '#94a3b8' }}>可选</span>
-                                        </div>
-                                        <textarea
-                                          rows={2}
-                                          value={depositEditing[instructionsKey] ?? ''}
-                                          placeholder="如: 扩写摘要到5句话。"
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||instructions`, e.target.value)}
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-                                      </label>
-
-                                      {/* 输入来源 */}
-                                      <label style={{ display: 'grid', gap: 4 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <span className="hint">输入来源</span>
-                                          <span className="hint" style={{ fontSize: 10, color: '#94a3b8' }}>可选</span>
-                                        </div>
-                                        <input
-                                          value={depositEditing[inputSourceDescKey] ?? ''}
-                                          placeholder="如: 已勾选的大纲（一级标题「每日报告」的摘要内容）"
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||inputSourceDesc`, e.target.value)}
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-                                      </label>
-
-                                      {/* 目标位置 */}
-                                      <label style={{ display: 'grid', gap: 4 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <span className="hint">目标位置</span>
-                                          <span className="hint" style={{ fontSize: 10, color: '#94a3b8' }}>可选</span>
-                                        </div>
-                                        <input
-                                          value={depositEditing[targetTitleKey] ?? ''}
-                                          placeholder="如: 大纲配置（一级标题「每日报告」的摘要）、结果展示区"
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||targetTitle`, e.target.value)}
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-                                      </label>
-
-                                      {/* AI指导 */}
-                                      <label style={{ display: 'grid', gap: 4 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <span className="hint">AI指导</span>
-                                          <span className="hint" style={{ fontSize: 10, color: '#94a3b8' }}>可选</span>
-                                        </div>
-                                        <textarea
-                                          rows={2}
-                                          value={depositEditing[aiGuidanceKey] ?? ''}
-                                          placeholder="如: 根据指令处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。"
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||aiGuidance`, e.target.value)}
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-                                      </label>
-
-                                      <div style={{ borderTop: '1px dashed #e2e8f0', margin: '4px 0', paddingTop: 8 }}>
-                                        <div className="hint" style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>旧字段（兼容脚本Replay）</div>
-                                      </div>
-
-                                      <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                          <span className="hint">{UI_TEXT.t74}</span>
-
-
-                                          <select
-
-
-                                            value={depositEditing[reqInputKey] ?? requirements.inputSource}
-
-
-                                            onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_input`, e.target.value)}>
-
-
-                                            <option value="required">{UI_TEXT.t75}</option>
-
-
-                                            <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                          </select>
-
-
-                                        </div>
-
-
-                                        <div className="hint" style={{ whiteSpace: 'pre-wrap' }}>
-
-
-                                          {(parsed.inputLine || '').replace(INPUT_SOURCE_PREFIX_RE, '') || UI_TEXT.t126}
-
-
-                                        </div>
-
-
-                                      </label>
-
-
-                                      <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                          <span className="hint">{UI_TEXT.t94}</span>
-
-
-                                          <select
-
-
-                                            value={depositEditing[reqExecKey] ?? requirements.actionExecution}
-
-
-                                            onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_exec`, e.target.value)}>
-
-
-                                            <option value="required">{UI_TEXT.t75}</option>
-
-
-                                            <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                          </select>
-
-
-                                        </div>
-
-
-                                        <input
-
-
-                                          value={depositEditing[execKey] ?? ''}
-
-
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||exec`, e.target.value)}
-
-
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                      </label>
-
-
-                                      <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                          <span className="hint">{UI_TEXT.t77}</span>
-
-
-                                          <select
-
-
-                                            value={depositEditing[reqSummaryKey] ?? requirements.executionSummary}
-
-
-                                            onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_summary`, e.target.value)}>
-
-
-                                            <option value="required">{UI_TEXT.t75}</option>
-
-
-                                            <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                          </select>
-
-
-                                        </div>
-
-
-                                        <textarea
-
-
-                                          rows={3}
-
-
-                                          value={depositEditing[summaryKey] ?? ''}
-
-
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||summary`, e.target.value)}
-
-
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                      </label>
-
-
-                                      <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                          <span className="hint">{UI_TEXT.t78}</span>
-
-
-                                          <select
-
-
-                                            value={depositEditing[reqLocationKey] ?? requirements.recordLocation}
-
-
-                                            onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_location`, e.target.value)}>
-
-
-                                            <option value="required">{UI_TEXT.t75}</option>
-
-
-                                            <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                          </select>
-
-
-                                        </div>
-
-
-                                        <input
-
-
-                                          value={depositEditing[locationKey] ?? ''}
-
-
-                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||location`, e.target.value)}
-
-
-                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                      </label>
-
-
-                                      <div className="hint">{UI_TEXT.t79}</div>
-
-
-                                    </div>
-
-
-                                  </div> :
-
-
-                                  <>
-
-
-                                    {/* 显示大模型记录（如果有） - 完整信息 */}
-                                    {s.llmScript && (
-                                      <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                          <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
-                                          {s.llmScript.title && <span style={{ fontWeight: 500, color: '#0369a1' }}>{s.llmScript.title}</span>}
-                                        </div>
-                                        {s.llmScript.type && <div style={{ fontSize: 12, color: '#0c4a6e' }}>类型: {s.llmScript.type}</div>}
-                                        {s.llmScript.description && <div style={{ fontSize: 12, color: '#0c4a6e' }}>描述: {s.llmScript.description}</div>}
-                                        {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 12, color: '#0c4a6e' }}>指令内容: {s.llmScript.instructions || s.llmScript.promptContent}</div>}
-                                        {s.llmScript.inputSourceDesc && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输入来源: {s.llmScript.inputSourceDesc}</div>}
-                                        {s.llmScript.inputContentExcerpt && <div style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>【参考】录制时输入: {s.llmScript.inputContentExcerpt.length > 80 ? s.llmScript.inputContentExcerpt.substring(0, 80) + '...' : s.llmScript.inputContentExcerpt}</div>}
-                                        {s.llmScript.targetTitle && <div style={{ fontSize: 12, color: '#0c4a6e' }}>目标标题: {s.llmScript.targetTitle}</div>}
-                                        {s.llmScript.outputTargetDesc && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输出目标: {s.llmScript.outputTargetDesc}</div>}
-                                        {s.llmScript.outputs?.outputContent && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输出内容: {s.llmScript.outputs.outputContent.length > 100 ? s.llmScript.outputs.outputContent.substring(0, 100) + '...' : s.llmScript.outputs.outputContent}</div>}
-                                        {s.llmScript.aiGuidance && <div style={{ fontSize: 12, color: '#0c4a6e', fontStyle: 'italic' }}>AI指导: {s.llmScript.aiGuidance}</div>}
-                                      </div>
-                                    )}
-                                    {/* 显示脚本记录 */}
-                                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: 8 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                        <span style={{ background: '#64748b', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>📜 脚本记录</span>
-                                      </div>
-                                      <div className="hint" style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{s.content || s.originalScript?.content || UI_TEXT.t128}</div>
-                                    </div>
-
-
-                                    {replay?.status && replay.status !== 'done' ?
-
-
-                                      <div
-
-
-                                        className="hint"
-
-
-                                        style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e' }}>
-
-
-                                        {replay.message || UI_TEXT.t129}
-
-
-                                      </div> :
-
-
-                                      null}
-
-
-                                  </> :
-
-
-                                null}
+                              {/* 只读显示沉淀内容摘要（请使用"编辑"按钮通过弹窗修改） */}
+                              {s.llmScript && (
+                                <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型</span>
+                                    {s.llmScript.description && <span style={{ fontSize: 12, color: '#0c4a6e' }}>{s.llmScript.description}</span>}
+                                  </div>
+                                  {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 11, color: '#64748b' }}>指令: {(s.llmScript.instructions || s.llmScript.promptContent).substring(0, 60)}...</div>}
+                                  {s.llmScript.inputSourceDesc && <div style={{ fontSize: 11, color: '#64748b' }}>输入: {s.llmScript.inputSourceDesc}</div>}
+                                  {s.llmScript.targetTitle && <div style={{ fontSize: 11, color: '#64748b' }}>目标: {s.llmScript.targetTitle}</div>}
+                                </div>
+                              )}
+                              {replay?.status && replay.status !== 'done' && (
+                                <div className="hint" style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e', marginTop: 4, fontSize: 11 }}>
+                                  {replay.message || UI_TEXT.t129}
+                                </div>
+                              )}
 
 
                             </div>);
@@ -15966,11 +15835,12 @@ ${specialRequirements || '无'}`;
           selectedSectionIndex={selectedSectionIndex}
           setSelectedSectionIndex={setSelectedSectionIndex}
           onCancel={cancelDepositConfirm}
-          onDiscard={() => { setIsDepositing(false); setDepositSections([]); setShowDepositConfirmModal(false); setDepositConfirmData(null); }}
+          onDiscard={() => { setIsDepositing(false); setDepositSections([]); setShowDepositConfirmModal(false); setDepositConfirmData(null); setEditingDepositId(null); }}
           onConfirm={confirmSaveDeposit}
           onAIProcess={processDepositWithAI}
           getScriptForSection={getScriptForSection}
           updateScriptForSection={updateScriptForSection}
+          isEditMode={!!editingDepositId}
         />
       )}
 
@@ -17679,7 +17549,7 @@ ${specialRequirements || '无'}`;
                                   <div
 
 
-                                    key={dep.id}
+                                    key={`${dep.id}-${idx}`}
 
 
                                     className="section"
@@ -17841,6 +17711,27 @@ ${specialRequirements || '无'}`;
                                           type="button"
 
 
+                                          onClick={() => editDeposit(dep.id)}
+
+
+                                          title="编辑沉淀内容">
+
+
+                                          ✏️ 编辑
+
+
+                                        </button>
+
+
+                                        <button
+
+
+                                          className="ghost xsmall"
+
+
+                                          type="button"
+
+
                                           onClick={() => void replayDeposit(dep.id)}
 
 
@@ -17908,75 +17799,11 @@ ${specialRequirements || '无'}`;
 
 
                                         {(dep.sections || []).map((s, i) => {
-
-
-                                          const actionKey = `${dep.id}||${s.id}||action`;
-
-
-                                          const execKey = `${dep.id}||${s.id}||exec`;
-
-
-                                          const summaryKey = `${dep.id}||${s.id}||summary`;
-
-
-                                          const locationKey = `${dep.id}||${s.id}||location`;
-
-
-                                          const reqInputKey = `${dep.id}||${s.id}||req_input`;
-
-
-                                          const reqExecKey = `${dep.id}||${s.id}||req_exec`;
-
-
-                                          const reqSummaryKey = `${dep.id}||${s.id}||req_summary`;
-
-
-                                          const reqLocationKey = `${dep.id}||${s.id}||req_location`;
-
-
-                                          const editing =
-
-
-                                            depositEditing[actionKey] !== undefined ||
-
-
-                                            depositEditing[execKey] !== undefined ||
-
-
-                                            depositEditing[summaryKey] !== undefined ||
-
-
-                                            depositEditing[locationKey] !== undefined;
-
-
-                                          const parsed = parseDepositSectionContent(s?.content || '');
-
-
-                                          const requirements = getSectionRequirements(s);
-
-
-                                          const sectionMeta = extractReplayMeta(s?.content || '');
-
-
-                                          const canFlexUpload =
-
-
-                                            !editing &&
-
-
-                                            sectionMeta?.type === 'add_doc' && (
-
-
-                                              sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
-
-
+                                          // section 状态（只读）
                                           const replay = replayState?.[dep.id]?.bySection?.[s.id];
-
-
-                                          const compiling = !!compilingDepositSections[`${dep.id}||${s.id}`];
-
-
-                                          const expanded = editing ? true : isDepositSectionExpanded(dep.id, s.id);
+                                          const sectionMeta = extractReplayMeta(s?.content || '');
+                                          const canFlexUpload = sectionMeta?.type === 'add_doc' && (
+                                            sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
 
 
                                           return (
@@ -17994,37 +17821,25 @@ ${specialRequirements || '无'}`;
                                                   <span className="pill muted">{i + 1}</span>
 
 
-                                                  {editing ?
+                                                  <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
 
 
-                                                    <>
-
-
-                                                      <span className="hint">{UI_TEXT.t72}</span>
-
-
-                                                      <input
-
-
-                                                        value={depositEditing[actionKey] ?? s.action ?? ''}
-
-
-                                                        onChange={(e) => startEditDeposit(dep.id, `${s.id}||action`, e.target.value)}
-
-
-                                                        onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)}
-
-
-                                                        style={{ minWidth: 180 }} />
-
-
-                                                    </> :
-
-
-                                                    <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
-
-
-                                                  }
+                                  {/* 校验模式标记 */}
+                                  <span 
+                                    style={{ 
+                                      fontSize: '10px', 
+                                      padding: '2px 5px', 
+                                      borderRadius: '3px',
+                                      background: dep.validationMode === 'strict' ? '#fef3c7' : '#f0fdf4',
+                                      color: dep.validationMode === 'strict' ? '#b45309' : '#059669',
+                                      marginLeft: '4px'
+                                    }}
+                                    title={dep.validationMode === 'strict' 
+                                      ? '强校验：必须满足相似特征才执行' 
+                                      : '不校验：努力找到目标位置执行'}
+                                  >
+                                    {dep.validationMode === 'strict' ? '🔒' : '🔓'}
+                                  </span>
 
 
                                                   {replay?.status ?
@@ -18060,63 +17875,6 @@ ${specialRequirements || '无'}`;
                                                     null}
 
 
-                                                  {editing ?
-
-
-                                                    <>
-
-
-                                                      <button
-
-
-                                                        className="ghost xsmall"
-
-
-                                                        type="button"
-
-
-                                                        onClick={() => void applyDepositSection(dep.id, s.id)}
-
-
-                                                        disabled={compiling}>
-
-
-                                                        {compiling ? UI_TEXT.t124 : UI_TEXT.t125}
-
-
-                                                      </button>
-
-
-                                                      <button className="ghost xsmall" type="button" onClick={() => cancelEditDepositSection(dep.id, s.id)}>
-
-
-                                                        {UI_TEXT.t22}
-
-
-                                                      </button>
-
-
-                                                    </> :
-
-
-                                                    <button className="ghost xsmall" type="button" onClick={() => startEditDepositSection(dep.id, s)}>{UI_TEXT.t41}
-
-
-                                                    </button>
-
-
-                                                  }
-
-
-                                                  <button className="ghost xsmall" type="button" onClick={() => toggleDepositSectionExpanded(dep.id, s.id)}>
-
-
-                                                    {expanded ? UI_TEXT.t142 : UI_TEXT.t143}
-
-
-                                                  </button>
-
-
                                                   <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
 
 
@@ -18129,262 +17887,23 @@ ${specialRequirements || '无'}`;
                                               </div>
 
 
-                                              {expanded ?
-
-
-                                                editing ?
-
-
-                                                  <div className="section" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '10px', borderRadius: 8 }}>
-
-
-                                                    <div style={{ display: 'grid', gap: 8 }}>
-
-
-                                                      <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                                          <span className="hint">{UI_TEXT.t74}</span>
-
-
-                                                          <select
-
-
-                                                            value={depositEditing[reqInputKey] ?? requirements.inputSource}
-
-
-                                                            onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_input`, e.target.value)}>
-
-
-                                                            <option value="required">{UI_TEXT.t75}</option>
-
-
-                                                            <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                                          </select>
-
-
-                                                        </div>
-
-
-                                                        <div className="hint" style={{ whiteSpace: 'pre-wrap' }}>
-
-
-                                                          {(parsed.inputLine || '').replace(INPUT_SOURCE_PREFIX_RE, '') || UI_TEXT.t126}
-
-
-                                                        </div>
-
-
-                                                      </label>
-
-
-                                                      <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                                          <span className="hint">{UI_TEXT.t94}</span>
-
-
-                                                          <select
-
-
-                                                            value={depositEditing[reqExecKey] ?? requirements.actionExecution}
-
-
-                                                            onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_exec`, e.target.value)}>
-
-
-                                                            <option value="required">{UI_TEXT.t75}</option>
-
-
-                                                            <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                                          </select>
-
-
-                                                        </div>
-
-
-                                                        <input
-
-
-                                                          value={depositEditing[execKey] ?? ''}
-
-
-                                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||exec`, e.target.value)}
-
-
-                                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                                      </label>
-
-
-                                                      <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                                          <span className="hint">{UI_TEXT.t77}</span>
-
-
-                                                          <select
-
-
-                                                            value={depositEditing[reqSummaryKey] ?? requirements.executionSummary}
-
-
-                                                            onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_summary`, e.target.value)}>
-
-
-                                                            <option value="required">{UI_TEXT.t75}</option>
-
-
-                                                            <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                                          </select>
-
-
-                                                        </div>
-
-
-                                                        <textarea
-
-
-                                                          rows={3}
-
-
-                                                          value={depositEditing[summaryKey] ?? ''}
-
-
-                                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||summary`, e.target.value)}
-
-
-                                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                                      </label>
-
-
-                                                      <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                                          <span className="hint">{UI_TEXT.t78}</span>
-
-
-                                                          <select
-
-
-                                                            value={depositEditing[reqLocationKey] ?? requirements.recordLocation}
-
-
-                                                            onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_location`, e.target.value)}>
-
-
-                                                            <option value="required">{UI_TEXT.t75}</option>
-
-
-                                                            <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                                          </select>
-
-
-                                                        </div>
-
-
-                                                        <input
-
-
-                                                          value={depositEditing[locationKey] ?? ''}
-
-
-                                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||location`, e.target.value)}
-
-
-                                                          onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                                      </label>
-
-
-                                                      <div className="hint">{UI_TEXT.t79}</div>
-
-
-                                                    </div>
-
-
-                                                  </div> :
-
-
-                                                  <>
-
-
-                                                    {/* 显示大模型记录（如果有） - 完整信息 */}
-                                    {s.llmScript && (
-                                      <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                          <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
-                                          {s.llmScript.title && <span style={{ fontWeight: 500, color: '#0369a1' }}>{s.llmScript.title}</span>}
-                                        </div>
-                                        {s.llmScript.type && <div style={{ fontSize: 12, color: '#0c4a6e' }}>类型: {s.llmScript.type}</div>}
-                                        {s.llmScript.description && <div style={{ fontSize: 12, color: '#0c4a6e' }}>描述: {s.llmScript.description}</div>}
-                                        {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 12, color: '#0c4a6e' }}>指令内容: {s.llmScript.instructions || s.llmScript.promptContent}</div>}
-                                        {s.llmScript.inputSourceDesc && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输入来源: {s.llmScript.inputSourceDesc}</div>}
-                                        {s.llmScript.inputContentExcerpt && <div style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>【参考】录制时输入: {s.llmScript.inputContentExcerpt.length > 80 ? s.llmScript.inputContentExcerpt.substring(0, 80) + '...' : s.llmScript.inputContentExcerpt}</div>}
-                                        {s.llmScript.targetTitle && <div style={{ fontSize: 12, color: '#0c4a6e' }}>目标标题: {s.llmScript.targetTitle}</div>}
-                                        {s.llmScript.outputTargetDesc && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输出目标: {s.llmScript.outputTargetDesc}</div>}
-                                        {s.llmScript.outputs?.outputContent && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输出内容: {s.llmScript.outputs.outputContent.length > 100 ? s.llmScript.outputs.outputContent.substring(0, 100) + '...' : s.llmScript.outputs.outputContent}</div>}
-                                        {s.llmScript.aiGuidance && <div style={{ fontSize: 12, color: '#0c4a6e', fontStyle: 'italic' }}>AI指导: {s.llmScript.aiGuidance}</div>}
-                                      </div>
-                                    )}
-                                    {/* 显示脚本记录 */}
-                                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: 8 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                        <span style={{ background: '#64748b', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>📜 脚本记录</span>
-                                      </div>
-                                      <div className="hint" style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{s.content || s.originalScript?.content || UI_TEXT.t128}</div>
-                                    </div>
-
-
-                                                    {replay?.status && replay.status !== 'done' ?
-
-
-                                                      <div
-
-
-                                                        className="hint"
-
-
-                                                        style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e' }}>
-
-
-                                                        {replay.message || UI_TEXT.t129}
-
-
-                                                      </div> :
-
-
-                                                      null}
-
-
-                                                  </> :
-
-
-                                                null}
+                              {/* 只读显示沉淀内容摘要 */}
+                              {s.llmScript && (
+                                <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型</span>
+                                    {s.llmScript.description && <span style={{ fontSize: 12, color: '#0c4a6e' }}>{s.llmScript.description}</span>}
+                                  </div>
+                                  {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 11, color: '#64748b' }}>指令: {(s.llmScript.instructions || s.llmScript.promptContent).substring(0, 60)}...</div>}
+                                  {s.llmScript.inputSourceDesc && <div style={{ fontSize: 11, color: '#64748b' }}>输入: {s.llmScript.inputSourceDesc}</div>}
+                                  {s.llmScript.targetTitle && <div style={{ fontSize: 11, color: '#64748b' }}>目标: {s.llmScript.targetTitle}</div>}
+                                </div>
+                              )}
+                              {replay?.status && replay.status !== 'done' && (
+                                <div className="hint" style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e', marginTop: 4, fontSize: 11 }}>
+                                  {replay.message || UI_TEXT.t129}
+                                </div>
+                              )}
 
 
                                             </div>);
@@ -18618,10 +18137,23 @@ ${specialRequirements || '无'}`;
                       className="dispatch-input"
 
 
-                      rows={1}
+                      style={{ 
+                        height: `${dispatchInputHeight}px`, 
+                        resize: 'vertical',
+                        minHeight: '40px'
+                      }}
 
 
-                      placeholder={UI_TEXT.t98}>
+                      placeholder={UI_TEXT.t98}
+
+
+                      onMouseUp={(e) => {
+                        // 保存调整后的高度
+                        const newHeight = e.target.offsetHeight;
+                        if (newHeight && newHeight !== dispatchInputHeight) {
+                          setDispatchInputHeight(newHeight);
+                        }
+                      }}>
 
 
                     </textarea>
@@ -19488,7 +19020,7 @@ ${specialRequirements || '无'}`;
                       isEditing={false}
 
 
-                      position={{ ...contentBlockPositions['processing-records-toolbar'], height: 70 }}
+                      position={contentBlockPositions['processing-records-toolbar']}
 
 
                       onPositionChange={() => { }}
@@ -19593,7 +19125,7 @@ ${specialRequirements || '无'}`;
                                 <div
 
 
-                                  key={dep.id}
+                                  key={`${dep.id}-${idx}`}
 
 
                                   className="section"
@@ -19833,6 +19365,27 @@ ${specialRequirements || '无'}`;
                                         type="button"
 
 
+                                        onClick={() => editDeposit(dep.id)}
+
+
+                                        title="编辑沉淀内容">
+
+
+                                        ✏️ 编辑
+
+
+                                      </button>
+
+
+                                      <button
+
+
+                                        className="ghost xsmall"
+
+
+                                        type="button"
+
+
                                         onClick={() => void replayDeposit(dep.id)}
 
 
@@ -19900,75 +19453,11 @@ ${specialRequirements || '无'}`;
 
 
                                       {(dep.sections || []).map((s, i) => {
-
-
-                                        const actionKey = `${dep.id}||${s.id}||action`;
-
-
-                                        const execKey = `${dep.id}||${s.id}||exec`;
-
-
-                                        const summaryKey = `${dep.id}||${s.id}||summary`;
-
-
-                                        const locationKey = `${dep.id}||${s.id}||location`;
-
-
-                                        const reqInputKey = `${dep.id}||${s.id}||req_input`;
-
-
-                                        const reqExecKey = `${dep.id}||${s.id}||req_exec`;
-
-
-                                        const reqSummaryKey = `${dep.id}||${s.id}||req_summary`;
-
-
-                                        const reqLocationKey = `${dep.id}||${s.id}||req_location`;
-
-
-                                        const editing =
-
-
-                                          depositEditing[actionKey] !== undefined ||
-
-
-                                          depositEditing[execKey] !== undefined ||
-
-
-                                          depositEditing[summaryKey] !== undefined ||
-
-
-                                          depositEditing[locationKey] !== undefined;
-
-
-                                        const parsed = parseDepositSectionContent(s?.content || '');
-
-
-                                        const requirements = getSectionRequirements(s);
-
-
-                                        const sectionMeta = extractReplayMeta(s?.content || '');
-
-
-                                        const canFlexUpload =
-
-
-                                          !editing &&
-
-
-                                          sectionMeta?.type === 'add_doc' && (
-
-
-                                            sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
-
-
+                                        // section 状态（只读）
                                         const replay = replayState?.[dep.id]?.bySection?.[s.id];
-
-
-                                        const compiling = !!compilingDepositSections[`${dep.id}||${s.id}`];
-
-
-                                        const expanded = editing ? true : isDepositSectionExpanded(dep.id, s.id);
+                                        const sectionMeta = extractReplayMeta(s?.content || '');
+                                        const canFlexUpload = sectionMeta?.type === 'add_doc' && (
+                                          sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
 
 
                                         return (
@@ -19986,37 +19475,25 @@ ${specialRequirements || '无'}`;
                                                 <span className="pill muted">{i + 1}</span>
 
 
-                                                {editing ?
+                                                <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
 
 
-                                                  <>
-
-
-                                                    <span className="hint">{UI_TEXT.t72}</span>
-
-
-                                                    <input
-
-
-                                                      value={depositEditing[actionKey] ?? s.action ?? ''}
-
-
-                                                      onChange={(e) => startEditDeposit(dep.id, `${s.id}||action`, e.target.value)}
-
-
-                                                      onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)}
-
-
-                                                      style={{ minWidth: 180 }} />
-
-
-                                                  </> :
-
-
-                                                  <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
-
-
-                                                }
+                                  {/* 校验模式标记 */}
+                                  <span 
+                                    style={{ 
+                                      fontSize: '10px', 
+                                      padding: '2px 5px', 
+                                      borderRadius: '3px',
+                                      background: dep.validationMode === 'strict' ? '#fef3c7' : '#f0fdf4',
+                                      color: dep.validationMode === 'strict' ? '#b45309' : '#059669',
+                                      marginLeft: '4px'
+                                    }}
+                                    title={dep.validationMode === 'strict' 
+                                      ? '强校验：必须满足相似特征才执行' 
+                                      : '不校验：努力找到目标位置执行'}
+                                  >
+                                    {dep.validationMode === 'strict' ? '🔒' : '🔓'}
+                                  </span>
 
 
                                                 {replay?.status ?
@@ -20052,63 +19529,6 @@ ${specialRequirements || '无'}`;
                                                   null}
 
 
-                                                {editing ?
-
-
-                                                  <>
-
-
-                                                    <button
-
-
-                                                      className="ghost xsmall"
-
-
-                                                      type="button"
-
-
-                                                      onClick={() => void applyDepositSection(dep.id, s.id)}
-
-
-                                                      disabled={compiling}>
-
-
-                                                      {compiling ? UI_TEXT.t124 : UI_TEXT.t125}
-
-
-                                                    </button>
-
-
-                                                    <button className="ghost xsmall" type="button" onClick={() => cancelEditDepositSection(dep.id, s.id)}>
-
-
-                                                      {UI_TEXT.t22}
-
-
-                                                    </button>
-
-
-                                                  </> :
-
-
-                                                  <button className="ghost xsmall" type="button" onClick={() => startEditDepositSection(dep.id, s)}>{UI_TEXT.t41}
-
-
-                                                  </button>
-
-
-                                                }
-
-
-                                                <button className="ghost xsmall" type="button" onClick={() => toggleDepositSectionExpanded(dep.id, s.id)}>
-
-
-                                                  {expanded ? UI_TEXT.t142 : UI_TEXT.t143}
-
-
-                                                </button>
-
-
                                                 <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
 
 
@@ -20121,262 +19541,23 @@ ${specialRequirements || '无'}`;
                                             </div>
 
 
-                                            {expanded ?
-
-
-                                              editing ?
-
-
-                                                <div className="section" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '10px', borderRadius: 8 }}>
-
-
-                                                  <div style={{ display: 'grid', gap: 8 }}>
-
-
-                                                    <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                                        <span className="hint">{UI_TEXT.t74}</span>
-
-
-                                                        <select
-
-
-                                                          value={depositEditing[reqInputKey] ?? requirements.inputSource}
-
-
-                                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_input`, e.target.value)}>
-
-
-                                                          <option value="required">{UI_TEXT.t75}</option>
-
-
-                                                          <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                                        </select>
-
-
-                                                      </div>
-
-
-                                                      <div className="hint" style={{ whiteSpace: 'pre-wrap' }}>
-
-
-                                                        {(parsed.inputLine || '').replace(INPUT_SOURCE_PREFIX_RE, '') || UI_TEXT.t126}
-
-
-                                                      </div>
-
-
-                                                    </label>
-
-
-                                                    <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                                        <span className="hint">{UI_TEXT.t94}</span>
-
-
-                                                        <select
-
-
-                                                          value={depositEditing[reqExecKey] ?? requirements.actionExecution}
-
-
-                                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_exec`, e.target.value)}>
-
-
-                                                          <option value="required">{UI_TEXT.t75}</option>
-
-
-                                                          <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                                        </select>
-
-
-                                                      </div>
-
-
-                                                      <input
-
-
-                                                        value={depositEditing[execKey] ?? ''}
-
-
-                                                        onChange={(e) => startEditDeposit(dep.id, `${s.id}||exec`, e.target.value)}
-
-
-                                                        onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                                    </label>
-
-
-                                                    <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                                        <span className="hint">{UI_TEXT.t77}</span>
-
-
-                                                        <select
-
-
-                                                          value={depositEditing[reqSummaryKey] ?? requirements.executionSummary}
-
-
-                                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_summary`, e.target.value)}>
-
-
-                                                          <option value="required">{UI_TEXT.t75}</option>
-
-
-                                                          <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                                        </select>
-
-
-                                                      </div>
-
-
-                                                      <textarea
-
-
-                                                        rows={3}
-
-
-                                                        value={depositEditing[summaryKey] ?? ''}
-
-
-                                                        onChange={(e) => startEditDeposit(dep.id, `${s.id}||summary`, e.target.value)}
-
-
-                                                        onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                                    </label>
-
-
-                                                    <label style={{ display: 'grid', gap: 4 }}>
-
-
-                                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-
-                                                        <span className="hint">{UI_TEXT.t78}</span>
-
-
-                                                        <select
-
-
-                                                          value={depositEditing[reqLocationKey] ?? requirements.recordLocation}
-
-
-                                                          onChange={(e) => startEditDeposit(dep.id, `${s.id}||req_location`, e.target.value)}>
-
-
-                                                          <option value="required">{UI_TEXT.t75}</option>
-
-
-                                                          <option value="optional">{UI_TEXT.t76}</option>
-
-
-                                                        </select>
-
-
-                                                      </div>
-
-
-                                                      <input
-
-
-                                                        value={depositEditing[locationKey] ?? ''}
-
-
-                                                        onChange={(e) => startEditDeposit(dep.id, `${s.id}||location`, e.target.value)}
-
-
-                                                        onKeyDown={(e) => handleDepositSectionKeyDown(e, dep.id, s.id)} />
-
-
-                                                    </label>
-
-
-                                                    <div className="hint">{UI_TEXT.t79}</div>
-
-
-                                                  </div>
-
-
-                                                </div> :
-
-
-                                                <>
-
-
-                                                  {/* 显示大模型记录（如果有） - 完整信息 */}
-                                    {s.llmScript && (
-                                      <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                          <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
-                                          {s.llmScript.title && <span style={{ fontWeight: 500, color: '#0369a1' }}>{s.llmScript.title}</span>}
-                                        </div>
-                                        {s.llmScript.type && <div style={{ fontSize: 12, color: '#0c4a6e' }}>类型: {s.llmScript.type}</div>}
-                                        {s.llmScript.description && <div style={{ fontSize: 12, color: '#0c4a6e' }}>描述: {s.llmScript.description}</div>}
-                                        {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 12, color: '#0c4a6e' }}>指令内容: {s.llmScript.instructions || s.llmScript.promptContent}</div>}
-                                        {s.llmScript.inputSourceDesc && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输入来源: {s.llmScript.inputSourceDesc}</div>}
-                                        {s.llmScript.inputContentExcerpt && <div style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>【参考】录制时输入: {s.llmScript.inputContentExcerpt.length > 80 ? s.llmScript.inputContentExcerpt.substring(0, 80) + '...' : s.llmScript.inputContentExcerpt}</div>}
-                                        {s.llmScript.targetTitle && <div style={{ fontSize: 12, color: '#0c4a6e' }}>目标标题: {s.llmScript.targetTitle}</div>}
-                                        {s.llmScript.outputTargetDesc && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输出目标: {s.llmScript.outputTargetDesc}</div>}
-                                        {s.llmScript.outputs?.outputContent && <div style={{ fontSize: 12, color: '#0c4a6e' }}>输出内容: {s.llmScript.outputs.outputContent.length > 100 ? s.llmScript.outputs.outputContent.substring(0, 100) + '...' : s.llmScript.outputs.outputContent}</div>}
-                                        {s.llmScript.aiGuidance && <div style={{ fontSize: 12, color: '#0c4a6e', fontStyle: 'italic' }}>AI指导: {s.llmScript.aiGuidance}</div>}
-                                      </div>
-                                    )}
-                                    {/* 显示脚本记录 */}
-                                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: 8 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                        <span style={{ background: '#64748b', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>📜 脚本记录</span>
-                                      </div>
-                                      <div className="hint" style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{s.content || s.originalScript?.content || UI_TEXT.t128}</div>
-                                    </div>
-
-
-                                                  {replay?.status && replay.status !== 'done' ?
-
-
-                                                    <div
-
-
-                                                      className="hint"
-
-
-                                                      style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e' }}>
-
-
-                                                      {replay.message || UI_TEXT.t129}
-
-
-                                                    </div> :
-
-
-                                                    null}
-
-
-                                                </> :
-
-
-                                              null}
+                              {/* 只读显示沉淀内容摘要 */}
+                              {s.llmScript && (
+                                <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型</span>
+                                    {s.llmScript.description && <span style={{ fontSize: 12, color: '#0c4a6e' }}>{s.llmScript.description}</span>}
+                                  </div>
+                                  {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 11, color: '#64748b' }}>指令: {(s.llmScript.instructions || s.llmScript.promptContent).substring(0, 60)}...</div>}
+                                  {s.llmScript.inputSourceDesc && <div style={{ fontSize: 11, color: '#64748b' }}>输入: {s.llmScript.inputSourceDesc}</div>}
+                                  {s.llmScript.targetTitle && <div style={{ fontSize: 11, color: '#64748b' }}>目标: {s.llmScript.targetTitle}</div>}
+                                </div>
+                              )}
+                              {replay?.status && replay.status !== 'done' && (
+                                <div className="hint" style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e', marginTop: 4, fontSize: 11 }}>
+                                  {replay.message || UI_TEXT.t129}
+                                </div>
+                              )}
 
 
                                           </div>);
@@ -20493,10 +19674,23 @@ ${specialRequirements || '无'}`;
                     className="dispatch-input"
 
 
-                    rows={1}
+                    style={{ 
+                      height: `${dispatchInputHeight}px`, 
+                      resize: 'vertical',
+                      minHeight: '40px'
+                    }}
 
 
-                    placeholder={UI_TEXT.t98}>
+                    placeholder={UI_TEXT.t98}
+
+
+                    onMouseUp={(e) => {
+                      // 保存调整后的高度
+                      const newHeight = e.target.offsetHeight;
+                      if (newHeight && newHeight !== dispatchInputHeight) {
+                        setDispatchInputHeight(newHeight);
+                      }
+                    }}>
 
 
                   </textarea>

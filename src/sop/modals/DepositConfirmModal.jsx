@@ -17,6 +17,7 @@ import React from 'react';
  * @param {Function} props.onAIProcess - AI优化处理回调
  * @param {Function} props.getScriptForSection - 获取章节脚本函数
  * @param {Function} props.updateScriptForSection - 更新章节脚本函数
+ * @param {boolean} props.isEditMode - 是否为编辑模式（编辑现有沉淀）
  */
 export const DepositConfirmModal = ({
   data,
@@ -29,6 +30,7 @@ export const DepositConfirmModal = ({
   onAIProcess,
   getScriptForSection,
   updateScriptForSection,
+  isEditMode = false,
 }) => {
   if (!data) return null;
 
@@ -49,7 +51,7 @@ export const DepositConfirmModal = ({
       >
         {/* 头部 */}
         <div className="modal-head">
-          <h3>📝 沉淀确认与优化</h3>
+          <h3>{isEditMode ? '✏️ 编辑沉淀' : '📝 沉淀确认与优化'}</h3>
           <button className="ghost xsmall" type="button" onClick={onCancel}>✕</button>
         </div>
         
@@ -160,11 +162,36 @@ export const DepositConfirmModal = ({
                     color: selectedSectionIndex === i ? '#fff' : '#111827',
                     fontWeight: selectedSectionIndex === i ? 500 : 400,
                     transition: 'all 0.2s',
-                    marginBottom: i < data.sections.length - 1 ? '2px' : '0'
+                    marginBottom: i < data.sections.length - 1 ? '2px' : '0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
                   }}
                 >
-                  <span style={{ marginRight: '8px', opacity: 0.7 }}>{i + 1}.</span>
-                  <span>{s.action || s.generalizedTitle || '操作'}</span>
+                  <span>
+                    <span style={{ marginRight: '8px', opacity: 0.7 }}>{i + 1}.</span>
+                    <span>{s.action || s.generalizedTitle || '操作'}</span>
+                  </span>
+                  {/* 校验模式标记 */}
+                  <span 
+                    style={{ 
+                      fontSize: '10px', 
+                      padding: '2px 6px', 
+                      borderRadius: '3px',
+                      background: selectedSectionIndex === i 
+                        ? 'rgba(255,255,255,0.2)' 
+                        : (data.validationMode === 'strict' ? '#fef3c7' : '#f0fdf4'),
+                      color: selectedSectionIndex === i 
+                        ? '#fff' 
+                        : (data.validationMode === 'strict' ? '#b45309' : '#059669'),
+                      opacity: 0.9
+                    }}
+                    title={data.validationMode === 'strict' 
+                      ? '强校验：必须满足相似特征才执行' 
+                      : '不校验：努力找到目标位置执行'}
+                  >
+                    {data.validationMode === 'strict' ? '🔒强校验' : '🔓不校验'}
+                  </span>
                 </div>
               ))}
             </div>
@@ -172,17 +199,42 @@ export const DepositConfirmModal = ({
 
           {/* 结构化沉淀脚本 */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 500, color: '#374151' }}>
-              结构化沉淀脚本
-              <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: '8px' }}>
-                {selectedSectionIndex >= 0 
-                  ? `（当前显示：步骤 ${selectedSectionIndex + 1}）`
-                  : (isLlmMode 
-                      ? '（可编辑，AI 优化结果将显示在此）' 
-                      : '（可编辑，Replay 时将严格执行此脚本）')
-                }
-              </span>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontWeight: 500, color: '#374151' }}>
+                结构化沉淀脚本
+                <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: '8px' }}>
+                  {selectedSectionIndex >= 0 
+                    ? `（当前显示：步骤 ${selectedSectionIndex + 1}）`
+                    : (isLlmMode 
+                        ? '（可编辑，AI 优化结果将显示在此）' 
+                        : '（可编辑，Replay 时将严格执行此脚本）')
+                  }
+                </span>
+              </label>
+              {/* 校验模式下拉框 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>Replay校验</span>
+                <select
+                  value={data.validationMode || 'none'}
+                  onChange={(e) => setData(prev => ({ ...prev, validationMode: e.target.value }))}
+                  title={data.validationMode === 'strict' 
+                    ? '强校验：必须校验满足相似的前后特征或相似内容才可处理，较容易导致 pass' 
+                    : '不校验：不做强制校验要求，基于提供信息努力找到目标位置并执行'}
+                  style={{ 
+                    padding: '4px 10px', 
+                    border: `1px solid ${data.validationMode === 'strict' ? '#f59e0b' : '#d1d5db'}`,
+                    borderRadius: '4px', 
+                    fontSize: '13px', 
+                    background: data.validationMode === 'strict' ? '#fffbeb' : '#fff',
+                    color: data.validationMode === 'strict' ? '#b45309' : '#374151',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="none">🔓 不校验</option>
+                  <option value="strict">🔒 强校验</option>
+                </select>
+              </div>
+            </div>
             <textarea
               value={selectedSectionIndex >= 0 
                 ? getScriptForSection(data.structuredScript, selectedSectionIndex)
@@ -300,14 +352,16 @@ export const DepositConfirmModal = ({
             >
               取消
             </button>
-            <button 
-              className="ghost small" 
-              type="button" 
-              onClick={onDiscard}
-              style={{ padding: '8px 16px', color: '#dc2626' }}
-            >
-              放弃录制
-            </button>
+            {!isEditMode && (
+              <button 
+                className="ghost small" 
+                type="button" 
+                onClick={onDiscard}
+                style={{ padding: '8px 16px', color: '#dc2626' }}
+              >
+                放弃录制
+              </button>
+            )}
             <button 
               type="button" 
               onClick={onConfirm}
@@ -324,7 +378,7 @@ export const DepositConfirmModal = ({
                 transition: 'all 0.2s ease'
               }}
             >
-              ✓ 确认保存
+              {isEditMode ? '✓ 保存修改' : '✓ 确认保存'}
             </button>
           </div>
         </div>

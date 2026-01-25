@@ -429,36 +429,13 @@ export function LayoutEditContainer({
   style = {},
   size,
   onSizeChange,
-  minWidth = 800,
-  minHeight = 600
+  minWidth = 400,
+  minHeight = 300
 }) {
-  if (!isEditing) {
-    // 非编辑模式：直接渲染子元素，或者渲染一个静态容器
-    // 这里我们需要保证容器大小，因为子元素(Panels)是绝对定位的
-    // 所以需要一个 relative 的容器来作为定位基准
-    const resolvedSize = size || {};
-    return (
-      <div className="layout-static-container" style={{
-        ...style,
-        position: 'relative',
-        width: resolvedSize.width ? `${resolvedSize.width}px` : '100%',
-        height: resolvedSize.height ? `${resolvedSize.height}px` : '100%',
-        minHeight: `${minHeight}px`,
-        overflow: 'hidden' // 视情况而定
-      }}>
-        {children}
-      </div>);
-
-  }
-
+  // Hooks 必须在组件顶层调用，不能在条件语句之后
   const containerRef = useRef(null);
   const dragStateRef = useRef(null);
 
-  /* ResizeObserver removed to avoid conflict with manual drag */
-  useEffect(() => {
-
-    // No-op for observer
-  }, []);
   useEffect(() => {
     if (!isEditing || !onSizeChange) return;
     const handleMove = (e) => {
@@ -503,18 +480,33 @@ export function LayoutEditContainer({
   };
 
   const resolvedSize = size || {};
+
+  // 非编辑模式：直接渲染子元素，或者渲染一个静态容器
+  if (!isEditing) {
+    return (
+      <div className="layout-static-container" style={{
+        ...style,
+        position: 'relative',
+        width: resolvedSize.width ? `${resolvedSize.width}px` : '100%',
+        height: resolvedSize.height ? `${resolvedSize.height}px` : '100%',
+        overflow: 'hidden'
+      }}>
+        {children}
+      </div>);
+  }
+
+  // 编辑模式的容器样式
   const containerStyle = {
     ...style,
     position: 'relative',
     width: resolvedSize.width ? `${resolvedSize.width}px` : '100%',
     height: resolvedSize.height ? `${resolvedSize.height}px` : 'auto',
-    minHeight: `${minHeight}px`,
     background: 'rgba(59, 130, 246, 0.02)',
     border: '2px dashed #3b82f6',
     borderRadius: '8px',
     padding: '20px',
-    marginBottom: '20px',
-    overflow: 'auto'
+    marginBottom: '30px',
+    overflow: 'visible'
   };
 
   return (
@@ -537,54 +529,47 @@ export function LayoutEditContainer({
       </div>
 
       {/* 调整大小把手 - 右边 */}
-      {isEditing &&
       <div
         style={{
           position: 'absolute',
-          right: 0,
+          right: -6,
           top: 0,
           bottom: 0,
-          width: '12px',
+          width: '16px',
           cursor: 'ew-resize',
-          zIndex: 1000
+          zIndex: 1000,
+          background: 'rgba(59, 130, 246, 0.4)'
         }}
         onMouseDown={(e) => startDrag(e, 'e')} />
 
-      }
-
       {/* 调整大小把手 - 底部 */}
-      {isEditing &&
       <div
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: 0,
-          height: '12px',
+          bottom: -6,
+          height: '16px',
           cursor: 'ns-resize',
-          zIndex: 1000
+          zIndex: 1000,
+          background: 'rgba(59, 130, 246, 0.4)'
         }}
         onMouseDown={(e) => startDrag(e, 's')} />
 
-      }
-
       {/* 调整大小把手 - 右下角 */}
-      {isEditing &&
       <div
         style={{
           position: 'absolute',
-          right: 0,
-          bottom: 0,
-          width: '24px',
-          height: '24px',
+          right: -6,
+          bottom: -6,
+          width: '28px',
+          height: '28px',
           cursor: 'nwse-resize',
-          background: 'linear-gradient(135deg, transparent 50%, #3b82f6 50%)',
-          borderBottomRightRadius: '8px',
+          background: '#3b82f6',
+          borderRadius: '4px',
           zIndex: 1001
         }}
         onMouseDown={(e) => startDrag(e, 'se')} />
-
-      }
 
       {children}
     </div>);

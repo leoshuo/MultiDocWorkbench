@@ -2688,21 +2688,19 @@ input[type="text"]:focus {
 
 
 
-.status.pass,
+.status.pass {
+  /* 业务层面跳过 - 蓝灰色，表示主动跳过，不是错误 */
+  background: #e0e7ff;
+  color: #3730a3;
+  border: none;
+}
 
 
 .status.partial-done {
-
-
+  /* 部分完成 - 黄色警告 */
   background: #fef3c7;
-
-
   color: #92400e;
-
-
   border: none;
-
-
 }
 
 

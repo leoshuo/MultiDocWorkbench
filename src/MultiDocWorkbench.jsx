@@ -2507,80 +2507,46 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
 
 
   const normalizePanelPositions = (raw) => {
-
-
     const next = { ...DEFAULT_PANEL_POSITIONS };
-
-
     if (!raw || typeof raw !== 'object') return next;
 
-
     const applyPosition = (targetKey, pos) => {
-
-
-      if (!pos || typeof pos !== 'object') return;
-
-
+      if (!pos || typeof pos !== 'object') return false;
       const left = Number(pos.left);
-
-
       const top = Number(pos.top);
-
-
       const width = Number(pos.width);
-
-
       const height = Number(pos.height);
-
-
-      if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) return;
-
-
-      if (width <= 0 || height <= 0) return;
-
-
+      if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) return false;
+      if (width <= 0 || height <= 0) return false;
       next[targetKey] = { left, top, width, height };
-
-
+      return true;
     };
 
-
-    let applied = false;
-
-
-    Object.entries(LEGACY_PANEL_MAP).forEach(([legacyKey, panelKey]) => {
-
-
-      if (raw[legacyKey]) {
-
-
-        applied = true;
-
-
-        applyPosition(panelKey, raw[legacyKey]);
-
-
-      }
-
-
-    });
-
-
-    if (applied) return next;
-
-
+    // 优先使用标准键名 (sources-panel, chat-panel, studio-panel)
     Object.values(PANEL_IDS).forEach((panelKey) => {
-
-
-      if (raw[panelKey]) applyPosition(panelKey, raw[panelKey]);
-
-
+      if (raw[panelKey]) {
+        applyPosition(panelKey, raw[panelKey]);
+      }
     });
 
+    // 如果标准键名没有数据，尝试使用旧版键名
+    Object.entries(LEGACY_PANEL_MAP).forEach(([panelKey, legacyNames]) => {
+      // panelKey = 'sources-panel', legacyNames = ['来源', '来源列表', '资源']
+      if (next[panelKey] && next[panelKey] !== DEFAULT_PANEL_POSITIONS[panelKey]) {
+        // 已经从标准键名加载了，跳过旧版
+        return;
+      }
+      // 尝试从旧版键名加载
+      if (Array.isArray(legacyNames)) {
+        for (const legacyKey of legacyNames) {
+          if (raw[legacyKey] && applyPosition(panelKey, raw[legacyKey])) {
+            break; // 找到一个就停止
+          }
+        }
+      }
+    });
 
     return next;
-
-
   };
 
 
@@ -2644,84 +2610,52 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
     catch((err) => console.error('Failed to load app buttons:', err));
 
 
-    fetch('/api/multi/layout').
-
-
-    then((res) => res.ok ? res.json() : null).
-
-
-    then((data) => {
-
-
-      if (!data) return;
-
-
-      if (data.layoutSize) setLayoutSize(data.layoutSize);
-
-
-      if (data.panelPositions) {
-
-
-        setPanelPositions(normalizePanelPositions(data.panelPositions));
-
-
-      } else if (data['doc-classify']) {
-
-
-        setPanelPositions(normalizePanelPositions(data));
-
-
-      }
-
-
-      if (data.panelTitles) setPanelTitles(data.panelTitles);
-
-
-      if (data.panelVisibility) setPanelVisibility(normalizePanelVisibility(data.panelVisibility));
-
-
-    }).
-
-
-    catch((err) => console.error('Failed to load layout from server:', err));
-
-
-    // 加载布局配置
-
-
+    // 优先从 localStorage 加载布局配置（本地优先）
+    let hasLocalConfig = false;
     try {
-
-
       const storedLayout = localStorage.getItem('multidoc_layout_config');
-
-
       if (storedLayout) {
-
-
         const parsed = JSON.parse(storedLayout);
-
-
+        console.log('[MultiDoc] Loaded layout from localStorage:', parsed);
         if (parsed.layoutSize) setLayoutSize(parsed.layoutSize);
-
-
-        if (parsed.panelPositions) setPanelPositions(normalizePanelPositions(parsed.panelPositions));
-
-
+        if (parsed.panelPositions) {
+          setPanelPositions(normalizePanelPositions(parsed.panelPositions));
+          hasLocalConfig = true;
+        }
         if (parsed.panelTitles) setPanelTitles(parsed.panelTitles);
-
-
         if (parsed.panelVisibility) setPanelVisibility(normalizePanelVisibility(parsed.panelVisibility));
-
-
+        if (parsed.headerTitles) setHeaderTitles(prev => ({ ...prev, ...parsed.headerTitles }));
       }
-
-
     } catch (e) {
+      console.error('[MultiDoc] Failed to load layout from localStorage:', e);
+    }
 
-
-      console.error('Failed to load layout:', e);
-
-
+    // 只有当 localStorage 没有配置时，才从服务端加载
+    if (!hasLocalConfig) {
+      fetch('/api/multi/layout').
+        then((res) => res.ok ? res.json() : null).
+        then((data) => {
+          console.log('[MultiDoc] Loaded layout from server (fallback):', data);
+          if (!data) {
+            console.log('[MultiDoc] No layout data from server, using defaults');
+            return;
+          }
+          if (data.layoutSize) setLayoutSize(data.layoutSize);
+          if (data.panelPositions) {
+            console.log('[MultiDoc] Applying panel positions from server:', data.panelPositions);
+            setPanelPositions(normalizePanelPositions(data.panelPositions));
+            // 同步到 localStorage
+            localStorage.setItem('multidoc_layout_config', JSON.stringify(data));
+          } else if (data['doc-classify']) {
+            setPanelPositions(normalizePanelPositions(data));
+          }
+          if (data.panelTitles) setPanelTitles(data.panelTitles);
+          if (data.panelVisibility) setPanelVisibility(normalizePanelVisibility(data.panelVisibility));
+          if (data.headerTitles) setHeaderTitles(prev => ({ ...prev, ...data.headerTitles }));
+        }).
+        catch((err) => console.error('[MultiDoc] Failed to load layout from server:', err));
+    } else {
+      console.log('[MultiDoc] Using localStorage config, skipping server fetch');
     }
 
 
@@ -2791,16 +2725,20 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
         panelTitles,
 
 
-        panelVisibility
+        panelVisibility,
+
+
+        headerTitles
 
 
       };
 
 
       localStorage.setItem('multidoc_layout_config', JSON.stringify(layoutConfig));
+      localStorage.setItem('multidoc_header_titles', JSON.stringify(headerTitles));
 
 
-      await fetch('/api/multi/layout', {
+      const layoutRes = await fetch('/api/multi/layout', {
 
 
         method: 'POST',
@@ -2815,7 +2753,14 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
       });
 
 
-      await fetch('/api/multi/panels', {
+      if (!layoutRes.ok) {
+        console.error('[MultiDoc] Failed to save layout to server');
+      } else {
+        console.log('[MultiDoc] Layout saved to server successfully');
+      }
+
+
+      const panelsRes = await fetch('/api/multi/panels', {
 
 
         method: 'POST',
@@ -2830,7 +2775,11 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
       });
 
 
-      // console.log('Configuration saved');
+      if (!panelsRes.ok) {
+        console.error('[MultiDoc] Failed to save panels to server');
+      }
+
+      console.log('[MultiDoc] Configuration saved');
 
 
     } catch (err) {
@@ -3013,12 +2962,11 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
           }
 
 
-          if (savedHeaderTitlesStr) {
-
-
+          // headerTitles 优先从 savedConfig 获取（服务端保存），其次从独立存储获取
+          if (savedConfig.headerTitles) {
+            setHeaderTitles(prev => ({ ...prev, ...savedConfig.headerTitles }));
+          } else if (savedHeaderTitlesStr) {
             setHeaderTitles(JSON.parse(savedHeaderTitlesStr));
-
-
           }
 
 
@@ -4683,10 +4631,10 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
           onSizeChange={setLayoutSize}
 
 
-          minWidth={1200}
+          minWidth={600}
 
 
-          minHeight={800}
+          minHeight={400}
 
 
           style={{ background: '#f8fafc' }}>

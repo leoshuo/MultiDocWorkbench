@@ -1,6 +1,6 @@
 {
   "layoutSize": {
-    "width": 1590.98388671875,
+    "width": 1590,
     "height": 800
   },
   "panelPositions": {
@@ -17,24 +17,6 @@
       "height": 900
     },
     "studio-panel": {
-      "left": 1180,
-      "top": 40,
-      "width": 460,
-      "height": 900
-    },
-    "来源,来源列表,资源": {
-      "left": 0,
-      "top": 0,
-      "width": 334,
-      "height": 672
-    },
-    "对话,聊天,会话": {
-      "left": 352,
-      "top": 0,
-      "width": 1098,
-      "height": 674
-    },
-    "Studio,工作室,编辑": {
       "left": 1180,
       "top": 40,
       "width": 460,

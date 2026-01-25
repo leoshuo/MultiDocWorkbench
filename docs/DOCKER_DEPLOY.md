@@ -1,7 +1,7 @@
-﻿# 离线部署指南（Docker / Linux）
+# 离线部署指南（Docker / Linux）
 
-版本：1.6.3  
-更新日期：2026-01-22
+版本：1.6.4  
+更新日期：2026-01-25
 
 > 本项目支持离线部署。Docker 镜像包含前端、后端和文档，开箱即用。
 
@@ -16,10 +16,10 @@
 cd document-workspace
 
 # 构建镜像
-docker build -t document-workspace:1.6.3 .
+docker build -t document-workspace:1.6.4 .
 
 # 导出镜像为 tar 包（用于离线传输）
-docker save document-workspace:1.6.3 -o document-workspace-1.6.3.tar
+docker save document-workspace:1.6.4 -o document-workspace-1.6.3.tar
 ```
 
 ### 第 2 步：在目标服务器加载镜像
@@ -41,7 +41,7 @@ docker run -d \
   --restart unless-stopped \
   -p 4300:4300 \
   -v /opt/document-workspace/data:/app/data \
-  document-workspace:1.6.3
+  document-workspace:1.6.4
 ```
 
 ### 第 4 步：访问界面
@@ -67,7 +67,7 @@ version: "3.8"
 
 services:
   app:
-    image: document-workspace:1.6.3
+    image: document-workspace:1.6.4
     container_name: document-workspace
     restart: unless-stopped
     ports:
@@ -106,7 +106,7 @@ docker run -d \
   -e QWEN_MODEL="qwen-plus" \
   -e QWEN_API_KEY="你的API密钥" \
   -v /opt/document-workspace/data:/app/data \
-  document-workspace:1.6.3
+  document-workspace:1.6.4
 ```
 
 **说明**：
@@ -220,7 +220,7 @@ docker run -d \
   -e PORT=4300 \
   -e QWEN_ENDPOINT="http://内网模型地址/v1/chat/completions" \
   -v /opt/document-workspace/data:/app/data \
-  document-workspace:1.6.3
+  document-workspace:1.6.4
 ```
 
 ### 4. 页面显示空白
