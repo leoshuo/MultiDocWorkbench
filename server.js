@@ -2294,38 +2294,38 @@ app.post("/api/replay/execute-section", async (req, res) => {
       }
       
     } else if (metaType === 'add_doc' || metaType.startsWith('add_doc')) {
-      // 添加文档
-      try {
-        const docName = meta.docName || meta.selectedDocName || '';
-        let doc = findDoc(docName, meta.docId);
-        
-        // 如果没找到且有 replayDirPath，尝试上传
-        if (!doc && replayDirPath && docName) {
-          const filePath = path.join(replayDirPath, docName);
-          if (fs.existsSync(filePath)) {
-            const content = fs.readFileSync(filePath, 'utf-8');
-            const newDoc = {
-              id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              name: docName,
-              content,
-              uploadedAt: Date.now()
-            };
-            docs.push(newDoc);
-            persistDocs();
-            doc = newDoc;
-          }
+      // 添加文档（与后管端逻辑一致：找不到时跳过而非失败）
+      const docName = meta.docName || meta.selectedDocName || '';
+      let doc = findDoc(docName, meta.docId);
+      
+      // 如果没找到且有 replayDirPath，尝试上传
+      if (!doc && replayDirPath && docName) {
+        const filePath = path.join(replayDirPath, docName);
+        if (fs.existsSync(filePath)) {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const newDoc = {
+            id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: docName,
+            content,
+            uploadedAt: Date.now()
+          };
+          docs.push(newDoc);
+          persistDocs();
+          doc = newDoc;
         }
-        
-        if (!doc) throw new Error(docName ? `未找到文档：${docName}` : '未指定文档');
-        
+      }
+      
+      // 【重要】找不到文档时跳过，而不是失败（与后管端逻辑一致）
+      if (!doc) {
+        status = 'pass';
+        reason = `⏭️ 跳过执行：未找到文档「${docName || '(空)'}」`;
+        replayMode = 'skipped';
+      } else {
         const docIds = Array.from(new Set([...(scene.docIds || []), doc.id]));
         scene.docIds = docIds;
         
         status = 'done';
         reason = `📜 脚本 Replay Done（已添加文档：${doc.name}）`;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '添加文档失败';
       }
       
     } else if (metaType === 'delete_doc' || metaType === 'remove_doc') {
@@ -2354,44 +2354,51 @@ app.post("/api/replay/execute-section", async (req, res) => {
       reason = '⏭️ 大纲抽取需要 AI 处理，请在前端执行';
       
     } else if (metaType === 'copy_full_to_summary' || section.action === '复制全文到摘要') {
-      // 复制全文到摘要
-      try {
-        const docName = meta.docName || llmScript?.docName || '';
-        let doc = findDoc(docName, meta.docId);
-        
-        // 尝试从 replayDir 加载
-        if (!doc && replayDirPath && docName) {
-          const filePath = path.join(replayDirPath, docName);
-          if (fs.existsSync(filePath)) {
-            const content = fs.readFileSync(filePath, 'utf-8');
-            const newDoc = {
-              id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              name: docName,
-              content,
-              uploadedAt: Date.now()
-            };
-            docs.push(newDoc);
-            persistDocs();
-            doc = newDoc;
-          }
+      // 复制全文到摘要（与后管端逻辑一致：找不到时跳过而非失败）
+      const docName = meta.docName || llmScript?.docName || '';
+      let doc = findDoc(docName, meta.docId);
+      
+      // 尝试从 replayDir 加载
+      if (!doc && replayDirPath && docName) {
+        const filePath = path.join(replayDirPath, docName);
+        if (fs.existsSync(filePath)) {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const newDoc = {
+            id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: docName,
+            content,
+            uploadedAt: Date.now()
+          };
+          docs.push(newDoc);
+          persistDocs();
+          doc = newDoc;
         }
-        
-        if (!doc) throw new Error(docName ? `未找到文档：${docName}` : '未指定文档');
-        
+      }
+      
+      // 【重要】找不到文档时跳过，而不是失败（与后管端逻辑一致）
+      if (!doc) {
+        status = 'pass';
+        reason = `⏭️ 跳过执行：未在文档列表中找到「${docName || '(空)'}」，无法满足录制时的输入源要求`;
+        replayMode = 'skipped';
+      } else {
         const tpl = getTemplate();
         const targetTitle = meta.targetSectionTitle || meta.targetSection?.title || llmScript?.targetSectionTitle || '';
         
         // LLM 模式：语义匹配
         let targetSection = null;
         if (mode === 'llm' && targetTitle) {
-          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
-          const matchRes = await callQwenSemanticMatch({
-            taskType: 'find_outline_section',
-            recordedInfo: { targetTitle, description: '复制全文到摘要' },
-            candidates
-          });
-          if (matchRes.matchedId) {
-            targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+          try {
+            const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+            const matchRes = await callQwenSemanticMatch({
+              taskType: 'find_outline_section',
+              recordedInfo: { targetTitle, description: '复制全文到摘要' },
+              candidates
+            });
+            if (matchRes.matchedId) {
+              targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+            }
+          } catch (e) {
+            logger.warn('REPLAY', '语义匹配失败，回退到精确匹配', { error: e.message });
           }
         }
         
@@ -2400,63 +2407,72 @@ app.post("/api/replay/execute-section", async (req, res) => {
           targetSection = findSection(meta.sectionId, targetTitle, tpl);
         }
         
-        if (!targetSection) throw new Error(targetTitle ? `未找到标题「${targetTitle}」` : '未指定目标标题');
-        
-        const content = (doc.content || '').toString().trim();
-        const nextTpl = {
-          ...tpl,
-          sections: tpl.sections.map(s => s.id === targetSection.id ? { ...s, summary: content } : s)
-        };
-        applyTemplate(nextTpl);
-        
-        status = 'done';
-        reason = mode === 'llm' 
-          ? `🤖 大模型 Replay Done（已将「${doc.name}」复制到「${targetSection.title}」）`
-          : `📜 脚本 Replay Done（已将「${doc.name}」复制到「${targetSection.title}」）`;
-        replayMode = mode;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '复制全文到摘要失败';
+        // 【重要】找不到目标位置时跳过，而不是失败（与后管端逻辑一致）
+        if (!targetSection) {
+          status = 'pass';
+          reason = `⏭️ 跳过执行：当前大纲中未找到相似目标位置「${targetTitle || '(空)'}」`;
+          replayMode = 'skipped';
+        } else {
+          const content = (doc.content || '').toString().trim();
+          const nextTpl = {
+            ...tpl,
+            sections: tpl.sections.map(s => s.id === targetSection.id ? { ...s, summary: content } : s)
+          };
+          applyTemplate(nextTpl);
+          
+          status = 'done';
+          reason = mode === 'llm' 
+            ? `🤖 大模型 Replay Done（已将「${doc.name}」复制到「${targetSection.title}」）`
+            : `📜 脚本 Replay Done（已将「${doc.name}」复制到「${targetSection.title}」）`;
+          replayMode = mode;
+        }
       }
       
     } else if (metaType === 'outline_link_doc' || section.action === '关联文档') {
-      // 关联文档
-      try {
-        const docName = meta.docName || llmScript?.docName || '';
-        let doc = findDoc(docName, meta.docId);
-        
-        if (!doc && replayDirPath && docName) {
-          const filePath = path.join(replayDirPath, docName);
-          if (fs.existsSync(filePath)) {
-            const content = fs.readFileSync(filePath, 'utf-8');
-            const newDoc = {
-              id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              name: docName,
-              content,
-              uploadedAt: Date.now()
-            };
-            docs.push(newDoc);
-            persistDocs();
-            doc = newDoc;
-          }
+      // 关联文档（与后管端逻辑一致：找不到时跳过而非失败）
+      const docName = meta.docName || llmScript?.docName || '';
+      let doc = findDoc(docName, meta.docId);
+      
+      if (!doc && replayDirPath && docName) {
+        const filePath = path.join(replayDirPath, docName);
+        if (fs.existsSync(filePath)) {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const newDoc = {
+            id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: docName,
+            content,
+            uploadedAt: Date.now()
+          };
+          docs.push(newDoc);
+          persistDocs();
+          doc = newDoc;
         }
-        
-        if (!doc) throw new Error(docName ? `未找到文档：${docName}` : '未指定文档');
-        
+      }
+      
+      // 【重要】找不到文档时跳过，而不是失败（与后管端逻辑一致）
+      if (!doc) {
+        status = 'pass';
+        reason = `⏭️ 跳过执行：未找到相似文档「${docName || '(空)'}」`;
+        replayMode = 'skipped';
+      } else {
         const tpl = getTemplate();
         const targetTitle = meta.targetSectionTitle || meta.targetSection?.title || llmScript?.targetSectionTitle || '';
         
         // LLM 模式：语义匹配
         let targetSection = null;
         if (mode === 'llm' && targetTitle) {
-          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
-          const matchRes = await callQwenSemanticMatch({
-            taskType: 'find_outline_section',
-            recordedInfo: { targetTitle, description: '关联文档' },
-            candidates
-          });
-          if (matchRes.matchedId) {
-            targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+          try {
+            const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+            const matchRes = await callQwenSemanticMatch({
+              taskType: 'find_outline_section',
+              recordedInfo: { targetTitle, description: '关联文档' },
+              candidates
+            });
+            if (matchRes.matchedId) {
+              targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+            }
+          } catch (e) {
+            logger.warn('REPLAY', '语义匹配失败，回退到精确匹配', { error: e.message });
           }
         }
         
@@ -2464,23 +2480,25 @@ app.post("/api/replay/execute-section", async (req, res) => {
           targetSection = findSection(meta.sectionId, targetTitle, tpl);
         }
         
-        if (!targetSection) throw new Error(targetTitle ? `未找到标题「${targetTitle}」` : '未指定目标标题');
-        
-        const links = scene.sectionDocLinks || {};
-        const sectionLinks = links[targetSection.id] || [];
-        if (!sectionLinks.includes(doc.id)) {
-          links[targetSection.id] = [...sectionLinks, doc.id];
-          scene.sectionDocLinks = links;
+        // 【重要】找不到目标位置时跳过，而不是失败（与后管端逻辑一致）
+        if (!targetSection) {
+          status = 'pass';
+          reason = `⏭️ 跳过执行：当前大纲中未找到相似目标位置「${targetTitle || '(空)'}」`;
+          replayMode = 'skipped';
+        } else {
+          const links = scene.sectionDocLinks || {};
+          const sectionLinks = links[targetSection.id] || [];
+          if (!sectionLinks.includes(doc.id)) {
+            links[targetSection.id] = [...sectionLinks, doc.id];
+            scene.sectionDocLinks = links;
+          }
+          
+          status = 'done';
+          reason = mode === 'llm'
+            ? `🤖 大模型 Replay Done（已将「${doc.name}」关联到「${targetSection.title}」）`
+            : `📜 脚本 Replay Done（已将「${doc.name}」关联到「${targetSection.title}」）`;
+          replayMode = mode;
         }
-        
-        status = 'done';
-        reason = mode === 'llm'
-          ? `🤖 大模型 Replay Done（已将「${doc.name}」关联到「${targetSection.title}」）`
-          : `📜 脚本 Replay Done（已将「${doc.name}」关联到「${targetSection.title}」）`;
-        replayMode = mode;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '关联文档失败';
       }
       
     } else if (metaType === 'outline_unlink_doc' || section.action === '取消关联') {
