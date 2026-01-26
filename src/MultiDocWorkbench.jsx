@@ -510,7 +510,131 @@ function MultiDocWorkbench({ onSwitch }) {
   };
 
 
+  // =====================================================
+  // 【重要】应用端 Replay 统一调用服务端 API
+  // 确保与后管端逻辑完全一致，不存在任何差别
+  // =====================================================
   const replaySections = async (sections, title, options = {}) => {
+    const { precipitationMode = 'llm' } = options;
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const results = [];
+
+    // 获取 sceneId
+    let sceneId = 'main';
+    try {
+      const sceneRes = await fetch('/api/scene/main');
+      if (sceneRes.ok) {
+        const sceneData = await sceneRes.json();
+        sceneId = sceneData?.scene?.id || 'main';
+      }
+    } catch (e) {
+      console.error('Replay: 获取 scene 失败', e);
+    }
+
+    // 获取 replayDirPath
+    const replayDirPath = replayDirConfig?.dirPath || '';
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const actionTitle = section.action || section.content?.split('\n')[0]?.substring(0, 20) || `步骤 ${i + 1}`;
+      
+      setReplayStatus(`${title} [${i + 1}/${sections.length}] ${precipitationMode === 'llm' ? '🤖' : '📜'} Replay: ${actionTitle}`);
+
+      try {
+        // 调用统一的服务端 Replay API
+        const res = await fetch('/api/replay/execute-section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sceneId,
+            section,
+            mode: precipitationMode,
+            replayDirPath
+          })
+        });
+
+        const result = await res.json();
+        
+        if (res.ok) {
+          results.push({
+            sectionIndex: i,
+            status: result.status || 'done',
+            reason: result.reason || '',
+            replayMode: result.replayMode || precipitationMode
+          });
+          
+          // 如果有更新的模板，同步到前端
+          if (result.template) {
+            // 触发刷新
+            await fetch('/api/outline/cache', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ template: result.template })
+            });
+          }
+        } else {
+          results.push({
+            sectionIndex: i,
+            status: 'fail',
+            reason: result.error || '服务端执行失败',
+            replayMode: 'script'
+          });
+        }
+      } catch (err) {
+        console.error(`Replay section ${i} 失败:`, err);
+        results.push({
+          sectionIndex: i,
+          status: 'fail',
+          reason: err.message || '网络错误',
+          replayMode: 'script'
+        });
+      }
+
+      // 步骤间延迟
+      if (i < sections.length - 1) {
+        await delay(300);
+      }
+    }
+
+    // 刷新文档列表
+    try {
+      const docsRes = await fetch('/api/docs');
+      if (docsRes.ok) {
+        const docsData = await docsRes.json();
+        if (Array.isArray(docsData?.docs)) {
+          setDocs(docsData.docs);
+        }
+      }
+    } catch (e) {
+      console.error('Replay: 刷新文档列表失败', e);
+    }
+
+    // 统计结果
+    const doneCount = results.filter(r => r.status === 'done').length;
+    const failCount = results.filter(r => r.status === 'fail').length;
+    const skippedCount = results.filter(r => r.status === 'pass' || r.status === 'skipped').length;
+    const llmDoneCount = results.filter(r => r.status === 'done' && r.replayMode === 'llm').length;
+    const scriptDoneCount = results.filter(r => r.status === 'done' && r.replayMode !== 'llm').length;
+    const overallMode = llmDoneCount > scriptDoneCount ? 'llm' : 'script';
+
+    return {
+      total: sections.length,
+      done: doneCount,
+      fail: failCount,
+      skipped: skippedCount,
+      llmDone: llmDoneCount,
+      scriptDone: scriptDoneCount,
+      results,
+      overallStatus: doneCount === sections.length ? 'done' :
+                     (doneCount > 0 || skippedCount > 0) ? 'partial_done' : 'fail',
+      aiExecuted: llmDoneCount > 0,
+      replayMode: overallMode
+    };
+  };
+
+  // 以下是旧的独立处理逻辑，已废弃，保留注释供参考
+  // 所有 Replay 逻辑现在统一由服务端 /api/replay/execute-section 处理
+  const _deprecated_replaySections_old = async (sections, title, options = {}) => {
     // options: { precipitationMode: 'llm'|'script', structuredScript: string }
     const { precipitationMode = 'llm', structuredScript = '' } = options;
 
