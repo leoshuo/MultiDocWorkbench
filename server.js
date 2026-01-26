@@ -2463,12 +2463,13 @@ app.post("/api/replay/execute-section", async (req, res) => {
       
     } else if (metaType === 'insert_to_summary' || metaType === 'insert_to_summary_multi' || 
                section.action === '填入摘要' || section.action === '添入摘要') {
-      // 填入摘要
+      // 填入摘要 - 完整复制后管端逻辑
       try {
         const tpl = getTemplate();
-        const targetIds = Array.isArray(meta.targetSectionIds) ? meta.targetSectionIds : 
-                         (meta.sectionId ? [meta.sectionId] : []);
-        const targetTitles = Array.isArray(meta.selectedSectionTitles) ? meta.selectedSectionTitles : [];
+        let ids = Array.isArray(meta.targetSectionIds) ? meta.targetSectionIds : 
+                  (meta.sectionId ? [meta.sectionId] : []);
+        const targetTitles = Array.isArray(meta.selectedSectionTitles) ? meta.selectedSectionTitles : 
+                            (Array.isArray(meta.destinations) ? meta.destinations.map(d => d?.sectionTitle).filter(Boolean) : []);
         
         // 获取要填入的内容
         let inputText = '';
@@ -2482,6 +2483,10 @@ app.post("/api/replay/execute-section", async (req, res) => {
         
         if (!inputText) throw new Error('无填入内容');
         
+        // 获取 AI 指导
+        const aiGuidance = llmScript?.aiGuidance || meta?.aiGuidance || '';
+        const specialRequirements = llmScript?.specialRequirements || '';
+        
         // LLM 模式：语义匹配目标位置
         let matchedIds = [];
         if (mode === 'llm' && targetTitles.length > 0) {
@@ -2489,7 +2494,7 @@ app.post("/api/replay/execute-section", async (req, res) => {
           for (const title of targetTitles) {
             const matchRes = await callQwenSemanticMatch({
               taskType: 'find_outline_section',
-              recordedInfo: { targetTitle: title, description: '填入摘要' },
+              recordedInfo: { targetTitle: title, description: '填入摘要', aiGuidance },
               candidates
             });
             if (matchRes.matchedId) {
@@ -2499,21 +2504,127 @@ app.post("/api/replay/execute-section", async (req, res) => {
         }
         
         // 合并匹配结果
-        const finalIds = [...new Set([...matchedIds, ...targetIds])];
+        const finalIds = [...new Set([...matchedIds, ...ids])];
         if (finalIds.length === 0) throw new Error('未找到目标标题');
+        
+        // ========== AI 处理逻辑（与后管端完全一致）==========
+        let processedText = inputText;
+        let usedLLM = false;
+        
+        if (mode === 'llm' && QWEN_API_KEY) {
+          // 检查是否包含计算公式
+          const hasCalculation = aiGuidance && (
+            aiGuidance.includes('计算') ||
+            aiGuidance.includes('公式') ||
+            aiGuidance.includes('{{') ||
+            /\d+\s*[+\-*/]\s*\d+/.test(aiGuidance) ||
+            /次数|总数|合计|总计/.test(aiGuidance)
+          );
+          
+          logger.info('REPLAY', `insert_to_summary AI处理`, { hasCalculation, hasGuidance: !!aiGuidance });
+          
+          let processPrompt;
+          if (hasCalculation) {
+            // 计算类任务：使用专门的计算 prompt
+            processPrompt = `你是一个数据计算助手。请严格按照用户的计算指导，从原始内容中提取数据并进行计算。
+
+【原始内容（从中提取数据）】
+${inputText}
+
+【用户的计算指导】
+${aiGuidance}
+
+${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
+
+【执行步骤】
+1. 仔细阅读【用户的计算指导】，理解需要提取哪些数值
+2. 从【原始内容】中找到并提取这些数值（注意：数值可能以"XX次"、"XX个"等形式出现）
+3. 按照指导中的公式进行数学计算
+4. 按照指导中的输出格式生成最终结果
+
+【计算示例】
+如果指导说："XXX = 预警调度次数 + 电台调度次数 + 视频巡检次数 + 实地检查次数"
+原始内容是："开展预警调度指挥68次，对一线带班领导电台调度89次，视频巡检373次，实地检查岗位29个"
+那么：
+- 提取：预警调度=68, 电台调度=89, 视频巡检=373, 实地检查=29
+- 计算：68 + 89 + 373 + 29 = 559
+- 输出："政治中心区调度检查 559 次"（或按指导的输出格式）
+
+【重要】
+- 必须执行数学计算，不能简单复制原始内容
+- 确保数值提取准确
+- 输出必须包含计算结果
+
+请直接返回计算结果，不要包含解释说明。`;
+          } else if (aiGuidance) {
+            // 有指导的处理任务
+            processPrompt = `你是一个智能数据处理助手。请按照用户的指导要求，对提取的原始内容进行处理。
+
+【原始内容】
+${inputText}
+
+【用户的处理指导】
+${aiGuidance}
+
+${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
+
+【任务】
+严格按照用户的处理指导对原始内容进行处理。例如：
+- 如果指导是"剥离职务头衔，只保留姓名"，则需要识别出所有人名，去掉职务，只返回纯净的姓名
+- 如果指导是"提取关键信息"，则需要归纳总结
+- 如果指导是"格式化输出"，则需要按要求格式化
+
+【重要】
+- 必须按照指导要求处理，不能简单复制原始内容
+- 处理结果应该简洁明了
+
+请直接返回处理后的结果，不要包含任何解释说明。`;
+          }
+          
+          // 调用 AI 处理
+          if (processPrompt) {
+            try {
+              const aiResp = await fetch(QWEN_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${QWEN_API_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  model: QWEN_MODEL,
+                  messages: [{ role: 'user', content: processPrompt }],
+                  max_tokens: 1000,
+                  temperature: 0.3
+                })
+              });
+              
+              if (aiResp.ok) {
+                const aiData = await aiResp.json();
+                const aiContent = aiData?.choices?.[0]?.message?.content || '';
+                if (aiContent.trim()) {
+                  processedText = aiContent.trim();
+                  usedLLM = true;
+                  logger.info('REPLAY', `AI处理成功`, { originalLen: inputText.length, processedLen: processedText.length });
+                }
+              }
+            } catch (aiErr) {
+              logger.warn('REPLAY', `AI处理失败，使用原始内容`, { error: aiErr.message });
+            }
+          }
+        }
         
         // 更新摘要（替换模式）
         const nextTpl = {
           ...tpl,
-          sections: tpl.sections.map(s => finalIds.includes(s.id) ? { ...s, summary: inputText } : s)
+          sections: tpl.sections.map(s => finalIds.includes(s.id) ? { ...s, summary: processedText } : s)
         };
         applyTemplate(nextTpl);
         
         status = 'done';
-        reason = mode === 'llm'
+        reason = usedLLM
           ? `🤖 大模型 Replay Done（已写入摘要：${finalIds.length} 项）`
           : `📜 脚本 Replay Done（已写入摘要：${finalIds.length} 项）`;
-        replayMode = mode;
+        replayMode = usedLLM ? 'llm' : 'script';
       } catch (err) {
         status = 'fail';
         reason = err.message || '填入摘要失败';
