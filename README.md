@@ -1,4 +1,4 @@
-# Document Workspace 1.6.4
+# Document Workspace 1.6.5
 
 > 智能文档处理与经验沉淀平台
 
@@ -16,12 +16,13 @@
 
 两端数据全局共享：上传文档、沉淀记录、按钮配置、布局调整等都会持久化到 `data/`，切换工作台不会丢失数据。**文档一处上传，两边都生效**。
 
-### v1.6.4 更新亮点
-- **Replay 智能跳过**：未找到输入源时返回 pass 状态，保持目标位置内容不变，并在两个工作台显示原因说明
-- **沉淀校验模式**：新增"强校验/不校验"模式，强校验要求找到相似内容才执行，否则 pass
-- **统一沉淀编辑**：使用弹窗统一编辑沉淀，移除内联编辑模式
-- **布局持久化增强**：修复切换工作台后布局丢失问题，操作调度输入框高度可调整并持久化
-- **修复 React key 警告**：解决沉淀列表重复 key 问题
+### v1.6.5 更新亮点
+- **应用端与后管端完全一致**：应用端按钮点击直接调用服务端统一 Replay 执行器，结果100%一致
+- **摘要位置精准写入**：支持写入指定位置的摘要（summaryIndex），不再始终写入第一个
+- **场景与大纲持久化**：切换工作台不丢失大纲数据，服务重启自动恢复
+- **大模型语义文档匹配**：LLM 模式支持语义匹配文档名和标题
+- **完整离线部署支持**：ZIP 包含预构建 Docker 镜像，一键部署
+- **应用端为默认首页**：访问根路径直接显示多文档处理工作台
 
 ## 快速开始
 
@@ -44,13 +45,13 @@ npm run dev
 
 ```bash
 # 1. 构建镜像
-docker build -t document-workspace:1.6.4 .
+docker build -t document-workspace:1.6.5 .
 
 # 2. 导出镜像（用于离线环境）
-docker save document-workspace:1.6.4 -o document-workspace-1.6.4.tar
+docker save document-workspace:1.6.5 -o document-workspace-1.6.5.tar
 
 # 3. 在目标服务器加载镜像
-docker load -i document-workspace-1.6.4.tar
+docker load -i document-workspace-1.6.5.tar
 
 # 4. 运行容器
 docker run -d \
@@ -58,7 +59,7 @@ docker run -d \
   --restart unless-stopped \
   -p 4300:4300 \
   -v /opt/document-workspace/data:/app/data \
-  document-workspace:1.6.4
+  document-workspace:1.6.5
 ```
 
 **访问地址**：`http://服务器IP:4300`
@@ -237,5 +238,5 @@ document-workspace/
 
 ---
 
-*Document Workspace 1.6.4 - 智能文档处理与经验沉淀平台*
+*Document Workspace 1.6.5 - 智能文档处理与经验沉淀平台*
 
