@@ -587,13 +587,40 @@ if (Array.isArray(storedDocs)) {
 
 const persistDocs = () => writeJsonFile(DOCS_STATE_PATH, docs);
 
+// ========== 大纲缓存持久化 ==========
+const OUTLINE_CACHE_PATH = path.join(DATA_DIR, 'outline-cache.json');
+
+// 持久化大纲缓存
+const persistOutlineCache = () => {
+  try {
+    writeJsonFile(OUTLINE_CACHE_PATH, { template: cachedOutlineTemplate });
+    logger.info('OUTLINE_CACHE', '大纲缓存已持久化');
+  } catch (e) {
+    logger.warn('OUTLINE_CACHE', '大纲缓存持久化失败', { error: e.message });
+  }
+};
+
+// 加载持久化的大纲缓存
+const loadOutlineCache = () => {
+  try {
+    const cached = readJsonFile(OUTLINE_CACHE_PATH);
+    if (cached?.template && Array.isArray(cached.template.sections)) {
+      cachedOutlineTemplate = cached.template;
+      logger.info('OUTLINE_CACHE', `已加载缓存的大纲，包含 ${cached.template.sections.length} 个标题`);
+    }
+  } catch (e) {
+    logger.warn('OUTLINE_CACHE', '加载大纲缓存失败', { error: e.message });
+  }
+};
+
 const scenes = new Map();
 
-// ========== 服务端缓存（内存，重启清空） ==========
-// 用于在两个工作台间切换时保持状态
-
-// 大纲缓存
+// ========== 服务端缓存 ==========
+// 大纲缓存（持久化到文件）
 let cachedOutlineTemplate = null;
+
+// 启动时加载大纲缓存
+loadOutlineCache();
 
 // 对话消息缓存（应用端）
 let cachedChatMessages = [];
@@ -2140,10 +2167,11 @@ app.post("/api/replay/execute-section", async (req, res) => {
       return tpl && Array.isArray(tpl.sections) ? tpl : { id: 'empty', name: '空模板', sections: [] };
     };
 
-    // 更新模板
+    // 更新模板（同时持久化）
     const applyTemplate = (newTpl) => {
       scene.customTemplate = newTpl;
       cachedOutlineTemplate = newTpl;
+      persistOutlineCache(); // 持久化
       return newTpl;
     };
 
@@ -3410,6 +3438,7 @@ app.post("/api/scene/:id/apply-template", (req, res) => {
 
   // 重要：同步更新全局大纲缓存，确保两个工作台共享同一大纲状态
   cachedOutlineTemplate = scene.customTemplate;
+  persistOutlineCache(); // 持久化
   logger.info('OUTLINE_CACHE', 'apply-template 同步更新大纲缓存');
 
   res.json({ scene, template: scene.customTemplate });
@@ -3789,6 +3818,7 @@ app.get('/api/outline/cache', (req, res) => {
 app.post('/api/outline/cache', (req, res) => {
   const { template } = req.body || {};
   cachedOutlineTemplate = template || null;
+  persistOutlineCache(); // 持久化
   logger.info('OUTLINE_CACHE', '大纲缓存已更新');
   res.json({ success: true, template: cachedOutlineTemplate });
 });
@@ -3796,6 +3826,7 @@ app.post('/api/outline/cache', (req, res) => {
 // DELETE /api/outline/cache - 清空缓存的大纲
 app.delete('/api/outline/cache', (req, res) => {
   cachedOutlineTemplate = null;
+  persistOutlineCache(); // 持久化（清空）
   logger.info('OUTLINE_CACHE', '大纲缓存已清空');
   res.json({ success: true });
 });
