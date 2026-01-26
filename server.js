@@ -624,14 +624,47 @@ const loadOutlineCache = () => {
   }
 };
 
+// ========== 场景持久化 ==========
+const SCENES_CACHE_PATH = path.join(DATA_DIR, 'scenes-cache.json');
+
 const scenes = new Map();
+
+// 持久化场景数据
+const persistScenes = () => {
+  try {
+    const scenesObj = {};
+    scenes.forEach((scene, id) => {
+      scenesObj[id] = scene;
+    });
+    writeJsonFile(SCENES_CACHE_PATH, scenesObj);
+    logger.info('SCENES_CACHE', '场景数据已持久化');
+  } catch (e) {
+    logger.warn('SCENES_CACHE', '场景数据持久化失败', { error: e.message });
+  }
+};
+
+// 加载持久化的场景数据
+const loadScenesCache = () => {
+  try {
+    const cached = readJsonFile(SCENES_CACHE_PATH);
+    if (cached && typeof cached === 'object') {
+      Object.keys(cached).forEach(id => {
+        scenes.set(id, cached[id]);
+      });
+      logger.info('SCENES_CACHE', `已加载缓存的场景数据，共 ${scenes.size} 个场景`);
+    }
+  } catch (e) {
+    logger.warn('SCENES_CACHE', '加载场景缓存失败', { error: e.message });
+  }
+};
 
 // ========== 服务端缓存 ==========
 // 大纲缓存（持久化到文件）
 let cachedOutlineTemplate = null;
 
-// 启动时加载大纲缓存
+// 启动时加载缓存
 loadOutlineCache();
+loadScenesCache();
 
 // 对话消息缓存（应用端）
 let cachedChatMessages = [];
@@ -2178,11 +2211,12 @@ app.post("/api/replay/execute-section", async (req, res) => {
       return tpl && Array.isArray(tpl.sections) ? tpl : { id: 'empty', name: '空模板', sections: [] };
     };
 
-    // 更新模板（同时持久化）
+    // 更新模板（同时持久化大纲和场景）
     const applyTemplate = (newTpl) => {
       scene.customTemplate = newTpl;
       cachedOutlineTemplate = newTpl;
-      persistOutlineCache(); // 持久化
+      persistOutlineCache(); // 持久化大纲
+      persistScenes(); // 持久化场景
       return newTpl;
     };
 
@@ -3820,6 +3854,7 @@ app.patch("/api/scene/:id", (req, res) => {
 
   }
 
+  persistScenes(); // 持久化场景
   res.json({ scene });
 
 });
@@ -3937,7 +3972,8 @@ app.post("/api/scene/:id/apply-template", (req, res) => {
 
   // 重要：同步更新全局大纲缓存，确保两个工作台共享同一大纲状态
   cachedOutlineTemplate = scene.customTemplate;
-  persistOutlineCache(); // 持久化
+  persistOutlineCache(); // 持久化大纲
+  persistScenes(); // 持久化场景
   logger.info('OUTLINE_CACHE', 'apply-template 同步更新大纲缓存');
 
   res.json({ scene, template: scene.customTemplate });
