@@ -2672,6 +2672,10 @@ app.post("/api/scene/:id/apply-template", (req, res) => {
 
   scene.sectionDocLinks = scene.sectionDocLinks || {};
 
+  // 重要：同步更新全局大纲缓存，确保两个工作台共享同一大纲状态
+  cachedOutlineTemplate = scene.customTemplate;
+  logger.info('OUTLINE_CACHE', 'apply-template 同步更新大纲缓存');
+
   res.json({ scene, template: scene.customTemplate });
 
 });
