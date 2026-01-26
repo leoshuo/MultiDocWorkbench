@@ -2399,24 +2399,117 @@ app.post("/api/replay/execute-section", async (req, res) => {
       }
       
     } else if (metaType === 'add_doc' || metaType.startsWith('add_doc')) {
-      // 添加文档（与后管端逻辑一致：找不到时跳过而非失败）
-      const docName = meta.docName || meta.selectedDocName || '';
+      // 添加文档（与后管端逻辑一致：支持灵活上传和语义匹配）
+      const docName = meta.docName || meta.selectedDocName || llmScript?.docName || '';
+      const isUpload = meta?.source === 'upload' || (section?.content || '').toString().includes('上传文档');
+      const docSelector = meta?.docSelector || llmScript?.docSelector || null;
+      
       let doc = findDoc(docName, meta.docId);
       
-      // 如果没找到且有 replayDirPath，尝试上传
-      if (!doc && replayDirPath && docName) {
-        const filePath = path.join(replayDirPath, docName);
-        if (fs.existsSync(filePath)) {
-          const content = fs.readFileSync(filePath, 'utf-8');
-          const newDoc = {
-            id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: docName,
-            content,
-            uploadedAt: Date.now()
+      // 【关键】LLM 模式 + 灵活上传：使用 docSelector 关键词匹配（与后管端完全一致）
+      if (!doc && mode === 'llm' && isUpload && docSelector && replayDirPath) {
+        const keywords = docSelector.keywords || [];
+        const description = docSelector.description || docName || '';
+        const allKeywords = [...keywords, ...(description.replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean))];
+        
+        if (allKeywords.length > 0) {
+          try {
+            const files = fs.readdirSync(replayDirPath);
+            // 找到匹配关键词的文件
+            const matchedFile = files.find(f => {
+              const fLower = f.toLowerCase();
+              return allKeywords.some(k => fLower.includes(k.toLowerCase()));
+            });
+            
+            if (matchedFile) {
+              const filePath = path.join(replayDirPath, matchedFile);
+              if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+                const content = fs.readFileSync(filePath, 'utf-8');
+                const newDoc = {
+                  id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  name: matchedFile,
+                  content,
+                  uploadedAt: Date.now()
+                };
+                docs.push(newDoc);
+                persistDocs();
+                doc = newDoc;
+                logger.info('REPLAY', `灵活上传匹配到文件: ${matchedFile}`, { keywords: allKeywords });
+              }
+            }
+          } catch (e) {
+            logger.warn('REPLAY', '灵活上传文件匹配失败', { error: e.message });
+          }
+        }
+      }
+      
+      // 【关键】LLM 模式：使用大模型语义匹配已有文档
+      if (!doc && mode === 'llm' && docs.length > 0) {
+        const docSelectorKeywords = docSelector?.keywords || [];
+        const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+        const docNameKeywords = (docName || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+        
+        if (allKeywords.length > 0 || docName) {
+          const recordedDocInfo = {
+            docName: docName,
+            description: llmScript?.actionDescription || '添加文档',
+            aiGuidance: llmScript?.aiGuidance || '',
+            keywords: allKeywords.join(' '),
+            selectorDescription: docSelector?.description || '',
+            flexKeywords: llmScript?.flexKeywords || ''
           };
-          docs.push(newDoc);
-          persistDocs();
-          doc = newDoc;
+          
+          const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
+          try {
+            const docMatchRes = await callQwenSemanticMatch({
+              taskType: 'find_document',
+              recordedInfo: recordedDocInfo,
+              candidates: candidateDocs
+            });
+            logger.info('REPLAY', '大模型文档匹配结果', { docMatchRes });
+            if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+              doc = docs.find(d => d.id === candidateDocs[docMatchRes.matchedIndex].id);
+              logger.info('REPLAY', `大模型匹配到文档: ${doc?.name}`);
+            }
+          } catch (e) {
+            logger.warn('REPLAY', '大模型文档匹配失败', { error: e.message });
+          }
+        }
+      }
+      
+      // 如果还没找到且有 replayDirPath，尝试关键词匹配上传
+      if (!doc && replayDirPath) {
+        const targetName = docName || '';
+        const keywords = targetName.replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        
+        try {
+          const files = fs.readdirSync(replayDirPath);
+          // 先尝试精确匹配
+          let matchedFile = files.find(f => f === targetName);
+          // 再尝试关键词匹配
+          if (!matchedFile && keywords.length > 0) {
+            matchedFile = files.find(f => keywords.some(k => f.toLowerCase().includes(k.toLowerCase())));
+          }
+          
+          if (matchedFile) {
+            const filePath = path.join(replayDirPath, matchedFile);
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+              const content = fs.readFileSync(filePath, 'utf-8');
+              const newDoc = {
+                id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: matchedFile,
+                content,
+                uploadedAt: Date.now()
+              };
+              docs.push(newDoc);
+              persistDocs();
+              doc = newDoc;
+              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`);
+            }
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '从目录加载文档失败', { error: e.message });
         }
       }
       
@@ -2430,7 +2523,10 @@ app.post("/api/replay/execute-section", async (req, res) => {
         scene.docIds = docIds;
         
         status = 'done';
-        reason = `📜 脚本 Replay Done（已添加文档：${doc.name}）`;
+        reason = mode === 'llm'
+          ? `🤖 大模型 Replay Done（已添加文档：${doc.name}）`
+          : `📜 脚本 Replay Done（已添加文档：${doc.name}）`;
+        replayMode = mode;
       }
       
     } else if (metaType === 'delete_doc' || metaType === 'remove_doc') {
@@ -2459,24 +2555,75 @@ app.post("/api/replay/execute-section", async (req, res) => {
       reason = '⏭️ 大纲抽取需要 AI 处理，请在前端执行';
       
     } else if (metaType === 'copy_full_to_summary' || section.action === '复制全文到摘要') {
-      // 复制全文到摘要（与后管端逻辑一致：找不到时跳过而非失败）
+      // 复制全文到摘要（与后管端逻辑一致：使用大模型语义匹配）
       const docName = meta.docName || llmScript?.docName || '';
       let doc = findDoc(docName, meta.docId);
       
-      // 尝试从 replayDir 加载
-      if (!doc && replayDirPath && docName) {
-        const filePath = path.join(replayDirPath, docName);
-        if (fs.existsSync(filePath)) {
-          const content = fs.readFileSync(filePath, 'utf-8');
-          const newDoc = {
-            id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: docName,
-            content,
-            uploadedAt: Date.now()
-          };
-          docs.push(newDoc);
-          persistDocs();
-          doc = newDoc;
+      // 【关键】LLM 模式：使用大模型语义匹配文档（与后管端完全一致）
+      if (!doc && mode === 'llm' && docs.length > 0) {
+        const docSelectorKeywords = llmScript?.docSelector?.keywords || [];
+        const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+        const docNameKeywords = (docName || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+        
+        const recordedDocInfo = {
+          docName: docName,
+          description: llmScript?.actionDescription || '复制全文到摘要',
+          aiGuidance: llmScript?.aiGuidance || meta?.aiGuidance || '',
+          keywords: allKeywords.join(' '),
+          selectorDescription: llmScript?.docSelector?.description || '',
+          flexKeywords: llmScript?.flexKeywords || ''
+        };
+        
+        const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
+        try {
+          const docMatchRes = await callQwenSemanticMatch({
+            taskType: 'find_document',
+            recordedInfo: recordedDocInfo,
+            candidates: candidateDocs
+          });
+          logger.info('REPLAY', '大模型文档匹配结果', { docMatchRes });
+          if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+            doc = docs.find(d => d.id === candidateDocs[docMatchRes.matchedIndex].id);
+            logger.info('REPLAY', `大模型匹配到文档: ${doc?.name}`);
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '大模型文档匹配失败', { error: e.message });
+        }
+      }
+      
+      // 尝试从 replayDir 加载（使用关键词匹配）
+      if (!doc && replayDirPath) {
+        const targetName = docName || '';
+        const keywords = targetName.replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        
+        try {
+          const files = fs.readdirSync(replayDirPath);
+          // 先尝试精确匹配
+          let matchedFile = files.find(f => f === targetName);
+          // 再尝试关键词匹配
+          if (!matchedFile && keywords.length > 0) {
+            matchedFile = files.find(f => keywords.some(k => f.includes(k)));
+          }
+          
+          if (matchedFile) {
+            const filePath = path.join(replayDirPath, matchedFile);
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+              const content = fs.readFileSync(filePath, 'utf-8');
+              const newDoc = {
+                id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: matchedFile,
+                content,
+                uploadedAt: Date.now()
+              };
+              docs.push(newDoc);
+              persistDocs();
+              doc = newDoc;
+              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`);
+            }
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '从目录加载文档失败', { error: e.message });
         }
       }
       
@@ -2534,23 +2681,75 @@ app.post("/api/replay/execute-section", async (req, res) => {
       }
       
     } else if (metaType === 'outline_link_doc' || section.action === '关联文档') {
-      // 关联文档（与后管端逻辑一致：找不到时跳过而非失败）
+      // 关联文档（与后管端逻辑一致：使用大模型语义匹配）
       const docName = meta.docName || llmScript?.docName || '';
       let doc = findDoc(docName, meta.docId);
       
-      if (!doc && replayDirPath && docName) {
-        const filePath = path.join(replayDirPath, docName);
-        if (fs.existsSync(filePath)) {
-          const content = fs.readFileSync(filePath, 'utf-8');
-          const newDoc = {
-            id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: docName,
-            content,
-            uploadedAt: Date.now()
-          };
-          docs.push(newDoc);
-          persistDocs();
-          doc = newDoc;
+      // 【关键】LLM 模式：使用大模型语义匹配文档（与后管端完全一致）
+      if (!doc && mode === 'llm' && docs.length > 0) {
+        const docSelectorKeywords = llmScript?.docSelector?.keywords || [];
+        const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+        const docNameKeywords = (docName || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+        
+        const recordedDocInfo = {
+          docName: docName,
+          description: llmScript?.actionDescription || '关联文档',
+          aiGuidance: llmScript?.aiGuidance || meta?.aiGuidance || '',
+          keywords: allKeywords.join(' '),
+          selectorDescription: llmScript?.docSelector?.description || '',
+          flexKeywords: llmScript?.flexKeywords || ''
+        };
+        
+        const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
+        try {
+          const docMatchRes = await callQwenSemanticMatch({
+            taskType: 'find_document',
+            recordedInfo: recordedDocInfo,
+            candidates: candidateDocs
+          });
+          logger.info('REPLAY', '大模型文档匹配结果', { docMatchRes });
+          if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+            doc = docs.find(d => d.id === candidateDocs[docMatchRes.matchedIndex].id);
+            logger.info('REPLAY', `大模型匹配到文档: ${doc?.name}`);
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '大模型文档匹配失败', { error: e.message });
+        }
+      }
+      
+      // 尝试从 replayDir 加载（使用关键词匹配）
+      if (!doc && replayDirPath) {
+        const targetName = docName || '';
+        const keywords = targetName.replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        
+        try {
+          const files = fs.readdirSync(replayDirPath);
+          // 先尝试精确匹配
+          let matchedFile = files.find(f => f === targetName);
+          // 再尝试关键词匹配
+          if (!matchedFile && keywords.length > 0) {
+            matchedFile = files.find(f => keywords.some(k => f.includes(k)));
+          }
+          
+          if (matchedFile) {
+            const filePath = path.join(replayDirPath, matchedFile);
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+              const content = fs.readFileSync(filePath, 'utf-8');
+              const newDoc = {
+                id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: matchedFile,
+                content,
+                uploadedAt: Date.now()
+              };
+              docs.push(newDoc);
+              persistDocs();
+              doc = newDoc;
+              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`);
+            }
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '从目录加载文档失败', { error: e.message });
         }
       }
       
