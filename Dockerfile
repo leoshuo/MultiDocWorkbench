@@ -24,8 +24,8 @@ RUN npm run build && \
 FROM node:20-alpine AS runtime
 
 LABEL maintainer="Document Workspace Team"
-LABEL version="1.6.4"
-LABEL description="Document Processing and Experience Precipitation Platform"
+LABEL version="1.6.5"
+LABEL description="Document Processing and Experience Precipitation Platform - Offline Deployable"
 
 WORKDIR /app
 
@@ -60,12 +60,15 @@ COPY --from=build /app/data /app/data
 # Copy documentation
 COPY --from=build /app/docs /app/docs
 
+# Copy test documents (sample data)
+COPY --from=build /app/test /app/test
+
 # Copy README
 COPY --from=build /app/README.md /app/README.md
 
 # Set permissions for data directory
 USER root
-RUN chown -R node:node /app/data && chown -R node:node /app/dist
+RUN chown -R node:node /app/data && chown -R node:node /app/dist && chown -R node:node /app/test
 USER node
 
 # Expose port

@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   app:
-    image: document-workspace:1.6.4
+    image: document-workspace:1.6.5
     container_name: document-workspace
     restart: unless-stopped
     ports:
@@ -10,13 +10,17 @@ services:
     environment:
       - PORT=4300
       - SERVE_DIST=1
+      # 大模型配置（可选，离线环境可不配置）
       - QWEN_ENDPOINT=${QWEN_ENDPOINT:-}
       - QWEN_MODEL=${QWEN_MODEL:-qwen-plus}
       - QWEN_API_KEY=${QWEN_API_KEY:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
+      # 数据持久化（沉淀记录、文档、配置等）
       - ./data:/app/data
+      # 测试文档目录（可选）
+      - ./test:/app/test
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:4300/api/docs"]
       interval: 30s

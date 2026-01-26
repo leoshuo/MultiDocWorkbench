@@ -1,4 +1,4 @@
-﻿node_modules
+node_modules
 .git
 .gitignore
 artifacts
@@ -8,8 +8,8 @@ backup_*
 *.tar.gz
 *.tar.zip
 *.zip
-test
 tmp_*
 *.bak
 .env
 .cursor
+tools

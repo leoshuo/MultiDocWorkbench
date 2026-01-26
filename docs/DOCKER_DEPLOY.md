@@ -1,9 +1,10 @@
 # 离线部署指南（Docker / Linux）
 
-版本：1.6.4  
-更新日期：2026-01-25
+版本：1.6.5  
+更新日期：2026-01-24
 
-> 本项目支持离线部署。Docker 镜像包含前端、后端和文档，开箱即用。
+> 本项目支持离线部署。Docker 镜像包含前端、后端、文档和测试数据，开箱即用。  
+> 详细的小白式部署指南请参考：`docs/OFFLINE_LINUX_DEPLOY.md`
 
 ---
 
@@ -16,17 +17,17 @@
 cd document-workspace
 
 # 构建镜像
-docker build -t document-workspace:1.6.4 .
+docker build -t document-workspace:1.6.5 .
 
 # 导出镜像为 tar 包（用于离线传输）
-docker save document-workspace:1.6.4 -o document-workspace-1.6.3.tar
+docker save document-workspace:1.6.5 -o document-workspace-1.6.5.tar
 ```
 
 ### 第 2 步：在目标服务器加载镜像
 
 ```bash
 # 将 tar 包传输到目标服务器后，加载镜像
-docker load -i document-workspace-1.6.3.tar
+docker load -i document-workspace-1.6.5.tar
 ```
 
 ### 第 3 步：启动容器
@@ -41,7 +42,7 @@ docker run -d \
   --restart unless-stopped \
   -p 4300:4300 \
   -v /opt/document-workspace/data:/app/data \
-  document-workspace:1.6.4
+  document-workspace:1.6.5
 ```
 
 ### 第 4 步：访问界面
@@ -67,7 +68,7 @@ version: "3.8"
 
 services:
   app:
-    image: document-workspace:1.6.4
+    image: document-workspace:1.6.5
     container_name: document-workspace
     restart: unless-stopped
     ports:
@@ -81,6 +82,7 @@ services:
       - QWEN_API_KEY=${QWEN_API_KEY:-}
     volumes:
       - ./data:/app/data
+      - ./test:/app/test
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:4300/api/docs"]
       interval: 30s
@@ -106,7 +108,7 @@ docker run -d \
   -e QWEN_MODEL="qwen-plus" \
   -e QWEN_API_KEY="你的API密钥" \
   -v /opt/document-workspace/data:/app/data \
-  document-workspace:1.6.4
+  document-workspace:1.6.5
 ```
 
 **说明**：
@@ -220,7 +222,7 @@ docker run -d \
   -e PORT=4300 \
   -e QWEN_ENDPOINT="http://内网模型地址/v1/chat/completions" \
   -v /opt/document-workspace/data:/app/data \
-  document-workspace:1.6.4
+  document-workspace:1.6.5
 ```
 
 ### 4. 页面显示空白
