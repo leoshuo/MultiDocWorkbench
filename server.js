@@ -3049,11 +3049,6 @@ ${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
           }
         }
       }
-        replayMode = 'llm';
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '执行指令失败';
-      }
       
     } else if (metaType === 'final_generate' || section.action === '最终文档生成') {
       // 最终文档生成：不支持自动回放
