@@ -2515,15 +2515,27 @@ app.post("/api/replay/execute-section", async (req, res) => {
       // 如果还没找到且有 replayDirPath，尝试关键词匹配上传
       if (!doc && replayDirPath) {
         const targetName = docName || '';
-        const keywords = targetName.replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        // 提取关键词：去除扩展名、数字、特殊字符，提取中文和英文词
+        const cleanName = targetName.replace(/\.(txt|docx?|pdf|xlsx?)$/i, '');
+        // 提取中文关键词（连续的中文字符）
+        const chineseKeywords = (cleanName.match(/[\u4e00-\u9fa5]+/g) || []);
+        // 提取英文关键词
+        const englishKeywords = cleanName.replace(/[\u4e00-\u9fa5]/g, ' ').replace(/[^a-zA-Z\s]/g, ' ').trim().split(/\s+/).filter(k => k.length > 1);
+        const keywords = [...new Set([...chineseKeywords, ...englishKeywords])];
+        
+        logger.info('REPLAY', `文档关键词提取`, { targetName, keywords });
         
         try {
           const files = fs.readdirSync(replayDirPath);
           // 先尝试精确匹配
           let matchedFile = files.find(f => f === targetName);
-          // 再尝试关键词匹配
-          if (!matchedFile && keywords.length > 0) {
-            matchedFile = files.find(f => keywords.some(k => f.toLowerCase().includes(k.toLowerCase())));
+          // 再尝试中文关键词匹配（更宽松）
+          if (!matchedFile && chineseKeywords.length > 0) {
+            matchedFile = files.find(f => chineseKeywords.some(k => f.includes(k)));
+          }
+          // 再尝试英文关键词匹配
+          if (!matchedFile && englishKeywords.length > 0) {
+            matchedFile = files.find(f => englishKeywords.some(k => f.toLowerCase().includes(k.toLowerCase())));
           }
           
           if (matchedFile) {
@@ -2539,7 +2551,7 @@ app.post("/api/replay/execute-section", async (req, res) => {
               docs.push(newDoc);
               persistDocs();
               doc = newDoc;
-              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`);
+              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`, { matchedBy: 'keywords', keywords });
             }
           }
         } catch (e) {
@@ -2626,18 +2638,25 @@ app.post("/api/replay/execute-section", async (req, res) => {
         }
       }
       
-      // 尝试从 replayDir 加载（使用关键词匹配）
+      // 尝试从 replayDir 加载（使用中文关键词匹配）
       if (!doc && replayDirPath) {
         const targetName = docName || '';
-        const keywords = targetName.replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        // 提取中文关键词（连续的中文字符）
+        const cleanName = targetName.replace(/\.(txt|docx?|pdf|xlsx?)$/i, '');
+        const chineseKeywords = (cleanName.match(/[\u4e00-\u9fa5]+/g) || []);
+        const englishKeywords = cleanName.replace(/[\u4e00-\u9fa5]/g, ' ').replace(/[^a-zA-Z\s]/g, ' ').trim().split(/\s+/).filter(k => k.length > 1);
         
         try {
           const files = fs.readdirSync(replayDirPath);
           // 先尝试精确匹配
           let matchedFile = files.find(f => f === targetName);
-          // 再尝试关键词匹配
-          if (!matchedFile && keywords.length > 0) {
-            matchedFile = files.find(f => keywords.some(k => f.includes(k)));
+          // 再尝试中文关键词匹配
+          if (!matchedFile && chineseKeywords.length > 0) {
+            matchedFile = files.find(f => chineseKeywords.some(k => f.includes(k)));
+          }
+          // 再尝试英文关键词匹配
+          if (!matchedFile && englishKeywords.length > 0) {
+            matchedFile = files.find(f => englishKeywords.some(k => f.toLowerCase().includes(k.toLowerCase())));
           }
           
           if (matchedFile) {
@@ -2653,7 +2672,7 @@ app.post("/api/replay/execute-section", async (req, res) => {
               docs.push(newDoc);
               persistDocs();
               doc = newDoc;
-              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`);
+              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`, { chineseKeywords });
             }
           }
         } catch (e) {
@@ -2752,18 +2771,25 @@ app.post("/api/replay/execute-section", async (req, res) => {
         }
       }
       
-      // 尝试从 replayDir 加载（使用关键词匹配）
+      // 尝试从 replayDir 加载（使用中文关键词匹配）
       if (!doc && replayDirPath) {
         const targetName = docName || '';
-        const keywords = targetName.replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        // 提取中文关键词（连续的中文字符）
+        const cleanName = targetName.replace(/\.(txt|docx?|pdf|xlsx?)$/i, '');
+        const chineseKeywords = (cleanName.match(/[\u4e00-\u9fa5]+/g) || []);
+        const englishKeywords = cleanName.replace(/[\u4e00-\u9fa5]/g, ' ').replace(/[^a-zA-Z\s]/g, ' ').trim().split(/\s+/).filter(k => k.length > 1);
         
         try {
           const files = fs.readdirSync(replayDirPath);
           // 先尝试精确匹配
           let matchedFile = files.find(f => f === targetName);
-          // 再尝试关键词匹配
-          if (!matchedFile && keywords.length > 0) {
-            matchedFile = files.find(f => keywords.some(k => f.includes(k)));
+          // 再尝试中文关键词匹配
+          if (!matchedFile && chineseKeywords.length > 0) {
+            matchedFile = files.find(f => chineseKeywords.some(k => f.includes(k)));
+          }
+          // 再尝试英文关键词匹配
+          if (!matchedFile && englishKeywords.length > 0) {
+            matchedFile = files.find(f => englishKeywords.some(k => f.toLowerCase().includes(k.toLowerCase())));
           }
           
           if (matchedFile) {
@@ -2779,14 +2805,14 @@ app.post("/api/replay/execute-section", async (req, res) => {
               docs.push(newDoc);
               persistDocs();
               doc = newDoc;
-              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`);
+              logger.info('REPLAY', `从目录加载文档: ${matchedFile}`, { chineseKeywords });
             }
           }
         } catch (e) {
           logger.warn('REPLAY', '从目录加载文档失败', { error: e.message });
         }
       }
-      
+
       // 【重要】找不到文档时跳过，而不是失败（与后管端逻辑一致）
       if (!doc) {
         status = 'pass';
