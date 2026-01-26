@@ -320,8 +320,15 @@ export default function SOPWorkbench({ onSwitch }) {
 
   const [summaryExpanded, setSummaryExpanded] = useState({}); // sectionId -> bool
   
+  // 多摘要选中状态：sectionId_sumIdx -> bool（支持选中特定摘要进行填入）
+  const [selectedSummaries, setSelectedSummaries] = useState({}); // `${sectionId}_${sumIdx}` -> bool
+  
   // 标题折叠状态：当某个标题被折叠时，其下级标题将被隐藏
   const [sectionCollapsed, setSectionCollapsed] = useState({}); // sectionId -> bool
+  
+  // 多摘要合并方式选择状态：sectionId -> 'paragraph' | 'sentence' | null
+  // 只保存用户选择的合并方式，实际合并在最终文档生成时执行
+  const [sectionMergeType, setSectionMergeType] = useState({});
 
 
   const [isDepositing, setIsDepositing] = useState(false);
@@ -1789,8 +1796,10 @@ export default function SOPWorkbench({ onSwitch }) {
   const [previewSelection, setPreviewSelection] = useState({ text: '', start: 0, end: 0 });
 
 
-  const [replayState, setReplayState] = useState({}); // depositId -> {running, bySection:{[sectionId]:{status,message}}}
+  const [replayState, setReplayState] = useState({}); // depositId -> {running, bySection:{[sectionId]:{status,message,replayMode}}}
 
+  // section 详情展开/收起状态 - depositId_sectionId -> boolean
+  const [sectionExpanded, setSectionExpanded] = useState({});
 
   // 已移除 replayDirHandle 和 replayDirName 状态 - 目录配置统一使用服务端 replayDirConfig
 
@@ -1984,28 +1993,84 @@ export default function SOPWorkbench({ onSwitch }) {
     if (m.type === 'add_doc') {
       const docName = inputs.find((i) => i.kind === 'upload_file')?.docName || UI_TEXT.t135;
       lines.push('已上传文档：' + docName);
+    } else if (m.type === 'insert_to_summary_multi') {
+      // 多摘要填入：记录完整的来源和目标信息
+      const selectionInput = inputs.find(i => i.kind === 'selection');
+      const docName = selectionInput?.docName || m.docName || '未知文档';
+      const targetSummaries = Array.isArray(m.targetSummaries) ? m.targetSummaries : [];
+      
+      lines.push(`【操作类型】多摘要填入 (insert_to_summary_multi)`);
+      lines.push(`【来源文档】${docName}`);
+      
+      // 选中内容的详细信息
+      if (selectionInput) {
+        const textHead = selectionInput.textHead || selectionInput.textExcerpt?.slice(0, 30) || '';
+        const textTail = selectionInput.textTail || selectionInput.textExcerpt?.slice(-30) || '';
+        lines.push(`【选中内容】以「${textHead}...」开头，以「...${textTail}」结尾（共${selectionInput.textLength || 0}字）`);
+        if (selectionInput.contextBefore) {
+          lines.push(`【前文上下文】...${selectionInput.contextBefore}`);
+        }
+        if (selectionInput.contextAfter) {
+          lines.push(`【后文上下文】${selectionInput.contextAfter}...`);
+        }
+      }
+      
+      // 目标位置的详细信息
+      if (targetSummaries.length > 0) {
+        lines.push(`【目标位置】共 ${targetSummaries.length} 个摘要：`);
+        targetSummaries.forEach((t, idx) => {
+          const levelLabel = t.sectionLevel === 1 ? '一级标题' : t.sectionLevel === 2 ? '二级标题' : '三级标题';
+          lines.push(`  ${idx + 1}. ${levelLabel}「${t.sectionTitle}」的摘要[${t.summaryIndex}]${t.hadContentBefore ? '（替换）' : '（新建）'}`);
+        });
+      }
+      
+      // 输出结果
+      if (m.outputs?.summary) {
+        lines.push(`【执行结果】${m.outputs.summary}`);
+      }
+    } else if (m.type === 'dispatch_multi_summary') {
+      // 多摘要执行指令：记录完整的来源和目标信息
+      const targetSummaries = Array.isArray(m.targetSummaries) ? m.targetSummaries : [];
+      
+      lines.push(`【操作类型】多摘要执行指令 (dispatch_multi_summary)`);
+      lines.push(`【执行指令】${m.instructions || m.promptContent || ''}`);
+      
+      // 目标位置的详细信息
+      if (targetSummaries.length > 0) {
+        lines.push(`【目标位置】共 ${targetSummaries.length} 个摘要：`);
+        targetSummaries.forEach((t, idx) => {
+          const levelLabel = t.sectionLevel === 1 ? '一级标题' : t.sectionLevel === 2 ? '二级标题' : '三级标题';
+          const contentPreview = t.originalContentExcerpt ? `（原内容：${t.originalContentExcerpt.slice(0, 30)}...）` : '';
+          lines.push(`  ${idx + 1}. ${levelLabel}「${t.sectionTitle}」的摘要[${t.summaryIndex}]${contentPreview}`);
+        });
+      }
+      
+      // 输出结果
+      if (m.outputs?.summary) {
+        lines.push(`【执行结果】${m.outputs.summary}`);
+      }
     } else {
       const record = (m.record || m.process || UI_TEXT.t71).toString().slice(0, 50);
       lines.push('操作记录：' + record);
-    }
+      
+      if (inputs.length) {
+        const inputDesc = inputs.map(describeInput).filter(Boolean).join('；');
+        lines.push('输入：' + inputDesc);
+      }
 
-    if (inputs.length) {
-      const inputDesc = inputs.map(describeInput).filter(Boolean).join('；');
-      lines.push('输入：' + inputDesc);
-    }
+      if (m.process) {
+        let actionDesc = (m.process || '').toString();
+        lines.push('动作：' + actionDesc);
+      }
 
-    if (m.process) {
-      let actionDesc = (m.process || '').toString();
-      lines.push('动作：' + actionDesc);
-    }
+      if (m.outputs && m.outputs.summary) {
+        lines.push('输出摘要：' + (m.outputs.summary || '').toString());
+      }
 
-    if (m.outputs && m.outputs.summary) {
-      lines.push('输出摘要：' + (m.outputs.summary || '').toString());
-    }
-
-    if (destinations.length) {
-      const destDesc = destinations.map(describeDestination).filter(Boolean).join('；');
-      lines.push('记录位置：' + destDesc);
+      if (destinations.length) {
+        const destDesc = destinations.map(describeDestination).filter(Boolean).join('；');
+        lines.push('记录位置：' + destDesc);
+      }
     }
 
     if (Array.isArray(extraLines) && extraLines.length) {
@@ -2176,10 +2241,13 @@ export default function SOPWorkbench({ onSwitch }) {
       // === 大纲相关（用于 restore_history_outline 等） ===
       outlineId: meta?.outlineId || '',
       outlineTitle: meta?.outlineTitle || '',
-      // === 目标章节相关（用于 insert_to_summary、edit_title 等） ===
+      // === 目标章节相关（用于 insert_to_summary、edit_title、outline_link_doc、copy_full_to_summary 等） ===
+      sectionId: meta?.sectionId || '',  // 关键：单个章节ID（用于关联文档、复制全文等）
       targetSectionIds: meta?.targetSectionIds || [],
-      targetSectionId: meta?.targetSectionId || '',
+      targetSectionId: meta?.targetSectionId || meta?.sectionId || '',
       targetSectionTitle: meta?.targetSectionTitle || '',
+      // === 灵活上传专用字段 ===
+      docSelector: meta?.docSelector || null,  // 文件选择器配置（用于灵活上传 Replay）
       // === 操作意图描述（帮助 AI 理解） ===
       intentDescription: meta?.intentDescription || action,
       expectedResult: meta?.expectedResult || '',
@@ -2194,14 +2262,22 @@ export default function SOPWorkbench({ onSwitch }) {
         contextSummary: inp.contextSummary || inp.docName || '',
         sourceType: inp.sourceType || inp.kind,
         // 选中内容的核心信息
+        text: inp.text,  // 完整选中文本
         textExcerpt: inp.textExcerpt ? clipText(inp.textExcerpt, 200) : undefined,
         textLength: inp.textLength,
+        textHead: inp.textHead,  // 开头特征（前50字）
+        textTail: inp.textTail,  // 结尾特征（后50字）
         // 上下文信息：这段内容的前后文（帮助 AI 理解语境）
         contextBefore: inp.contextBefore ? clipText(inp.contextBefore, 80) : undefined,
         contextAfter: inp.contextAfter ? clipText(inp.contextAfter, 80) : undefined,
+        // 内容特征（用于大模型识别和匹配）
+        contentFeatures: inp.contentFeatures || null,
         // 位置信息
         selectionStart: inp.start,
-        selectionEnd: inp.end
+        selectionEnd: inp.end,
+        // 多摘要选择相关
+        summaryKeys: inp.summaryKeys,
+        targetDescriptions: inp.targetDescriptions
       })) : [],
       inputKind: meta?.inputKind || '',
       inputSourceType: meta?.inputSourceType || meta?.inputKind || '',
@@ -2213,11 +2289,29 @@ export default function SOPWorkbench({ onSwitch }) {
             kind: dest.kind,
             sectionTitle: dest.sectionTitle || dest.label || '',
             sectionId: dest.sectionId,
+            sectionLevel: dest.sectionLevel,
+            summaryIndex: dest.summaryIndex,
+            hadContentBefore: dest.hadContentBefore,
+            originalContentExcerpt: dest.originalContentExcerpt,
             count: dest.count
           };
         }
         return dest;
       }) : [],
+      // === 多摘要操作专用字段 ===
+      targetSummaries: Array.isArray(meta?.targetSummaries) ? meta.targetSummaries.map(t => ({
+        sectionId: t.sectionId,
+        summaryIndex: t.summaryIndex,
+        sectionTitle: t.sectionTitle,
+        sectionLevel: t.sectionLevel,
+        summaryKey: t.summaryKey,
+        hadContentBefore: t.hadContentBefore,
+        originalContentExcerpt: t.originalContentExcerpt,
+        originalContentLength: t.originalContentLength,
+        contentFeatures: t.contentFeatures
+      })) : [],
+      selectedSectionTitles: meta?.selectedSectionTitles || [],
+      isMultiSummaryMode: meta?.isMultiSummaryMode || false,
       // === 要素4：执行摘要（结果输出） ===
       outputs:
         meta?.outputs && typeof meta.outputs === 'object' ?
@@ -2453,8 +2547,38 @@ export default function SOPWorkbench({ onSwitch }) {
   const uploadDocsFromReplayDirBySelector = async (selector) => {
     const s = normalizeDocSelector(selector);
     const files = await listReplayDirFiles();
-    const matched = files.filter((f) => matchFileNameBySelector(f?.name || '', s));
+    let matched = files.filter((f) => matchFileNameBySelector(f?.name || '', s));
 
+    // 备选方案1：直接文件名匹配
+    if (!matched.length && s.description) {
+      const desc = s.description.trim();
+      matched = files.filter((f) => {
+        const name = (f?.name || '').trim();
+        const nameWithoutExt = name.replace(/\.[^.]+$/, '');
+        return name === desc || nameWithoutExt === desc || name === desc.replace(/\.[^.]+$/, '');
+      });
+    }
+    // 备选方案2：宽松关键词匹配
+    // 单个关键词：文件名包含即匹配
+    // 多个关键词：满足60%即可
+    if (!matched.length && s.keywords?.length >= 1) {
+      const threshold = s.keywords.length === 1 ? 1 : Math.max(1, Math.ceil(s.keywords.length * 0.6));
+      matched = files.filter((f) => {
+        const lowered = (f?.name || '').toLowerCase();
+        const matchedCount = s.keywords.filter((k) => lowered.includes((k || '').toLowerCase())).length;
+        return matchedCount >= threshold;
+      });
+    }
+    // 备选方案3：模糊匹配主要部分（description 至少2个字符）
+    if (!matched.length && s.description) {
+      const mainPart = s.description.replace(/\.[^.]+$/, '').replace(/[（）()【】\[\]]/g, '').trim();
+      if (mainPart.length >= 2) {
+        matched = files.filter((f) => {
+          const name = (f?.name || '').toLowerCase().replace(/[（）()【】\[\]]/g, '');
+          return name.includes(mainPart.toLowerCase());
+        });
+      }
+    }
 
     if (!matched.length) {
 
@@ -2474,7 +2598,8 @@ export default function SOPWorkbench({ onSwitch }) {
           'keywords=' + ((s.keywords || []).join('、') || '(空)') + (s.extension ? ' ext=' + s.extension : '');
 
 
-      throw new Error('回放目录未找到匹配文件' + desc + '，' + hint);
+      const availableFiles = files.slice(0, 5).map(f => f.name).join(', ');
+      throw new Error('回放目录未找到匹配文件' + desc + '，' + hint + '。目录文件示例：' + (availableFiles || '(空)'));
 
 
     }
@@ -2691,7 +2816,10 @@ export default function SOPWorkbench({ onSwitch }) {
         docName: doc.name || '未命名文档',
 
 
-        title: doc.name || '未命名文档'
+        title: doc.name || '未命名文档',
+        
+        // 全文抽取时默认无合并方式选择
+        sectionMergeType: undefined
 
 
       };
@@ -3542,17 +3670,28 @@ export default function SOPWorkbench({ onSwitch }) {
     // 生成初始的结构化脚本内容（基于录制的操作）
     const initialScript = generateInitialScript(depositSections);
     
+    // 保存 sections 数据用于后续 AI 处理
+    const sectionsForAI = [...depositSections];
+    
     setDepositConfirmData({
-      sections: [...depositSections],
+      sections: sectionsForAI,
       userRequirements: '',
       structuredScript: initialScript,  // 可编辑的结构化脚本
+      llmRecordContent: '',  // 大模型记录内容，由 AI 自动生成
       aiOptimizedContent: null,
-      isProcessing: false,
+      isProcessing: true,  // 设置为处理中，等待 AI 自动处理
       depositName: '',
-      precipitationMode: 'llm'  // 默认大模型沉淀，用户可选择 'script'
+      precipitationMode: 'llm',  // 默认大模型沉淀，用户可选择 'script'
+      autoProcessing: true  // 标记为自动处理模式
     });
     setSelectedSectionIndex(-1);  // 默认显示全部
     setShowDepositConfirmModal(true);
+    
+    // 自动调用大模型对录制内容进行结构化处理
+    // 直接传递 sections 数据，避免 React 闭包问题
+    setTimeout(() => {
+      processDepositWithAIWithSections(sectionsForAI, 'llm', true);
+    }, 100);
   };
 
   // 生成初始结构化脚本（基于录制内容，包含详细上下文）
@@ -3958,8 +4097,128 @@ export default function SOPWorkbench({ onSwitch }) {
     return newContent;
   };
 
+  // AI 优化沉淀内容（带 sections 参数版本 - 解决 React 闭包问题）
+  // 用于自动处理时直接传入 sections，避免闭包捕获旧状态
+  const processDepositWithAIWithSections = async (sections, scriptViewMode = 'llm', isAutoProcess = false) => {
+    if (!sections || sections.length === 0) {
+      console.warn('[processDepositWithAIWithSections] sections 为空');
+      setDepositConfirmData(prev => ({ ...prev, isProcessing: false, autoProcessing: false }));
+      showToast('⚠️ 没有录制内容，无法生成结构化记录');
+      return;
+    }
+    
+    console.log('[processDepositWithAIWithSections] 开始 AI 处理, sections:', sections.length);
+    
+    setDepositConfirmData(prev => ({ ...prev, isProcessing: true }));
+    
+    try {
+      // 构建发送给 AI 的内容 - 使用传入的 sections
+      const sectionsText = sections.map((s, i) => {
+        return `【步骤${i + 1}】${s.action || '操作'}\n${s.content || ''}`;
+      }).join('\n\n---\n\n');
+      
+      // 初始化模式：将原始录制内容结构化为大模型可理解的格式
+      const prompt = `你是一个经验沉淀助手。用户录制了一系列操作步骤，需要你将这些原始录制内容进行**结构化处理**，生成可供大模型 Replay 使用的记录。
+
+**核心原则 - 抽象需求而非具体数据：**
+1. 不要记录具体的数字、计算结果，而要记录**计算逻辑和需求描述**
+2. 例如：不要写"统计结果为68次"，而要写"统计【xxx类型数据】的总次数"
+3. 例如：不要写"总计373次"，而要写"对【视频巡检】相关数据进行汇总统计"
+4. 目的：后续新数据输入时，大模型可以基于抽象的需求描述正确计算
+
+【原始录制内容】
+${sectionsText}
+
+【生成要求 - 大模型记录格式】
+1. **抽象化处理**：将具体数据替换为需求描述，如"68次" → "统计{{某类型}}的次数"
+2. **保留操作逻辑**：操作类型、目标位置、执行顺序等必须完整保留
+3. **语义化描述**：使用自然语言描述操作意图，便于大模型理解
+4. **计算需求明确**：如有数据计算，必须明确描述计算的字段和逻辑
+5. **定位信息保留**：保留上下文特征（前文、后文）用于内容定位
+
+请直接返回结构化的大模型记录内容（纯文本格式，不要用代码块包裹）：
+
+【沉淀名称】基于操作内容建议一个名称
+【操作概述】一句话描述整个流程要做什么
+
+=== 步骤 1: 步骤标题 ===
+【操作类型】操作类型（如 insert_to_summary_multi, dispatch 等）
+【来源文档】文档名称或文档特征描述
+【选中内容】从文档中选取的内容特征描述（不要具体数字，要描述内容类型）
+【数据处理需求】如果涉及数据计算，描述计算逻辑（如：统计XX的总数、汇总XX数据等）
+【目标标题】要填入的目标位置
+【内容特征】用于定位的关键特征（开头、结尾）
+【前文上下文】内容前面的文字特征
+【后文上下文】内容后面的文字特征
+【AI执行指导】给大模型的执行指导，必须包含如何处理数据的说明
+
+=== 步骤 2: ... ===
+...
+
+【Replay 执行要点】
+总结执行时需要注意的关键点，特别是数据处理的逻辑`;
+
+      console.log('[processDepositWithAIWithSections] 发送 AI 请求...');
+      
+      // 创建带超时的 fetch 请求
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: prompt }],
+          maxTokens: 3000
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[processDepositWithAIWithSections] AI 返回:', { usedModel: data.usedModel, contentLength: data.content?.length });
+        
+        if (data?.usedModel === false || data?.content === null) {
+          setDepositConfirmData(prev => ({ ...prev, isProcessing: false, autoProcessing: false }));
+          showToast('⚠️ AI 服务未配置（QWEN_API_KEY），请手动编辑');
+          return;
+        }
+        
+        if (data?.content) {
+          const optimizedContent = data.content.trim();
+          const nameMatch = optimizedContent.match(/【沉淀名称】(.+)/);
+          const suggestedName = nameMatch ? nameMatch[1].trim() : '';
+          
+          setDepositConfirmData(prev => ({
+            ...prev,
+            llmRecordContent: optimizedContent,
+            depositName: suggestedName || prev.depositName,
+            isProcessing: false,
+            autoProcessing: false
+          }));
+          showToast('✅ 已自动生成结构化的大模型记录');
+          return;
+        }
+      }
+      
+      setDepositConfirmData(prev => ({ ...prev, isProcessing: false, autoProcessing: false }));
+      showToast('⚠️ AI 生成失败，请手动编辑');
+    } catch (e) {
+      console.error('[processDepositWithAIWithSections] 错误:', e);
+      setDepositConfirmData(prev => ({ ...prev, isProcessing: false, autoProcessing: false }));
+      if (e.name === 'AbortError') {
+        showToast('⚠️ AI 生成超时，请手动编辑');
+      } else {
+        showToast('⚠️ AI 处理失败，请手动编辑');
+      }
+    }
+  };
+
   // AI 优化沉淀内容
-  const processDepositWithAI = async () => {
+  // scriptViewMode: 'llm' 基于大模型记录优化并写回大模型记录, 'script' 基于脚本记录优化并写回脚本记录
+  // isAutoProcess: true 表示是自动处理（初始化时自动调用），false 表示用户手动触发
+  const processDepositWithAI = async (scriptViewMode = 'llm', isAutoProcess = false) => {
     if (!depositConfirmData) return;
     
     setDepositConfirmData(prev => ({ ...prev, isProcessing: true }));
@@ -3970,29 +4229,129 @@ export default function SOPWorkbench({ onSwitch }) {
         return `【步骤${i + 1}】${s.action || '操作'}\n${s.content || ''}`;
       }).join('\n\n---\n\n');
       
-      // 当前脚本内容（如果用户已编辑或 AI 已优化过）
-      const currentScript = depositConfirmData.structuredScript || '';
-      const hasExistingScript = currentScript && !currentScript.includes('提示: 点击「AI 智能优化」');
-      
       // 用户的修改指示（追加需求，不覆盖原有内容）
       const userReqs = depositConfirmData.userRequirements?.trim() || '';
       const previousReqs = depositConfirmData.accumulatedRequirements || '';
       const combinedRequirements = previousReqs 
         ? (userReqs ? `${previousReqs}\n\n【追加需求】${userReqs}` : previousReqs)
-        : (userReqs || '无特殊要求，请生成通用化的脚本');
+        : (userReqs || '无特殊要求，请生成通用化的内容');
       
-      const prompt = `你是一个经验沉淀优化助手。用户录制了一系列操作步骤，需要你基于【原始录制内容】和【当前脚本】，根据用户的【修改指示】进行增量优化。
+      let prompt;
+      let currentContent;
+      let hasExistingContent;
+      
+      if (scriptViewMode === 'llm') {
+        // 大模型记录模式：基于大模型记录内容优化
+        currentContent = depositConfirmData.llmRecordContent || '';
+        hasExistingContent = currentContent && currentContent.length > 0;
+        
+        // 自动处理模式（初始化）：生成结构化的大模型记录
+        // 手动优化模式：基于已有内容和用户指示进行优化
+        if (isAutoProcess && !hasExistingContent) {
+          // 初始化模式：将原始录制内容结构化为大模型可理解的格式
+          prompt = `你是一个经验沉淀助手。用户录制了一系列操作步骤，需要你将这些原始录制内容进行**结构化处理**，生成可供大模型 Replay 使用的记录。
 
-**重要：请保留原有脚本的所有信息，只根据用户新的修改指示添加或调整内容，不要删除原有信息！**
+**核心原则 - 抽象需求而非具体数据：**
+1. 不要记录具体的数字、计算结果，而要记录**计算逻辑和需求描述**
+2. 例如：不要写"统计结果为68次"，而要写"统计【xxx类型数据】的总次数"
+3. 例如：不要写"总计373次"，而要写"对【视频巡检】相关数据进行汇总统计"
+4. 目的：后续新数据输入时，大模型可以基于抽象的需求描述正确计算
+
+【原始录制内容】
+${sectionsText}
+
+【生成要求 - 大模型记录格式】
+1. **抽象化处理**：将具体数据替换为需求描述，如"68次" → "统计{{某类型}}的次数"
+2. **保留操作逻辑**：操作类型、目标位置、执行顺序等必须完整保留
+3. **语义化描述**：使用自然语言描述操作意图，便于大模型理解
+4. **计算需求明确**：如有数据计算，必须明确描述计算的字段和逻辑
+5. **定位信息保留**：保留上下文特征（前文、后文）用于内容定位
+
+请直接返回结构化的大模型记录内容（纯文本格式，不要用代码块包裹）：
+
+【沉淀名称】基于操作内容建议一个名称
+【操作概述】一句话描述整个流程要做什么
+
+=== 步骤 1: 步骤标题 ===
+【操作类型】操作类型（如 insert_to_summary_multi, dispatch 等）
+【来源文档】文档名称或文档特征描述
+【选中内容】从文档中选取的内容特征描述（不要具体数字，要描述内容类型）
+【数据处理需求】如果涉及数据计算，描述计算逻辑（如：统计XX的总数、汇总XX数据等）
+【目标标题】要填入的目标位置
+【内容特征】用于定位的关键特征（开头、结尾）
+【前文上下文】内容前面的文字特征
+【后文上下文】内容后面的文字特征
+【AI执行指导】给大模型的执行指导，必须包含如何处理数据的说明
+
+=== 步骤 2: ... ===
+...
+
+【Replay 执行要点】
+总结执行时需要注意的关键点，特别是数据处理的逻辑`;
+        } else {
+          // 手动优化模式：基于已有内容和用户指示进行优化
+          prompt = `你是一个经验沉淀优化助手。用户录制了一系列操作步骤，需要你基于【原始录制内容】和【当前大模型记录】，根据用户的【修改指示】进行增量优化。
+
+**核心原则 - 计算公式处理：**
+1. 如果用户提供了计算公式（如"XXX = A + B + C"），必须完整保留公式
+2. 计算公式应明确写出：输出格式、计算变量、计算方法
+3. 示例用户需求："输出'政治中心区调度检查 XXX 次'，XXX = 预警调度次数 + 电台调度次数 + 视频巡检次数 + 实地检查次数"
+   应记录为：
+   【输出格式】政治中心区调度检查 {{计算结果}} 次
+   【计算公式】{{计算结果}} = {{预警调度指挥次数}} + {{电台调度次数}} + {{视频巡检次数}} + {{实地检查岗位次数}}
+4. 严格遵守用户的修改指示，不要擅自修改用户未提及的内容
+
+【原始录制内容（系统自动记录）】
+${sectionsText}
+
+${hasExistingContent ? `【当前大模型记录内容（请在此基础上优化）】\n${currentContent}\n` : ''}
+【用户修改指示】
+${combinedRequirements}
+
+【生成要求 - 大模型记录格式】
+1. **严格遵守用户指示**：只修改用户明确要求修改的部分
+2. **完整保留计算公式**：如果用户指定了计算需求，必须完整记录输出格式和计算公式
+3. 保留丰富的上下文特征（前文上下文、后文上下文、内容特征）供大模型定位使用
+4. 保留 AI 指导信息，帮助大模型理解如何智能执行
+5. 使用语义化描述，便于大模型理解和泛化执行
+
+请直接返回优化后的大模型记录内容（纯文本格式，不要用代码块包裹）：
+
+【沉淀名称】建议的名称
+【操作概述】一句话描述整个流程
+
+=== 步骤 1: 步骤标题 ===
+【操作类型】类型
+【来源文档】文档名或文档特征
+【选中内容】选取的内容特征描述
+【输出格式】期望的输出格式（使用 {{变量名}} 表示待计算/填充的部分）
+【计算公式】如有计算需求，完整写出公式：{{结果}} = {{变量1}} + {{变量2}} + ...
+【目标标题】目标位置
+【内容特征】内容的关键特征描述
+【前文上下文】内容前面的文字特征
+【后文上下文】内容后面的文字特征
+【AI执行指导】给大模型的执行指导，必须包含：1. 如何从输入中提取数据 2. 如何计算 3. 如何格式化输出
+
+=== 步骤 2: ... ===
+...`;
+        }
+      } else {
+        // 脚本记录模式：基于脚本记录内容优化
+        currentContent = depositConfirmData.structuredScript || '';
+        hasExistingContent = currentContent && !currentContent.includes('提示: 点击「AI 智能优化」');
+        
+        prompt = `你是一个经验沉淀优化助手。用户录制了一系列操作步骤，需要你基于【原始录制内容】和【当前脚本】，根据用户的【修改指示】进行增量优化。
+
+**重要：这是脚本 Replay 记录，优化后的内容将用于严格脚本执行，需要保留精确的参数信息！**
 
 【原始录制内容（系统自动记录，作为脚本回退的基础）】
 ${sectionsText}
 
-${hasExistingScript ? `【当前脚本内容（请在此基础上优化，保留已有信息）】\n${currentScript}\n` : ''}
+${hasExistingContent ? `【当前脚本内容（请在此基础上优化，保留已有信息）】\n${currentContent}\n` : ''}
 【用户修改指示（增量需求，在原有基础上添加）】
 ${combinedRequirements}
 
-【生成要求】
+【生成要求 - 脚本记录格式】
 1. **保留原有脚本的所有信息**，包括步骤描述、类型、条件等
 2. 根据用户的修改指示，**追加**新的需求点或**调整**描述，但不要删除原有内容
 3. 将具体的文件名、选区位置等替换为通用变量（如 {{当前文档}}、{{选中内容}}）
@@ -4024,15 +4383,34 @@ ${combinedRequirements}
 
 === 脚本回退说明 ===
 如大模型 Replay 失败，可使用原始录制的脚本参数进行回退执行`;
+      }
 
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: prompt }],
-          maxTokens: 2500
-        })
-      });
+      // 创建带超时的 fetch 请求
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
+
+      let response;
+      try {
+        response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: prompt }],
+            maxTokens: 3000
+          }),
+          signal: controller.signal
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          console.error('AI 请求超时');
+          setDepositConfirmData(prev => ({ ...prev, isProcessing: false, autoProcessing: false }));
+          showToast('⚠️ AI 生成超时，请重试或手动编辑');
+          return;
+        }
+        throw fetchErr;
+      }
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
@@ -4040,46 +4418,71 @@ ${combinedRequirements}
         // 检查 AI 是否可用
         if (data?.usedModel === false || data?.content === null) {
           // AI 未配置，提示用户
-          setDepositConfirmData(prev => ({ ...prev, isProcessing: false }));
-          showToast('⚠️ AI 服务未配置（QWEN_API_KEY），请手动编辑脚本或联系管理员配置');
+          setDepositConfirmData(prev => ({ ...prev, isProcessing: false, autoProcessing: false }));
+          // 自动处理也要提示
+          showToast('⚠️ AI 服务未配置（QWEN_API_KEY），请手动编辑');
           return;
         }
         
         if (data?.content) {
-          // 直接使用 AI 返回的文本作为结构化脚本
-          const optimizedScript = data.content.trim();
+          // 直接使用 AI 返回的文本
+          const optimizedContent = data.content.trim();
           
-          // 尝试从脚本中提取建议名称
-          const nameMatch = optimizedScript.match(/【沉淀名称】(.+)/);
+          // 尝试从内容中提取建议名称
+          const nameMatch = optimizedContent.match(/【沉淀名称】(.+)/);
           const suggestedName = nameMatch ? nameMatch[1].trim() : '';
           
-          // 累积用户的需求（用于下次优化时保留上下文）
-          const newAccumulatedReqs = depositConfirmData.userRequirements?.trim()
+          // 累积用户的需求（用于下次优化时保留上下文）- 仅非自动处理时累积
+          const newAccumulatedReqs = (!isAutoProcess && depositConfirmData.userRequirements?.trim())
             ? (depositConfirmData.accumulatedRequirements 
                 ? `${depositConfirmData.accumulatedRequirements}\n【追加】${depositConfirmData.userRequirements.trim()}`
                 : depositConfirmData.userRequirements.trim())
             : depositConfirmData.accumulatedRequirements || '';
           
-          setDepositConfirmData(prev => ({
-            ...prev,
-            structuredScript: optimizedScript,
-            depositName: suggestedName || prev.depositName,
-            accumulatedRequirements: newAccumulatedReqs,
-            userRequirements: '', // 清空当前输入，方便用户输入新的追加需求
-            isProcessing: false,
-            optimizeCount: (prev.optimizeCount || 0) + 1
-          }));
-          showToast('✅ AI 优化完成，可继续输入追加需求或确认保存');
+          // 根据视图模式写回对应的字段
+          if (scriptViewMode === 'llm') {
+            setDepositConfirmData(prev => ({
+              ...prev,
+              llmRecordContent: optimizedContent,
+              depositName: suggestedName || prev.depositName,
+              accumulatedRequirements: newAccumulatedReqs,
+              userRequirements: isAutoProcess ? prev.userRequirements : '', // 自动处理时保留用户输入
+              isProcessing: false,
+              autoProcessing: false,
+              optimizeCount: (prev.optimizeCount || 0) + 1
+            }));
+            if (!isAutoProcess) {
+              showToast('✅ 大模型记录优化完成，结果已写回大模型记录');
+            } else {
+              showToast('✅ 已自动生成结构化的大模型记录');
+            }
+          } else {
+            setDepositConfirmData(prev => ({
+              ...prev,
+              structuredScript: optimizedContent,
+              depositName: suggestedName || prev.depositName,
+              accumulatedRequirements: newAccumulatedReqs,
+              userRequirements: isAutoProcess ? prev.userRequirements : '', // 自动处理时保留用户输入
+              isProcessing: false,
+              autoProcessing: false,
+              optimizeCount: (prev.optimizeCount || 0) + 1
+            }));
+            if (!isAutoProcess) {
+              showToast('✅ 脚本记录优化完成，结果已写回脚本记录');
+            }
+          }
           return;
         }
       }
       
-      setDepositConfirmData(prev => ({ ...prev, isProcessing: false }));
-      showToast('AI 优化失败，请检查网络或重试');
+      setDepositConfirmData(prev => ({ ...prev, isProcessing: false, autoProcessing: false }));
+      // 即使是自动处理也要提示失败
+      showToast('⚠️ AI 生成失败，请检查网络或手动编辑');
     } catch (e) {
       console.error('AI 处理沉淀内容失败', e);
-      setDepositConfirmData(prev => ({ ...prev, isProcessing: false }));
-      showToast('AI 处理失败');
+      setDepositConfirmData(prev => ({ ...prev, isProcessing: false, autoProcessing: false }));
+      // 即使是自动处理也要提示失败
+      showToast('⚠️ AI 处理失败，请手动编辑');
     }
   };
 
@@ -4089,10 +4492,23 @@ ${combinedRequirements}
     
     // 判断是编辑模式还是新建模式
     const isEditMode = !!editingDepositId;
-    const nextSeq = isEditMode ? depositSeq : (depositSeq || 0) + 1;
-    const depositId = isEditMode ? editingDepositId : `沉淀_${nextSeq}`;
+    // 使用当前列表长度 + 1 作为显示编号（新建时）
+    const displaySeq = isEditMode ? null : deposits.length + 1;
+    // 生成 ID：编辑模式使用原 ID，新建模式使用显示编号
+    let depositId;
+    if (isEditMode) {
+      depositId = editingDepositId;
+    } else {
+      depositId = `沉淀_${displaySeq}`;
+      // 如果已存在同名 ID，添加时间戳后缀确保唯一性
+      if (deposits.some(d => d.id === depositId)) {
+        depositId = `沉淀_${displaySeq}_${Date.now()}`;
+      }
+    }
     const precipitationMode = depositConfirmData.precipitationMode || 'llm';
-    const depositName = depositConfirmData.depositName?.trim() || depositId;
+    // 新建时默认名称使用显示编号
+    const defaultName = isEditMode ? depositId : `沉淀${displaySeq}`;
+    const depositName = depositConfirmData.depositName?.trim() || defaultName;
     const structuredScript = depositConfirmData.structuredScript?.trim() || '';
     
     // 从结构化脚本中解析每个步骤的大模型记录
@@ -4136,7 +4552,8 @@ ${combinedRequirements}
           contextBefore: parseField(stepContent, '前文特征'),
           contextAfter: parseField(stepContent, '后文特征'),
           targetTitle: parseField(stepContent, '目标标题'),
-          aiGuidance: parseField(stepContent, 'AI指导'),
+          // 支持多种 AI 指导字段名称
+          aiGuidance: parseField(stepContent, 'AI执行指导') || parseField(stepContent, 'AI指导') || parseField(stepContent, '执行指导'),
           fallbackParams: parseField(stepContent, '脚本回退参数'),
           rawContent: stepContent
         });
@@ -4160,7 +4577,8 @@ ${combinedRequirements}
             contextBefore: parseField(stepContent, '前文特征'),
             contextAfter: parseField(stepContent, '后文特征'),
             targetTitle: parseField(stepContent, '目标标题') || parseField(stepContent, '输出目标'),
-            aiGuidance: parseField(stepContent, 'AI指导'),
+            // 支持多种 AI 指导字段名称
+            aiGuidance: parseField(stepContent, 'AI执行指导') || parseField(stepContent, 'AI指导') || parseField(stepContent, '执行指导'),
             inputSource: parseField(stepContent, '输入来源'),
             outputTarget: parseField(stepContent, '输出目标'),
             outputContent: parseField(stepContent, '输出内容'),
@@ -4174,7 +4592,57 @@ ${combinedRequirements}
     };
     
     // 解析结构化脚本中的所有步骤
-    const llmSteps = parseLLMStepsFromScript(structuredScript);
+    // 同时解析 structuredScript 和 llmRecordContent，合并字段
+    const llmRecordContent = depositConfirmData.llmRecordContent?.trim() || '';
+    const stepsFromStructured = parseLLMStepsFromScript(structuredScript);
+    const stepsFromLLMRecord = parseLLMStepsFromScript(llmRecordContent);
+    
+    // 直接从 llmRecordContent 中解析【AI执行指导】字段（更灵活的匹配）
+    const parseAiGuidanceDirectly = (content) => {
+      if (!content) return '';
+      // 尝试匹配【AI执行指导】字段 - 支持多种结束标记
+      const regex = /【AI执行指导】\s*([\s\S]*?)(?=【[^A]|【AI执行指导】|\[步骤|\n\n\n|---\n|===|$)/s;
+      const match = content.match(regex);
+      if (match) {
+        return match[1].trim();
+      }
+      return '';
+    };
+    
+    // 从 llmRecordContent 直接提取 aiGuidance
+    const directAiGuidance = parseAiGuidanceDirectly(llmRecordContent);
+    console.log('[saveDeposit] 直接解析 llmRecordContent 中的 aiGuidance:', directAiGuidance?.substring(0, 200) || '(空)');
+    
+    // 合并两个来源的步骤：优先使用 llmRecordContent 中的字段（如 aiGuidance）
+    const llmSteps = stepsFromStructured.map((step, idx) => {
+      const llmRecordStep = stepsFromLLMRecord[idx] || {};
+      return {
+        ...step,
+        // aiGuidance 优先从 llmRecordContent 获取（包含【AI执行指导】）
+        // 如果按步骤解析没有，尝试使用直接解析的（单步骤情况）
+        aiGuidance: llmRecordStep.aiGuidance || step.aiGuidance || (idx === 0 ? directAiGuidance : ''),
+        // 其他字段也可以从 llmRecordContent 补充
+        description: step.description || llmRecordStep.description || '',
+        specialRequirements: llmRecordStep.specialRequirements || step.specialRequirements || '',
+        condition: llmRecordStep.condition || step.condition || '',
+        contentDescription: llmRecordStep.contentDescription || step.contentDescription || ''
+      };
+    });
+    // 如果 structuredScript 没有解析出步骤，但 llmRecordContent 有，则使用后者
+    // 如果两者都没有步骤，但有 directAiGuidance，创建一个包含它的步骤
+    let finalLLMSteps = llmSteps.length > 0 ? llmSteps : stepsFromLLMRecord;
+    if (finalLLMSteps.length === 0 && directAiGuidance) {
+      finalLLMSteps = [{ stepNum: 1, aiGuidance: directAiGuidance }];
+    }
+    
+    console.log('[saveDeposit] 解析结果:', {
+      structuredStepsCount: stepsFromStructured.length,
+      llmRecordStepsCount: stepsFromLLMRecord.length,
+      mergedStepsCount: finalLLMSteps.length,
+      directAiGuidance: directAiGuidance?.substring(0, 100) || '(空)',
+      firstStepAiGuidance: finalLLMSteps[0]?.aiGuidance?.substring(0, 100) || '(无)'
+    });
+    
     const isLLMMode = precipitationMode === 'llm';
     
     // 辅助函数：从原始内容中提取 __REPLAY_META__
@@ -4239,8 +4707,8 @@ ${combinedRequirements}
     // - 大模型模式：保存 llmScript（从结构化脚本解析）和 originalScript，并生成新的 __REPLAY_META__
     // - 脚本模式：只保存 originalScript，保留原始 __REPLAY_META__
     const sectionsWithBoth = depositConfirmData.sections.map((s, idx) => {
-      // 获取对应的步骤解析结果
-      const llmStep = llmSteps[idx] || null;
+      // 获取对应的步骤解析结果（优先使用合并后的 finalLLMSteps）
+      const llmStep = finalLLMSteps[idx] || null;
       
       // 从原始内容中提取 __REPLAY_META__
       const originalMeta = extractReplayMeta(s.content) || s.meta;
@@ -4377,6 +4845,8 @@ ${combinedRequirements}
       // 大模型模式：保存完整的结构化脚本（AI 优化版）
       // 脚本模式：不保存结构化脚本
       structuredScript: isLLMMode ? structuredScript : null,
+      // 大模型记录内容（用户编辑/AI 优化后的内容）
+      llmRecordContent: isLLMMode ? (depositConfirmData.llmRecordContent || '') : '',
       // 累积的用户需求（用于追溯优化历史）- 仅大模型模式有意义
       accumulatedRequirements: isLLMMode ? (depositConfirmData.accumulatedRequirements || '') : '',
       optimizeCount: isLLMMode ? (depositConfirmData.optimizeCount || 0) : 0,
@@ -4406,7 +4876,7 @@ ${combinedRequirements}
       }
     } else {
       // 新建模式：添加新沉淀
-      setDepositSeq(nextSeq);
+      // 不再更新 depositSeq，因为现在基于 deposits.length 生成编号
       setDeposits(prev => [...prev, newDeposit]);
       showToast(`沉淀已保存（${precipitationMode === 'llm' ? '🤖 大模型Replay' : '📜 脚本Replay'}）`);
       
@@ -4484,6 +4954,7 @@ ${combinedRequirements}
       precipitationMode: deposit.precipitationMode || 'llm',
       validationMode: deposit.validationMode || 'none',
       structuredScript,
+      llmRecordContent: deposit.llmRecordContent || '', // 加载大模型记录内容
       userRequirements: '',
       accumulatedRequirements: deposit.accumulatedRequirements || '',
       optimizeCount: deposit.optimizeCount || 0,
@@ -4544,7 +5015,10 @@ ${combinedRequirements}
         docName: docs.find((d) => d.id === selectedDocId)?.name || '未命名文档',
 
 
-        title: docs.find((d) => d.id === selectedDocId)?.name || '未命名文档'
+        title: docs.find((d) => d.id === selectedDocId)?.name || '未命名文档',
+        
+        // 保存多摘要合并方式选择状态
+        sectionMergeType: Object.keys(sectionMergeType).length > 0 ? { ...sectionMergeType } : undefined
 
 
       };
@@ -4605,6 +5079,13 @@ ${combinedRequirements}
 
 
       setShowOutlineMode(true);
+      
+      // 恢复多摘要合并方式选择状态
+      if (item.sectionMergeType && typeof item.sectionMergeType === 'object') {
+        setSectionMergeType(item.sectionMergeType);
+      } else {
+        setSectionMergeType({});
+      }
 
 
       // 记录沉淀
@@ -5184,22 +5665,43 @@ ${combinedRequirements}
 
     showToast(`开始Replay沉淀集：${group.name}`);
 
+    // ========== 关键：批量开始前确保模板数据已加载 ==========
+    console.log('[沉淀集Replay] 开始前检查模板状态...');
+    if (!template || !template.sections || template.sections.length === 0) {
+      console.log('[沉淀集Replay] 模板为空，正在从服务器加载...');
+      showToast('正在加载大纲数据...');
+      try {
+        const serverTemplate = await api('/api/template');
+        if (serverTemplate?.template?.sections?.length > 0) {
+          setTemplate(serverTemplate.template);
+          console.log('[沉淀集Replay] 模板加载成功，共', serverTemplate.template.sections.length, '个标题');
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } catch (e) {
+        console.error('[沉淀集Replay] 模板加载失败:', e);
+        showToast('大纲数据加载失败，Replay 可能不准确');
+      }
+    }
 
-    for (const depositId of group.depositIds || []) {
+    const depositIds = group.depositIds || [];
 
-
+    // 按顺序逐个处理沉淀，确保一个完成后再处理下一个
+    for (let i = 0; i < depositIds.length; i++) {
+      const depositId = depositIds[i];
       const dep = deposits.find((d) => d.id === depositId);
 
+      if (!dep) {
+        console.warn(`[沉淀集Replay] 沉淀 ${depositId} 不存在，跳过`);
+        continue;
+      }
 
-      if (!dep) continue;
-
+      console.log(`[沉淀集Replay] 开始处理沉淀 ${i + 1}/${depositIds.length}: ${dep.name}`);
+      showToast(`正在处理沉淀 ${i + 1}/${depositIds.length}: ${dep.name}`);
 
       // eslint-disable-next-line no-await-in-loop
+      await replayDepositForBatch(depositId);
 
-
-      await replayDeposit(depositId);
-
-
+      console.log(`[沉淀集Replay] 完成沉淀 ${i + 1}/${depositIds.length}: ${dep.name}`);
     }
 
 
@@ -6569,47 +7071,45 @@ ${combinedRequirements}
 
 
   const updateDepositMode = async (depositId, mode) => {
-
-
     const nextMode = normalizePrecipitationMode(mode);
 
-
-    setDeposits((prev) => prev.map((d) => d.id === depositId ? { ...d, precipitationMode: nextMode } : d));
-
-
-    try {
-
-
-      await api(`/api/multi/precipitation/records/${depositId}`, {
-
-
-        method: 'PATCH',
-
-
-        body: { precipitationMode: nextMode }
-
-
-      });
-
-
-      showToast('已更新沉淀方式');
-
-
-    } catch (e) {
-
-
-      console.error('更新沉淀方式失败', e);
-
-
-      showToast('更新沉淀方式失败');
-
-
-      await reloadDeposits(true);
-
-
+    // 找到当前沉淀
+    const currentDeposit = deposits.find(d => d.id === depositId);
+    if (!currentDeposit) {
+      showToast('未找到沉淀记录');
+      return;
     }
 
+    // 同步更新所有 section 的 sectionReplayMode
+    const updatedSections = (currentDeposit.sections || []).map(s => ({
+      ...s,
+      sectionReplayMode: nextMode  // 所有 section 同步设置为沉淀级别的模式
+    }));
 
+    const updatedDeposit = {
+      ...currentDeposit,
+      precipitationMode: nextMode,
+      sections: updatedSections,
+      updatedAt: Date.now()
+    };
+
+    // 更新本地状态
+    setDeposits((prev) => prev.map((d) => d.id === depositId ? updatedDeposit : d));
+
+    // 持久化到服务端
+    try {
+      await api(`/api/multi/precipitation/records/${depositId}`, {
+        method: 'PUT',
+        body: updatedDeposit
+      });
+      const modeText = nextMode === 'llm' ? '🤖 大模型Replay' : '📜 脚本Replay';
+      const sectionCount = updatedSections.length;
+      showToast(`已更新为${modeText}（${sectionCount}个步骤已同步）`);
+    } catch (e) {
+      console.error('更新沉淀方式失败', e);
+      showToast('更新沉淀方式失败');
+      await reloadDeposits(true);
+    }
   };
 
 
@@ -7148,29 +7648,20 @@ ${combinedRequirements}
 
 
   const addDeposit = () => {
+    // 使用当前列表长度 + 1 作为显示编号
+    const displaySeq = deposits.length + 1;
+    // ID 使用显示编号，保持与前端显示一致
+    const depositId = `沉淀_${displaySeq}`;
+    // 如果已存在同名 ID，添加时间戳后缀确保唯一性
+    const finalId = deposits.some(d => d.id === depositId) 
+      ? `沉淀_${displaySeq}_${Date.now()}` 
+      : depositId;
 
-
-    const nextSeq = (depositSeq || 0) + 1;
-
-
-    const depositId = `沉淀_${nextSeq}`;
-
-
-    setDepositSeq(nextSeq);
-
-
-    const next = { id: depositId, name: depositId, createdAt: Date.now(), precipitationMode: DEFAULT_PRECIPITATION_MODE, sections: [] };
-
+    const next = { id: finalId, name: `沉淀${displaySeq}`, createdAt: Date.now(), precipitationMode: DEFAULT_PRECIPITATION_MODE, sections: [] };
 
     setDeposits((prev) => [...prev, next]);
-
-
-    setExpandedLogs((prev) => ({ ...prev, [depositId]: true }));
-
-
-    startEditDeposit(depositId, 'name', depositId);
-
-
+    setExpandedLogs((prev) => ({ ...prev, [finalId]: true }));
+    startEditDeposit(finalId, 'name', `沉淀${displaySeq}`);
   };
 
 
@@ -7499,27 +7990,43 @@ ${combinedRequirements}
       const nextContent = appendReplayMeta([head, body].join('\n'), nextMeta);
 
 
+      // 先构建更新后的 deposit 对象
+      const currentDeposits = deposits || [];
+      const currentDeposit = currentDeposits.find(d => d.id === depositId);
+      if (!currentDeposit) {
+        showToast('未找到沉淀记录');
+        return;
+      }
+
+      const nextSections = (currentDeposit.sections || []).map((s) => {
+        if (s.id !== section.id) return s;
+        return { 
+          ...s, 
+          content: nextContent,
+          // 更新 llmScript 中的 docSelector
+          llmScript: {
+            ...(s.llmScript || {}),
+            docSelector: selector,
+            flexKeywords: description
+          }
+        };
+      });
+      const updatedDeposit = { ...currentDeposit, sections: nextSections, updatedAt: Date.now() };
+
+      // 更新本地状态
       setDeposits((prev) =>
-
-
-        prev.map((d) => {
-
-
-          if (d.id !== depositId) return d;
-
-
-          const nextSections = (d.sections || []).map((s) => s.id === section.id ? { ...s, content: nextContent } : s);
-
-
-          return { ...d, sections: nextSections };
-
-
-        })
-
-
+        prev.map((d) => d.id === depositId ? updatedDeposit : d)
       );
 
-      showToast(res?.usedModel === false ? '生成成功（未配置大模型）' : '生成成功');
+      // 持久化保存到服务端
+      try {
+        const saveRes = await api(`/api/multi/precipitation/records/${depositId}`, { method: 'PUT', body: updatedDeposit });
+        console.log('[灵活上传] 持久化成功:', saveRes);
+        showToast(res?.usedModel === false ? '生成成功（未配置大模型，已保存）' : '生成成功（已保存）');
+      } catch (e) {
+        console.error('[灵活上传] 持久化失败:', e);
+        showToast('生成成功但保存失败，请手动保存');
+      }
 
 
     } catch (err) {
@@ -7532,13 +8039,108 @@ ${combinedRequirements}
 
 
     }
-
-
   };
 
+  // 切换 section 详情展开/收起
+  const toggleSectionExpanded = (depositId, sectionId) => {
+    const key = `${depositId}_${sectionId}`;
+    setSectionExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // 切换单个 section 的 replay 模式（大模型/脚本）
+  const toggleSectionReplayMode = async (depositId, sectionId) => {
+    // 先找到当前的 deposit
+    const currentDeposit = deposits.find(d => d.id === depositId);
+    if (!currentDeposit) {
+      showToast('未找到沉淀记录');
+      return;
+    }
+
+    // 构建更新后的 deposit
+    const nextSections = (currentDeposit.sections || []).map(s => {
+      if (s.id !== sectionId) return s;
+      const currentMode = s.sectionReplayMode || 'llm';
+      const nextMode = currentMode === 'llm' ? 'script' : 'llm';
+      return { ...s, sectionReplayMode: nextMode };
+    });
+    const updatedDeposit = { ...currentDeposit, sections: nextSections, updatedAt: Date.now() };
+
+    // 更新本地状态
+    setDeposits(prev => prev.map(d => d.id === depositId ? updatedDeposit : d));
+
+    // 持久化到服务端
+    try {
+      await api(`/api/multi/precipitation/records/${depositId}`, { method: 'PUT', body: updatedDeposit });
+      const section = updatedDeposit.sections.find(s => s.id === sectionId);
+      showToast(`已切换为${section?.sectionReplayMode === 'llm' ? '🤖 大模型' : '📜 脚本'} Replay（已保存）`);
+    } catch (e) {
+      console.error('保存 section replay 模式失败', e);
+      showToast('切换成功但保存失败');
+    }
+  };
+
+  // 直接更新单个 section 的 replay 模式
+  const updateSectionReplayMode = async (depositId, sectionId, newMode) => {
+    // 先找到当前的 deposit
+    const currentDeposit = deposits.find(d => d.id === depositId);
+    if (!currentDeposit) {
+      showToast('未找到沉淀记录');
+      return;
+    }
+
+    // 构建更新后的 deposit
+    const nextSections = (currentDeposit.sections || []).map(s => {
+      if (s.id !== sectionId) return s;
+      return { ...s, sectionReplayMode: newMode };
+    });
+    const updatedDeposit = { ...currentDeposit, sections: nextSections, updatedAt: Date.now() };
+
+    // 更新本地状态
+    setDeposits(prev => prev.map(d => d.id === depositId ? updatedDeposit : d));
+
+    // 持久化到服务端
+    try {
+      await api(`/api/multi/precipitation/records/${depositId}`, { method: 'PUT', body: updatedDeposit });
+      showToast(`已切换为${newMode === 'llm' ? '🤖 大模型' : '📜 脚本'} Replay（已保存）`);
+    } catch (e) {
+      console.error('保存 section replay 模式失败', e);
+      showToast('切换成功但保存失败');
+    }
+  };
+
+  // 单独执行单个 section 的 replay
+  const replaySingleSection = async (depositId, sectionId) => {
+    const dep = deposits.find(d => d.id === depositId);
+    if (!dep) {
+      showToast('未找到沉淀记录');
+      return;
+    }
+    const section = dep.sections?.find(s => s.id === sectionId);
+    if (!section) {
+      showToast('未找到该步骤');
+      return;
+    }
+
+    // 设置运行状态
+    setReplaySectionStatus(depositId, sectionId, 'running', '');
+    const snap = captureReplaySnapshot();
+
+    try {
+      // 使用 section 级别的 replay 模式，如果没有则使用沉淀级别的
+      const sectionMode = section.sectionReplayMode || dep.precipitationMode || 'llm';
+      const depWithMode = { ...dep, precipitationMode: sectionMode };
+      
+      const res = await replayOneDepositSection(depWithMode, section);
+      setReplaySectionStatus(depositId, sectionId, res.status, res.message || '', res.replayMode || 'script');
+      showToast(`单步 Replay ${res.status === 'done' ? '完成' : '失败'}`);
+    } catch (err) {
+      await restoreReplaySnapshot(snap);
+      setReplaySectionStatus(depositId, sectionId, 'fail', err?.message || 'Replay 失败', null);
+      showToast(`单步 Replay 失败: ${err?.message || '未知错误'}`);
+    }
+  };
 
   const cancelEditDepositSection = (depositId, sectionId) => {
-
     // 新字段（llmScript）
     cancelEditDeposit(depositId, `${sectionId}||type`);
     cancelEditDeposit(depositId, `${sectionId}||description`);
@@ -7916,16 +8518,42 @@ ${combinedRequirements}
 
     try {
 
+      // ========== 关键：批量开始前确保模板数据已加载 ==========
+      console.log('[批量Replay] 开始前检查模板状态...');
+      if (!template || !template.sections || template.sections.length === 0) {
+        console.log('[批量Replay] 模板为空，正在从服务器加载...');
+        showToast('正在加载大纲数据...');
+        try {
+          const serverTemplate = await api('/api/template');
+          if (serverTemplate?.template?.sections?.length > 0) {
+            setTemplate(serverTemplate.template);
+            console.log('[批量Replay] 模板加载成功，共', serverTemplate.template.sections.length, '个标题');
+            // 等待 React 状态更新完成
+            await new Promise(resolve => setTimeout(resolve, 200));
+          } else {
+            console.warn('[批量Replay] 服务器返回的模板为空');
+          }
+        } catch (e) {
+          console.error('[批量Replay] 模板加载失败:', e);
+          showToast('大纲数据加载失败，Replay 可能不准确');
+        }
+      } else {
+        console.log('[批量Replay] 模板已存在，共', template.sections.length, '个标题');
+      }
 
-      for (const id of ids) {
-
-
+      // 按顺序逐个处理沉淀，确保一个完成后再处理下一个
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const dep = deposits.find(d => d.id === id);
+        const depName = dep?.name || id;
+        
+        console.log(`[批量Replay] 开始处理沉淀 ${i + 1}/${ids.length}: ${depName}`);
+        showToast(`正在处理沉淀 ${i + 1}/${ids.length}: ${depName}`);
+        
         // eslint-disable-next-line no-await-in-loop
-
-
-        await replayDeposit(id);
-
-
+        await replayDepositForBatch(id);
+        
+        console.log(`[批量Replay] 完成沉淀 ${i + 1}/${ids.length}: ${depName}`);
       }
 
 
@@ -9586,192 +10214,132 @@ ${combinedRequirements}
 
 
     } else if (showOutlineMode) {
-
-
-      const selectedSections = (template?.sections || []).filter((sec) => selectedOutlineExec[sec.id]);
-
-
-      if (!selectedSections.length) {
-
-
-        showToast('请先选择要处理的标题');
-
-
-        return;
-
-
-      }
-
-
-      selectedOutlineIdsForDispatch = selectedSections.map((s) => s.id);
-
-
-      dispatchInputs.push({ kind: 'outline_selected', sectionIds: selectedOutlineIdsForDispatch });
-
-
-      const hasTemplate = selectedSections.length > 0;
-
-
-      if (!hasTemplate) {
-
-
-        showToast('暂无大纲可处理');
-
-
-        return;
-
-
-      }
-
-
-      let sectionsWithUnprocessed = [];
-
-
-      let sectionsProcessedOnly = [];
-
-
-      selectedSections.forEach((sec) => {
-
-
-        const docIds = sectionDocLinks[sec.id] || [];
-
-
-        const doneMap = sectionDocDone[sec.id] || {};
-
-
-        const unprocessed = docIds.filter((id) => !doneMap[id]);
-
-
-        if (unprocessed.length) {
-
-
-          sectionsWithUnprocessed.push({ sec, unprocessed });
-
-
-        } else {
-
-
-          sectionsProcessedOnly.push(sec);
-
-
-        }
-
-
-      });
-
-
-      if (sectionsWithUnprocessed.length && sectionsProcessedOnly.length) {
-
-
-        showToast('请选择仅含未处理文档或仅处理摘要的标题，勿混合');
-
-
-        return;
-
-
-      }
-
-
-      if (sectionsWithUnprocessed.length) {
-
-
-        // 处理未处理文档，内容来自文档 
-
-
-        dispatchInputKind = 'outline_unprocessed_docs';
-
-
-        dispatchInputNote = '输入来自：标题下未处理的已添加文档；输出用于覆盖摘要/或按 edits 写回大纲';
-
-
-        const allDocIds = sectionsWithUnprocessed.flatMap((s) => s.unprocessed);
-
-
-        const docItems = allDocIds.
-
-
-          map((id) => docs.find((d) => d.id === id)).
-
-
-          filter(Boolean);
-
-
-        if (!docItems.length) {
-
-
-          showToast('未找到可处理文档');
-
-
+      // ===== 多摘要选择模式：检查是否有选中的具体摘要 =====
+      const selectedSummaryKeys = Object.keys(selectedSummaries || {}).filter(k => selectedSummaries[k]);
+      
+      if (selectedSummaryKeys.length > 0) {
+        // 使用多摘要选择模式：处理选中的具体摘要
+        const summaryTargets = selectedSummaryKeys.map(key => {
+          const [sectionId, sumIdxStr] = key.split('_');
+          const sumIdx = parseInt(sumIdxStr, 10);
+          const section = (template?.sections || []).find(s => s.id === sectionId);
+          return { sectionId, sumIdx, section, key };
+        }).filter(t => t.section);
+        
+        if (!summaryTargets.length) {
+          showToast('未找到有效的目标摘要');
           return;
+        }
+        
+        dispatchInputKind = 'outline_summaries_multi';
+        dispatchInputNote = '输入来自：选中的多个摘要；输出按摘要位置写回';
+        selectedOutlineIdsForDispatch = [...new Set(summaryTargets.map(t => t.sectionId))];
+        
+        // 构建 outlineSegments，每个摘要一个片段
+        outlineSegments = summaryTargets.map((t, idx) => {
+          const sec = t.section;
+          let content = '';
+          if (Array.isArray(sec.summaries) && sec.summaries[t.sumIdx]) {
+            content = sec.summaries[t.sumIdx].content || '';
+          } else if (t.sumIdx === 0) {
+            content = sec.summary || sec.hint || '';
+          }
+          return {
+            sectionId: t.sectionId,
+            summaryIndex: t.sumIdx,
+            summaryKey: t.key,
+            field: 'summary',
+            content: content,
+            label: `摘要${idx + 1}（${sec.title || '未命名'}[${t.sumIdx}]）`
+          };
+        });
+        
+        dispatchInputs.push({ 
+          kind: 'outline_summaries_selected', 
+          summaryKeys: selectedSummaryKeys,
+          sectionIds: selectedOutlineIdsForDispatch
+        });
+        
+        const labeled = outlineSegments
+          .map((seg) => `【${seg.label} | ID=${seg.sectionId}_${seg.summaryIndex}】\n${seg.content}`)
+          .join('\n\n');
+        docContent = labeled;
+      } else {
+        // ===== 原有逻辑：使用标题选择模式 =====
+        const selectedSections = (template?.sections || []).filter((sec) => selectedOutlineExec[sec.id]);
 
-
+        if (!selectedSections.length) {
+          showToast('请先选择要处理的标题，或选中具体摘要');
+          return;
         }
 
+        selectedOutlineIdsForDispatch = selectedSections.map((s) => s.id);
+        dispatchInputs.push({ kind: 'outline_selected', sectionIds: selectedOutlineIdsForDispatch });
 
-        docItems.forEach((d) => dispatchInputs.push({ kind: 'doc_resource', docName: d.name, length: (d.content || '').toString().length }));
+        const hasTemplate = selectedSections.length > 0;
+        if (!hasTemplate) {
+          showToast('暂无大纲可处理');
+          return;
+        }
 
+        let sectionsWithUnprocessed = [];
+        let sectionsProcessedOnly = [];
+        selectedSections.forEach((sec) => {
+          const docIds = sectionDocLinks[sec.id] || [];
+          const doneMap = sectionDocDone[sec.id] || {};
+          const unprocessed = docIds.filter((id) => !doneMap[id]);
+          if (unprocessed.length) {
+            sectionsWithUnprocessed.push({ sec, unprocessed });
+          } else {
+            sectionsProcessedOnly.push(sec);
+          }
+        });
 
-        docContent = docItems.
+        if (sectionsWithUnprocessed.length && sectionsProcessedOnly.length) {
+          showToast('请选择仅含未处理文档或仅处理摘要的标题，勿混合');
+          return;
+        }
 
+        if (sectionsWithUnprocessed.length) {
+          // 处理未处理文档，内容来自文档 
+          dispatchInputKind = 'outline_unprocessed_docs';
+          dispatchInputNote = '输入来自：标题下未处理的已添加文档；输出用于覆盖摘要/或按 edits 写回大纲';
 
-          map((d, i) => `【文：${i + 1}：${d.name}\n${d.content}`).
+          const allDocIds = sectionsWithUnprocessed.flatMap((s) => s.unprocessed);
+          const docItems = allDocIds.map((id) => docs.find((d) => d.id === id)).filter(Boolean);
 
+          if (!docItems.length) {
+            showToast('未找到可处理文档');
+            return;
+          }
 
-          join('\n\n---\n\n');
+          docItems.forEach((d) => dispatchInputs.push({ kind: 'doc_resource', docName: d.name, length: (d.content || '').toString().length }));
 
+          docContent = docItems.map((d, i) => `【文：${i + 1}：${d.name}\n${d.content}`).join('\n\n---\n\n');
 
-        outlineSegments = sectionsWithUnprocessed.map((item, idx) => ({
+          outlineSegments = sectionsWithUnprocessed.map((item, idx) => ({
+            sectionId: item.sec.id,
+            field: 'summary',
+            content: item.sec.summary || item.sec.hint || item.sec.title || '',
+            label: `片段${idx + 1}`
+          }));
+        } else {
+          // 处理摘要文本 
+          dispatchInputKind = 'outline_summaries';
+          dispatchInputNote = '输入来自：已勾选标题的摘要/提示；输出用于覆盖摘要或按 edits 写回大纲';
 
+          outlineSegments = selectedSections.map((sec, idx) => ({
+            sectionId: sec.id,
+            field: 'summary',
+            content: sec.summary || sec.hint || sec.title || '',
+            label: `片段${idx + 1}`
+          }));
 
-          sectionId: item.sec.id,
-
-
-          field: 'summary',
-
-
-          content: item.sec.summary || item.sec.hint || item.sec.title || '',
-
-
-          label: `片段${idx + 1}`
-
-
-        }));
-
-
-      } else {
-
-
-        // 处理摘要文本 
-
-
-        dispatchInputKind = 'outline_summaries';
-
-
-        dispatchInputNote = '输入来自：已勾选标题的摘要/提示；输出用于覆盖摘要或按 edits 写回大纲';
-
-
-        outlineSegments = selectedSections.map((sec, idx) => ({
-
-
-          sectionId: sec.id,
-
-
-          field: 'summary',
-
-
-          content: sec.summary || sec.hint || sec.title || '',
-
-
-          label: `片段${idx + 1}`
-
-
-        }));
-
-
-        const labeled = outlineSegments.
-          map((seg) => `【${seg.label} | ID=${seg.sectionId}】\n${seg.content}`).
-          join('\n\n');
-        docContent = labeled;
+          const labeled = outlineSegments
+            .map((seg) => `【${seg.label} | ID=${seg.sectionId}】\n${seg.content}`)
+            .join('\n\n');
+          docContent = labeled;
+        }
       }
     } else if (dispatchMode === 'result') {
 
@@ -9940,6 +10508,7 @@ ${combinedRequirements}
       // - "片段1" (中文标签，按索引匹配)
       // - "片段1: sec_xxx" (标签+ID)
       // - "ID=sec_xxx" (ID=格式)
+      // - "sec_xxx_0" (多摘要格式：sectionId_summaryIndex)
       const resolveEditSectionId = (rawId, segmentIdList) => {
         if (!rawId) return null;
         const str = String(rawId).trim();
@@ -9956,7 +10525,16 @@ ${combinedRequirements}
         const pipeMatch = str.match(/\|\s*ID\s*=\s*(.+)/i);
         if (pipeMatch) return pipeMatch[1].trim();
         
-        // 4. 如果是纯数字，按索引匹配（1-based）
+        // 4. 尝试匹配 "摘要N" 格式（多摘要模式）
+        const summaryLabelMatch = str.match(/摘要(\d+)/);
+        if (summaryLabelMatch) {
+          const idx = parseInt(summaryLabelMatch[1], 10) - 1;  // 转为 0-based
+          if (idx >= 0 && idx < segmentIdList.length) {
+            return segmentIdList[idx];
+          }
+        }
+        
+        // 5. 如果是纯数字，按索引匹配（1-based）
         if (/^\d+$/.test(str)) {
           const idx = parseInt(str, 10) - 1;  // 转为 0-based
           if (idx >= 0 && idx < segmentIdList.length) {
@@ -9964,7 +10542,7 @@ ${combinedRequirements}
           }
         }
         
-        // 5. 如果是 "片段N" 格式，按索引匹配
+        // 6. 如果是 "片段N" 格式，按索引匹配
         const labelOnlyMatch = str.match(/片段(\d+)/);
         if (labelOnlyMatch) {
           const idx = parseInt(labelOnlyMatch[1], 10) - 1;  // 转为 0-based
@@ -9973,17 +10551,66 @@ ${combinedRequirements}
           }
         }
         
-        // 6. 直接返回原值
+        // 7. 直接返回原值
         return str;
       };
 
-      // 收集 outlineSegments 中的 sectionId 列表，用于索引匹配
-      const segmentIdList = outlineSegments.map(seg => seg.sectionId);
+      // 收集 outlineSegments 中的标识列表，用于索引匹配
+      // 多摘要模式下使用 summaryKey (sectionId_summaryIndex)，否则使用 sectionId
+      const isMultiSummaryMode = dispatchInputKind === 'outline_summaries_multi';
+      const segmentIdList = outlineSegments.map(seg => isMultiSummaryMode ? seg.summaryKey : seg.sectionId);
 
       if (Array.isArray(result.edits) && result.edits.length) {
         appliedEditsCount = result.edits.length;
         setTemplate((prev) => {
           if (!prev) return prev;
+          
+          // 多摘要模式：更新特定摘要
+          if (isMultiSummaryMode) {
+            const nextSections = prev.sections.map((sec) => {
+              // 检查是否有针对此 section 的 edits
+              const editsForThisSection = result.edits.filter((e) => {
+                const resolvedId = resolveEditSectionId(e.sectionId, segmentIdList);
+                // 匹配 summaryKey 格式：sectionId_summaryIndex
+                return resolvedId && resolvedId.startsWith(sec.id + '_');
+              });
+              
+              if (!editsForThisSection.length) return sec;
+              
+              // 更新 summaries 数组中的特定摘要
+              if (Array.isArray(sec.summaries) && sec.summaries.length > 0) {
+                const newSummaries = sec.summaries.map((sum, idx) => {
+                  const edit = editsForThisSection.find((e) => {
+                    const resolvedId = resolveEditSectionId(e.sectionId, segmentIdList);
+                    return resolvedId === `${sec.id}_${idx}`;
+                  });
+                  if (edit && edit.field === 'summary' && edit.content) {
+                    return { ...sum, content: edit.content };
+                  }
+                  return sum;
+                });
+                const mergedSummary = newSummaries.map(s => s.content || '').filter(Boolean).join('\n\n');
+                return { ...sec, summaries: newSummaries, summary: mergedSummary };
+              } else {
+                // 单摘要：检查是否匹配 sectionId_0
+                const edit = editsForThisSection.find((e) => {
+                  const resolvedId = resolveEditSectionId(e.sectionId, segmentIdList);
+                  return resolvedId === `${sec.id}_0`;
+                });
+                if (edit && edit.field === 'summary' && edit.content) {
+                  return { ...sec, summary: edit.content };
+                }
+                return sec;
+              }
+            });
+            const nextTpl = { ...prev, sections: nextSections };
+            if (scene?.customTemplate) {
+              setScene({ ...scene, customTemplate: nextTpl });
+            }
+            return nextTpl;
+          }
+          
+          // 原有逻辑：标题选择模式
           const nextSections = prev.sections.map((sec) => {
             // 使用增强的容错匹配逻辑
             const found = result.edits.find((e) => {
@@ -10182,10 +10809,43 @@ ${combinedRequirements}
         };
       });
 
+      // 构建多摘要模式的目标信息（增强版：包含完整特征用于大模型 Replay）
+      const isMultiSummaryDispatch = dispatchInputKind === 'outline_summaries_multi';
+      const multiSummaryTargets = isMultiSummaryDispatch ? outlineSegments.map((seg) => {
+        const section = (template?.sections || []).find(s => s.id === seg.sectionId);
+        const originalContent = seg.content || '';
+        const contentHead = originalContent.slice(0, 50).trim();
+        const contentTail = originalContent.slice(-50).trim();
+        
+        return {
+          sectionId: seg.sectionId,
+          summaryIndex: seg.summaryIndex,
+          summaryKey: seg.summaryKey,
+          sectionTitle: section?.title || '',
+          sectionLevel: section?.level || 1,
+          // 原始内容详情
+          originalContent: originalContent,
+          originalContentExcerpt: originalContent.length > 200 ? originalContent.substring(0, 200) + '...' : originalContent,
+          originalContentLength: originalContent.length,
+          // 内容特征（用于大模型识别和匹配）
+          contentFeatures: {
+            startsWith: contentHead,
+            endsWith: contentTail,
+            charCount: originalContent.length,
+            lineCount: originalContent.split('\n').length,
+            hasNumbers: /\d/.test(originalContent),
+            hasDates: /\d{4}年|\d{1,2}月|\d{1,2}日/.test(originalContent),
+            isEmpty: !originalContent.trim()
+          }
+        };
+      }) : [];
+
       logSectionWithMeta('执行指令', {
-        type: 'dispatch',
+        type: isMultiSummaryDispatch ? 'dispatch_multi_summary' : 'dispatch',
         // ========== 动作描述 ==========
-        actionDescription: `对已勾选大纲标题的内容执行指令「${instructions}」`,
+        actionDescription: isMultiSummaryDispatch 
+          ? `对选中的 ${outlineSegments.length} 个摘要执行指令「${instructions}」`
+          : `对已勾选大纲标题的内容执行指令「${instructions}」`,
         // 记录 prompt 内容（指令要求）- 这是核心的处理逻辑
         promptContent: instructions,
         instructions: instructions, // 同时记录为 instructions 字段（兼容性）
@@ -10206,12 +10866,18 @@ ${combinedRequirements}
         selectedSectionIds: selectedOutlineIdsForDispatch,
         inputs: dispatchInputs,
         
+        // ========== 多摘要模式专用字段 ==========
+        isMultiSummaryMode: isMultiSummaryDispatch,
+        targetSummaries: multiSummaryTargets,
+        
         // ========== 目标位置详细信息 ==========
         // 大纲段落信息（记录标题、级别、原始内容用于定位和 Replay）
         targetSectionsDetail: targetSectionsDetailForRecord,
         outlineSegmentsMeta: (outlineSegments || []).map((s) => ({
           sectionTitle: s.label || s.title || '',
           sectionId: s.sectionId,
+          summaryIndex: s.summaryIndex,
+          summaryKey: s.summaryKey,
           field: s.field,
           originalContent: s.content || '' // 记录原始内容
         })),
@@ -10239,8 +10905,12 @@ ${combinedRequirements}
         destinations,
         
         // ========== AI 指导（用于大模型 Replay）==========
-        aiGuidance: `根据指令「${instructions}」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。`,
-        specialRequirements: '无'
+        aiGuidance: isMultiSummaryDispatch
+          ? `根据指令「${instructions}」处理选中的 ${multiSummaryTargets.length} 个摘要内容。目标位置：${multiSummaryTargets.map(t => `${t.sectionLevel}级标题「${t.sectionTitle}」的摘要[${t.summaryIndex}]`).join('、')}。Replay 时应通过语义匹配找到相似的标题位置，使用目标位置的最新内容作为输入执行相同的指令处理。`
+          : `根据指令「${instructions}」处理输入内容，生成符合要求的输出。Replay 时应使用目标位置的最新内容作为输入。`,
+        specialRequirements: isMultiSummaryDispatch 
+          ? `多摘要执行指令，需要对 ${multiSummaryTargets.length} 个不同的摘要位置执行相同的指令处理`
+          : '无'
       });
 
 
@@ -10541,21 +11211,13 @@ ${combinedRequirements}
   const slotsForOutput = Object.keys(finalSlots).length ? finalSlots : {};
 
 
-  const startEditOutline = (id, field, value) => {
-
-
+  const startEditOutline = (id, field, value, sumIdx = null) => {
+    // 支持多摘要：如果提供了 sumIdx，使用带索引的 key
+    const key = sumIdx !== null ? `${id}||${field}||${sumIdx}` : `${id}||${field}`;
     setOutlineEditing((prev) => ({
-
-
       ...prev,
-
-
-      [`${id}||${field}`]: value ?? ''
-
-
+      [key]: value ?? ''
     }));
-
-
   };
 
 
@@ -10598,45 +11260,44 @@ ${combinedRequirements}
     const docName = docs.find((d) => d.id === pick)?.name || pick;
 
 
+    const levelText = sec ? (sec.level === 1 ? '一级标题' : sec.level === 2 ? '二级标题' : sec.level === 3 ? '三级标题' : `${sec.level}级标题`) : '未知';
+    
     logSectionWithMeta(
-
-
       '关联文档',
-
-
       {
-
-
         type: 'outline_link_doc',
-
-
         sectionId,
-
-
         docId: pick,
-
-
         docName,
-
-
-        inputs: [{ kind: 'doc_link_pick', sectionId, docName }],
-
-
+        // === 目标章节详细信息（帮助 AI 定位） ===
+        targetSectionTitle: sec?.title || '',
+        targetSection: sec ? {
+          id: sec.id,
+          level: sec.level,
+          levelText: levelText,
+          title: sec.title || '',
+          summary: (sec.summary || sec.hint || '').substring(0, 100)
+        } : null,
+        // === 输入信息 ===
+        inputs: [{ 
+          kind: 'doc_link_pick', 
+          sectionId, 
+          docName,
+          contextSummary: `将文档「${docName}」关联到${levelText}「${sec?.title || sectionId}」`
+        }],
+        // === 动作描述（用于 AI 理解） ===
+        actionDescription: `将文档「${docName}」关联到${levelText}「${sec?.title || ''}」下`,
         process: '将文档关联到大纲标题，供后续复制全文/指令处理等作为数据源',
-
-
-        outputs: { summary: `已关联文档：${docName}` },
-
-
-        destinations: [{ kind: 'outline_section_docs', sectionId }]
-
-
+        outputs: { 
+          summary: `已关联文档：${docName}`,
+          targetSectionTitle: sec?.title || '',
+          targetSectionLevel: sec?.level || 1
+        },
+        destinations: [{ kind: 'outline_section_docs', sectionId, sectionTitle: sec?.title || '' }],
+        // === AI 指导（用于大模型 Replay）===
+        aiGuidance: `在大纲中找到${levelText}「${sec?.title || ''}」，将同名文档「${docName}」关联到该标题。如果文档不存在，先从配置目录上传。`
       },
-
-
       [sec ? `标题：${sec.title || ''}（第${Number(sec.level) || 1}级）` : `标题：${sectionId}`]
-
-
     );
 
 
@@ -10664,13 +11325,24 @@ ${combinedRequirements}
       if (!prev) return prev;
 
 
-      const nextSections = prev.sections.map((sec) =>
+      const nextSections = prev.sections.map((sec) => {
+        if (sec.id !== sectionId) return sec;
 
+        // 多摘要支持：如果已有 summaries 数组，将内容作为新摘要添加
+        const currentSummaries = Array.isArray(sec.summaries) ? [...sec.summaries] : [];
 
-        sec.id === sectionId ? { ...sec, summary: content } : sec
-
-
-      );
+        if (currentSummaries.length > 0) {
+          // 已有多个摘要，添加新摘要到末尾
+          const newSumId = `${sec.id}_sum_copy_${Date.now()}`;
+          currentSummaries.push({ id: newSumId, content: content });
+          // 更新主 summary 字段（拼接所有摘要）
+          const combinedSummary = currentSummaries.map(sum => sum.content).filter(Boolean).join('\n\n');
+          return { ...sec, summaries: currentSummaries, summary: combinedSummary };
+        } else {
+          // 没有多摘要，直接覆盖（保持原有行为）
+          return { ...sec, summary: content };
+        }
+      });
 
 
       const nextTpl = { ...prev, sections: nextSections };
@@ -10692,59 +11364,58 @@ ${combinedRequirements}
 
 
     const sec = (template?.sections || []).find((s) => s.id === sectionId);
-
-
     const docName = doc?.name || pickId || '';
-
+    const levelText = sec ? (sec.level === 1 ? '一级标题' : sec.level === 2 ? '二级标题' : sec.level === 3 ? '三级标题' : `${sec.level}级标题`) : '未知';
+    const contentStr = (content || '').toString();
+    const contentExcerptStart = contentStr.substring(0, 100);
+    const contentExcerptEnd = contentStr.length > 100 ? contentStr.substring(contentStr.length - 100) : '';
 
     logSectionWithMeta(
-
-
       '复制全文到摘要',
-
-
       {
-
-
         type: 'copy_full_to_summary',
-
-
         sectionId,
-
-
         docId: pickId,
-
-
         docName,
-
-
-        inputs: [
-
-
-          pickId && pickId === selectedDocId ?
-
-
-            { kind: 'doc_preview', docName, length: (docDraft || '').toString().length } :
-
-
-            { kind: 'doc_resource', docName, length: (doc?.content || '').toString().length }],
-
-
+        // === 目标章节详细信息 ===
+        targetSectionTitle: sec?.title || '',
+        targetSection: sec ? {
+          id: sec.id,
+          level: sec.level,
+          levelText: levelText,
+          title: sec.title || '',
+          originalSummary: (sec.summary || sec.hint || '').substring(0, 100)
+        } : null,
+        // === 输入信息（包含内容特征）===
+        inputs: [{
+          kind: pickId && pickId === selectedDocId ? 'doc_preview' : 'doc_resource',
+          docName,
+          contextSummary: `从文档「${docName}」复制全文`,
+          textLength: contentStr.length,
+          // 记录内容的开头和结尾特征（帮助 AI 验证）
+          textExcerptStart: contentExcerptStart,
+          textExcerptEnd: contentExcerptEnd,
+          // 内容摘要特征
+          contentFeatures: {
+            totalLength: contentStr.length,
+            lineCount: contentStr.split('\n').length,
+            hasTitle: contentStr.includes('标题') || contentStr.includes('一、') || contentStr.includes('1.'),
+            firstLine: contentStr.split('\n')[0]?.substring(0, 50) || ''
+          }
+        }],
+        // === 动作描述 ===
+        actionDescription: `将文档「${docName}」的全部内容复制到${levelText}「${sec?.title || ''}」的摘要中`,
         process: '将选中文档的全部内容复制到该标题的摘要中（覆盖原摘要）',
-
-
-        outputs: { summary: `摘要已更新，长度：${(content || '').toString().length}` },
-
-
-        destinations: [{ kind: 'outline_section_summary', sectionId }]
-
-
+        outputs: { 
+          summary: `摘要已更新，长度：${contentStr.length}`,
+          targetSectionTitle: sec?.title || '',
+          newSummaryLength: contentStr.length
+        },
+        destinations: [{ kind: 'outline_section_summary', sectionId, sectionTitle: sec?.title || '' }],
+        // === AI 指导 ===
+        aiGuidance: `在大纲中找到${levelText}「${sec?.title || ''}」，将关联的文档「${docName}」全文复制到该标题的摘要中。Replay 时应验证复制后的内容长度和特征是否匹配。`
       },
-
-
       [sec ? `标题：${sec.title || ''}（第${Number(sec.level) || 1}级）` : `标题：${sectionId}`]
-
-
     );
 
 
@@ -10940,82 +11611,64 @@ ${combinedRequirements}
   };
 
 
-  const cancelEditOutline = (id, field) => {
-
-
+  const cancelEditOutline = (id, field, sumIdx = null) => {
+    // 支持多摘要：如果提供了 sumIdx，使用带索引的 key
+    const key = sumIdx !== null ? `${id}||${field}||${sumIdx}` : `${id}||${field}`;
     setOutlineEditing((prev) => {
-
-
       const next = { ...prev };
-
-
-      delete next[`${id}||${field}`];
-
-
+      delete next[key];
       return next;
-
-
     });
 
 
   };
 
 
-  const applyOutlineUpdate = (sectionId, field, value) => {
+  const applyOutlineUpdate = (sectionId, field, value, sumIdx = null) => {
 
-
-    const prevSummary = template?.sections.find((s) => s.id === sectionId)?.summary || '';
-
-
-    const prevTitle = template?.sections.find((s) => s.id === sectionId)?.title || '';
-
+    const sec = template?.sections.find((s) => s.id === sectionId);
+    const prevSummary = sec?.summary || '';
+    const prevTitle = sec?.title || '';
 
     setTemplate((prev) => {
-
-
       if (!prev) return prev;
 
-
-      const updatedSections = prev.sections.map((s) =>
-
-
-        s.id === sectionId ? { ...s, [field]: value } : s
-
-
-      );
-
+      const updatedSections = prev.sections.map((s) => {
+        if (s.id !== sectionId) return s;
+        
+        // 多摘要支持：如果 field 是 'summary' 且提供了 sumIdx，更新 summaries 数组
+        if (field === 'summary' && sumIdx !== null) {
+          const currentSummaries = Array.isArray(s.summaries) ? [...s.summaries] : 
+            (s.summary || s.hint ? [{ id: `${s.id}_sum_0`, content: s.summary || s.hint || '' }] : []);
+          
+          if (sumIdx >= 0 && sumIdx < currentSummaries.length) {
+            currentSummaries[sumIdx] = { ...currentSummaries[sumIdx], content: value };
+          }
+          
+          // 同时更新主 summary 字段（拼接所有摘要）
+          const combinedSummary = currentSummaries.map(sum => sum.content).filter(Boolean).join('\n\n');
+          
+          return { ...s, summaries: currentSummaries, summary: combinedSummary };
+        }
+        
+        // 原有逻辑：直接更新字段
+        return { ...s, [field]: value };
+      });
 
       const nextTpl = { ...prev, sections: updatedSections };
 
-
       setScene((sc) => {
-
-
         if (!sc) return sc;
-
-
         if (sc.customTemplate || prev.id === 'template_auto' || prev.id === 'template_empty') {
-
-
           return { ...sc, customTemplate: nextTpl };
-
-
         }
-
-
         return sc;
-
-
       });
 
-
       return nextTpl;
-
-
     });
 
-
-    cancelEditOutline(sectionId, field);
+    cancelEditOutline(sectionId, field, sumIdx);
 
 
     if (field === 'summary') {
@@ -11127,6 +11780,214 @@ ${combinedRequirements}
     }
 
 
+  };
+
+
+  // 在章节添加新摘要
+  const addSummaryToSection = (sectionId, insertAtIndex = null) => {
+    const sec = template?.sections.find((s) => s.id === sectionId);
+    if (!sec) return;
+
+    setTemplate((prev) => {
+      if (!prev) return prev;
+
+      const updatedSections = prev.sections.map((s) => {
+        if (s.id !== sectionId) return s;
+
+        // 获取当前摘要列表
+        const currentSummaries = Array.isArray(s.summaries) ? [...s.summaries] : 
+          (s.summary || s.hint ? [{ id: `${s.id}_sum_0`, content: s.summary || s.hint || '' }] : []);
+
+        // 生成新摘要 ID
+        const newSumId = `${s.id}_sum_${Date.now()}`;
+        const newSummary = { id: newSumId, content: '' };
+
+        // 在指定位置插入，或者在末尾添加
+        if (insertAtIndex !== null && insertAtIndex >= 0 && insertAtIndex <= currentSummaries.length) {
+          currentSummaries.splice(insertAtIndex, 0, newSummary);
+        } else {
+          currentSummaries.push(newSummary);
+        }
+
+        return { ...s, summaries: currentSummaries };
+      });
+
+      const nextTpl = { ...prev, sections: updatedSections };
+
+      setScene((sc) => {
+        if (!sc) return sc;
+        if (sc.customTemplate || prev.id === 'template_auto' || prev.id === 'template_empty') {
+          return { ...sc, customTemplate: nextTpl };
+        }
+        return sc;
+      });
+
+      return nextTpl;
+    });
+
+    // 自动沉淀记录
+    logSectionWithMeta(
+      '添加摘要',
+      {
+        type: 'add_summary_to_section',
+        sectionId,
+        sectionTitle: sec?.title || '',
+        insertAtIndex,
+        process: '在大纲标题下新增一个摘要位置',
+        outputs: { summary: '已添加新摘要' }
+      },
+      [`标题：${sec?.title || ''}（第${Number(sec?.level) || 1}级）`]
+    );
+  };
+
+  // 从章节删除摘要
+  const removeSummaryFromSection = (sectionId, sumIdx) => {
+    const sec = template?.sections.find((s) => s.id === sectionId);
+    if (!sec) return;
+
+    setTemplate((prev) => {
+      if (!prev) return prev;
+
+      const updatedSections = prev.sections.map((s) => {
+        if (s.id !== sectionId) return s;
+
+        // 获取当前摘要列表
+        const currentSummaries = Array.isArray(s.summaries) ? [...s.summaries] : 
+          (s.summary || s.hint ? [{ id: `${s.id}_sum_0`, content: s.summary || s.hint || '' }] : []);
+
+        if (sumIdx >= 0 && sumIdx < currentSummaries.length) {
+          currentSummaries.splice(sumIdx, 1);
+        }
+
+        // 更新主 summary 字段（拼接所有摘要）
+        const combinedSummary = currentSummaries.map(sum => sum.content).filter(Boolean).join('\n\n');
+
+        return { ...s, summaries: currentSummaries, summary: combinedSummary };
+      });
+
+      const nextTpl = { ...prev, sections: updatedSections };
+
+      setScene((sc) => {
+        if (!sc) return sc;
+        if (sc.customTemplate || prev.id === 'template_auto' || prev.id === 'template_empty') {
+          return { ...sc, customTemplate: nextTpl };
+        }
+        return sc;
+      });
+
+      return nextTpl;
+    });
+
+    // 自动沉淀记录
+    logSectionWithMeta(
+      '删除摘要',
+      {
+        type: 'remove_summary_from_section',
+        sectionId,
+        sectionTitle: sec?.title || '',
+        summaryIndex: sumIdx,
+        process: '删除大纲标题下的某个摘要',
+        outputs: { summary: '已删除摘要' }
+      },
+      [`标题：${sec?.title || ''}（第${Number(sec?.level) || 1}级）`]
+    );
+  };
+
+  // 选择章节的摘要合并方式（只设置状态，不立即合并）
+  // 实际合并在最终文档生成时执行
+  const selectSectionMergeType = (sectionId, mergeType) => {
+    const currentType = sectionMergeType[sectionId];
+    // 点击同一个按钮时取消选择
+    if (currentType === mergeType) {
+      setSectionMergeType(prev => {
+        const next = { ...prev };
+        delete next[sectionId];
+        return next;
+      });
+    } else {
+      setSectionMergeType(prev => ({ ...prev, [sectionId]: mergeType }));
+    }
+  };
+
+  // 合并章节内的多个摘要为一个（实际执行合并）
+  // 在最终文档生成时调用此函数
+  const mergeSummariesInSection = (sectionId, mergeType = 'paragraph') => {
+    const sec = template?.sections.find((s) => s.id === sectionId);
+    if (!sec) return;
+
+    // 获取当前摘要列表
+    const currentSummaries = Array.isArray(sec.summaries) ? [...sec.summaries] : 
+      (sec.summary || sec.hint ? [{ id: `${sec.id}_sum_0`, content: sec.summary || sec.hint || '' }] : []);
+
+    if (currentSummaries.length < 2) return; // 少于2个摘要无需合并
+
+    // 根据合并类型选择分隔符
+    const separator = mergeType === 'sentence' ? '；' : '\n\n';
+    const mergedContent = currentSummaries
+      .map(sum => (sum.content || '').trim())
+      .filter(Boolean)
+      .join(separator);
+
+    // 合并为一个摘要
+    const mergedSummary = {
+      id: `${sectionId}_sum_merged_${Date.now()}`,
+      content: mergedContent
+    };
+
+    setTemplate((prev) => {
+      if (!prev) return prev;
+
+      const updatedSections = prev.sections.map((s) => {
+        if (s.id !== sectionId) return s;
+        return { ...s, summaries: [mergedSummary], summary: mergedContent };
+      });
+
+      const nextTpl = { ...prev, sections: updatedSections };
+
+      setScene((sc) => {
+        if (!sc) return sc;
+        if (sc.customTemplate || prev.id === 'template_auto' || prev.id === 'template_empty') {
+          return { ...sc, customTemplate: nextTpl };
+        }
+        return sc;
+      });
+
+      return nextTpl;
+    });
+
+    // 自动沉淀记录
+    logSectionWithMeta(
+      '合并摘要',
+      {
+        type: 'merge_summaries_in_section',
+        sectionId,
+        sectionTitle: sec?.title || '',
+        mergeType,
+        originalCount: currentSummaries.length,
+        process: `将 ${currentSummaries.length} 个摘要合并为一个${mergeType === 'sentence' ? '长句子' : '长段落'}`,
+        outputs: { summary: '摘要已合并' }
+      },
+      [`标题：${sec?.title || ''}（第${Number(sec?.level) || 1}级）`]
+    );
+  };
+  
+  // 获取章节合并后的摘要内容（用于最终文档生成，不修改原数据）
+  const getMergedSummaryContent = (sectionId) => {
+    const sec = template?.sections.find((s) => s.id === sectionId);
+    if (!sec) return '';
+    
+    const mergeType = sectionMergeType[sectionId];
+    const currentSummaries = Array.isArray(sec.summaries) ? sec.summaries : 
+      (sec.summary || sec.hint ? [{ id: `${sec.id}_sum_0`, content: sec.summary || sec.hint || '' }] : []);
+    
+    // 如果没有选择合并方式或只有一个摘要，返回主 summary 或拼接内容
+    if (!mergeType || currentSummaries.length < 2) {
+      return sec.summary || currentSummaries.map(s => s.content || '').filter(Boolean).join('\n\n');
+    }
+    
+    // 根据选择的合并方式返回合并内容
+    const separator = mergeType === 'sentence' ? '；' : '\n\n';
+    return currentSummaries.map(sum => (sum.content || '').trim()).filter(Boolean).join(separator);
   };
 
 
@@ -11327,54 +12188,45 @@ ${combinedRequirements}
 
   const addSectionBelow = (afterId) => {
     // 获取参考标题的信息（用于沉淀记录和继承级别）
-    const afterSection = (template?.sections || []).find(s => s.id === afterId);
+    const sections = template?.sections || [];
+    const afterSection = sections.find(s => s.id === afterId);
     
     // 新增标题继承参考标题的级别（默认为1级）
     const inheritedLevel = afterSection?.level || 1;
     const levelText = inheritedLevel === 1 ? '一级标题' : inheritedLevel === 2 ? '二级标题' : inheritedLevel === 3 ? '三级标题' : `${inheritedLevel}级标题`;
 
     const newSection = {
-
-
       id: `sec_local_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-
-
       title: '新标题',
-
-
       summary: '',
-
-
       hint: '',
-
-
       level: inheritedLevel  // 继承参考标题的级别
-
-
     };
 
+    updateTemplateSections((sectionsList) => {
+      if (!sectionsList.length) return [newSection];
 
-    updateTemplateSections((sections) => {
+      const idx = sectionsList.findIndex((s) => s.id === afterId);
+      if (idx === -1) return [...sectionsList, newSection];
 
+      // 找到该标题及其所有下级标题的结束位置
+      // 新增的同级标题应该在所有下级标题之后
+      const baseLevel = Math.max(1, Math.min(4, Number(sectionsList[idx]?.level) || 1));
+      let insertIdx = idx + 1;
+      
+      // 跳过所有级别比当前标题更深的标题（即下级标题）
+      while (insertIdx < sectionsList.length) {
+        const nextLevel = Math.max(1, Math.min(4, Number(sectionsList[insertIdx]?.level) || 1));
+        if (nextLevel <= baseLevel) {
+          // 遇到同级或更高级别的标题，停止
+          break;
+        }
+        insertIdx++;
+      }
 
-      if (!sections.length) return [newSection];
-
-
-      const idx = sections.findIndex((s) => s.id === afterId);
-
-
-      if (idx === -1) return [...sections, newSection];
-
-
-      const before = sections.slice(0, idx + 1);
-
-
-      const after = sections.slice(idx + 1);
-
-
+      const before = sectionsList.slice(0, insertIdx);
+      const after = sectionsList.slice(insertIdx);
       return [...before, newSection, ...after];
-
-
     });
     
     // ========== 大模型级别沉淀记录（新增标题）==========
@@ -11753,205 +12605,280 @@ ${combinedRequirements}
 
 
   const insertSelectionToCheckedSummaries = async () => {
-
-
     // 优先使用保存的previewSelection状态（点击按钮时DOM选择可能已丢失）
-
-
     const domSel = getPreviewSelectionFromDom();
-
-
     const snippet = (previewSelection.text || domSel?.text || '').toString();
-
-
     const snippetTrimmed = snippet.trim();
 
-
     if (!snippetTrimmed) {
-
-
       showToast('请先在预览区选择文本');
-
-
       return;
-
-
     }
-
 
     if (!showOutlineMode || processingTab !== 'outline') {
-
-
       showToast('请切换到大纲配置并选择要写入的标题');
-
-
       return;
-
-
     }
-
-
-    const ids = Object.keys(selectedOutlineExec || {}).filter((id) => selectedOutlineExec[id]);
-
-
-    if (!ids.length) {
-
-
-      showToast('请在大纲配置中勾选要写入的标题');
-
-
-      return;
-
-
-    }
-
 
     const doc = docs.find((d) => d.id === selectedDocId);
-
-
     const docName = doc?.name || '未选择文档';
-
-
-    const selectedSections = (template?.sections || []).filter((s) => ids.includes(s.id));
-
-
-    const sectionLines = selectedSections.map((s) => {
-
-
-      const lvl = Number(s.level) || 1;
-
-
-      const prefix = levelLabel[lvl] || levelLabel[1] || '标题';
-
-
-      return `- ${prefix}：${(s.title || '').toString()}`;
-
-
-    });
-
-
-    const overwriteIds = [];
-
-
-    const emptyBeforeIds = [];
-
-
-    selectedSections.forEach((s) => {
-
-
-      if ((s?.summary || '').toString().trim().length) overwriteIds.push(s.id); else
-
-
-        emptyBeforeIds.push(s.id);
-
-
-    });
-
-
-    const nextTpl = (() => {
-
-
-      const prevTpl = template;
-
-
-      if (!prevTpl || !Array.isArray(prevTpl.sections)) return null;
-
-
-      const nextSections = (prevTpl.sections || []).map((s) => {
-
-
-        if (!ids.includes(s.id)) return s;
-
-
-        return { ...s, summary: snippetTrimmed };
-
-
-      });
-
-
-      return { ...prevTpl, sections: nextSections };
-
-
-    })();
-
-
-    if (nextTpl) {
-
-
-      setTemplate(nextTpl);
-
-
-      setScene((sc) => sc ? { ...sc, customTemplate: nextTpl } : sc);
-
-
-      if (scene?.id) {
-
-
-        try {
-
-
-          const res = await api(`/api/scene/${scene.id}/apply-template`, {
-
-
-            method: 'POST',
-
-
-            body: { template: nextTpl }
-
-
-          });
-
-
-          if (res?.template) setTemplate(res.template);
-
-
-          if (res?.scene) setScene(res.scene);
-
-
-        } catch (err) {
-
-
-          console.error(err);
-
-
-          showToast(err?.message || '摘要同步失败，已保留当前内容');
-
-
-        }
-
-
+    
+    // ===== 多摘要选择模式：检查是否有选中的具体摘要 =====
+    const selectedSummaryKeys = Object.keys(selectedSummaries || {}).filter(k => selectedSummaries[k]);
+    
+    if (selectedSummaryKeys.length > 0) {
+      // 使用多摘要选择模式：填入到选中的具体摘要中
+      const summaryTargets = selectedSummaryKeys.map(key => {
+        const [sectionId, sumIdxStr] = key.split('_');
+        const sumIdx = parseInt(sumIdxStr, 10);
+        const section = (template?.sections || []).find(s => s.id === sectionId);
+        return { sectionId, sumIdx, section, key };
+      }).filter(t => t.section);
+      
+      if (!summaryTargets.length) {
+        showToast('未找到有效的目标摘要');
+        return;
       }
 
+      // 更新模板：填入到选中的摘要中
+      const nextTpl = (() => {
+        const prevTpl = template;
+        if (!prevTpl || !Array.isArray(prevTpl.sections)) return null;
+        
+        const nextSections = prevTpl.sections.map(s => {
+          const targets = summaryTargets.filter(t => t.sectionId === s.id);
+          if (!targets.length) return s;
+          
+          // 多摘要模式：替换（不是追加）
+          if (Array.isArray(s.summaries) && s.summaries.length > 0) {
+            const newSummaries = s.summaries.map((sum, idx) => {
+              const targetMatch = targets.find(t => t.sumIdx === idx);
+              if (targetMatch) {
+                // 替换：直接使用新内容
+                return { ...sum, content: snippetTrimmed };
+              }
+              return sum;
+            });
+            // 计算合并后的 summary
+            const mergedSummary = newSummaries.map(sum => sum.content || '').filter(Boolean).join('\n\n');
+            return { ...s, summaries: newSummaries, summary: mergedSummary };
+          } else {
+            // 单摘要模式：替换
+            const target = targets.find(t => t.sumIdx === 0);
+            if (target) {
+              // 替换：直接使用新内容
+              return { ...s, summary: snippetTrimmed };
+            }
+            return s;
+          }
+        });
+        return { ...prevTpl, sections: nextSections };
+      })();
 
-    } else {
+      if (nextTpl) {
+        setTemplate(nextTpl);
+        setScene((sc) => sc ? { ...sc, customTemplate: nextTpl } : sc);
+        if (scene?.id) {
+          try {
+            const res = await api(`/api/scene/${scene.id}/apply-template`, {
+              method: 'POST',
+              body: { template: nextTpl }
+            });
+            if (res?.template) setTemplate(res.template);
+            if (res?.scene) setScene(res.scene);
+          } catch (err) {
+            console.error(err);
+            showToast(err?.message || '摘要同步失败，已保留当前内容');
+          }
+        }
+      }
 
+      // 获取选中内容的上下文
+      const fullDocText = doc?.content || '';
+      const selStart = domSel?.start ?? previewSelection.start;
+      const selEnd = domSel?.end ?? previewSelection.end;
+      const contextBefore = fullDocText.slice(Math.max(0, selStart - 100), selStart).trim();
+      const contextAfter = fullDocText.slice(selEnd, selEnd + 100).trim();
+      
+      // 提取选中文本的开头和结尾特征
+      const textHead = snippetTrimmed.slice(0, 50).trim();
+      const textTail = snippetTrimmed.slice(-50).trim();
 
-      updateTemplateSections((sections) =>
+      // 获取多摘要目标的详细信息（包含填入前的内容）
+      const targetSummaryDetails = summaryTargets.map(t => {
+        const section = t.section;
+        let originalContent = '';
+        
+        // 获取填入前的原始内容
+        if (Array.isArray(section?.summaries) && section.summaries.length > 0) {
+          originalContent = (section.summaries[t.sumIdx]?.content || '').toString().trim();
+        } else {
+          originalContent = (section?.summary || '').toString().trim();
+        }
+        
+        return {
+          sectionId: t.sectionId,
+          summaryIndex: t.sumIdx,
+          sectionTitle: section?.title || '未命名',
+          sectionLevel: section?.level || 1,
+          summaryKey: t.key,
+          // 填入前的原始内容（用于 replay 时对比）
+          hadContentBefore: !!originalContent,
+          originalContentExcerpt: clipText(originalContent, 100),
+          originalContentLength: originalContent.length
+        };
+      });
+      
+      // 获取目标标题的层级信息（便于大模型理解大纲结构）
+      const targetTitlesWithLevel = targetSummaryDetails.map(t => {
+        const levelLabel = t.sectionLevel === 1 ? '一级标题' : t.sectionLevel === 2 ? '二级标题' : '三级标题';
+        return `${levelLabel}「${t.sectionTitle}」的摘要[${t.summaryIndex}]`;
+      });
 
-
-        (sections || []).map((s) => {
-
-
-          if (!ids.includes(s.id)) return s;
-
-
-          const prev = (s.summary || '').toString();
-
-
-          const next = prev.trim() ? `${prev}\n\n${snippetTrimmed}` : snippetTrimmed;
-
-
-          return { ...s, summary: next };
-
-
-        })
-
-
+      logSectionWithMeta(
+        '填入摘要（多选）',
+        {
+          type: 'insert_to_summary_multi',
+          intentDescription: `将文档「${docName}」中的选中内容填入到 ${summaryTargets.length} 个摘要位置`,
+          docName,
+          docId: doc?.id || '',
+          selection: { start: selStart, end: selEnd },
+          // 多摘要目标的详细信息
+          targetSummaries: targetSummaryDetails,
+          targetSectionIds: [...new Set(summaryTargets.map(t => t.sectionId))],
+          // 目标标题信息（便于大模型语义匹配）
+          selectedSectionTitles: [...new Set(targetSummaryDetails.map(t => t.sectionTitle))],
+          targetSectionsDetail: targetSummaryDetails.map(t => ({
+            id: t.sectionId,
+            title: t.sectionTitle,
+            level: t.sectionLevel,
+            summaryIndex: t.summaryIndex
+          })),
+          inputs: [
+            {
+              kind: 'selection',
+              docName,
+              contextSummary: `文档「${docName}」中的选中内容`,
+              sourceType: 'selection',
+              // 选中文本的完整特征
+              text: snippetTrimmed,
+              textExcerpt: clipText(snippetTrimmed, 200),
+              textLength: snippetTrimmed.length,
+              textHead: textHead,
+              textTail: textTail,
+              // 前后文上下文
+              contextBefore: clipText(contextBefore, 80),
+              contextAfter: clipText(contextAfter, 80),
+              // 内容特征（用于大模型识别）
+              contentFeatures: {
+                startsWith: textHead,
+                endsWith: textTail,
+                charCount: snippetTrimmed.length,
+                lineCount: snippetTrimmed.split('\n').length,
+                hasNumbers: /\d/.test(snippetTrimmed),
+                hasDates: /\d{4}年|\d{1,2}月|\d{1,2}日/.test(snippetTrimmed)
+              }
+            },
+            { 
+              kind: 'outline_summaries_selected', 
+              contextSummary: `已选摘要：${summaryTargets.length}个`,
+              sourceType: 'outline_summaries_selected',
+              summaryKeys: selectedSummaryKeys,
+              targetDescriptions: targetTitlesWithLevel
+            }
+          ],
+          process: `将内容预览中框选的文本填入到已选中的 ${summaryTargets.length} 个摘要中（替换原有内容）`,
+          outputs: {
+            summary: `已写入 ${summaryTargets.length} 个摘要（字数：${snippetTrimmed.length}）`,
+            usedModel: '',
+            status: 'done',
+            // 记录每个目标的输出详情
+            targetSummaries: targetSummaryDetails,
+            writtenContent: snippetTrimmed,
+            writtenContentExcerpt: clipText(snippetTrimmed, 200)
+          },
+          destinations: targetSummaryDetails.map(t => ({ 
+            kind: 'outline_section_summary_item',
+            sectionId: t.sectionId,
+            sectionTitle: t.sectionTitle,
+            sectionLevel: t.sectionLevel,
+            summaryIndex: t.summaryIndex,
+            hadContentBefore: t.hadContentBefore,
+            originalContentExcerpt: t.originalContentExcerpt
+          })),
+          // AI 指导信息（用于大模型 replay 时理解操作意图）
+          aiGuidance: `在大纲中找到以下摘要位置：${targetTitlesWithLevel.join('、')}。将来源文档「${docName}」中选中的内容（以「${textHead}」开头，以「${textTail}」结尾，共${snippetTrimmed.length}字）追加到这些摘要中。Replay时应找到语义相似的标题位置，将相似的内容填入对应摘要。`,
+          // 特殊要求
+          specialRequirements: `多摘要填入操作，需要在 ${summaryTargets.length} 个不同的摘要位置追加相同的内容`
+        },
+        ['操作记录', `填入到 ${summaryTargets.length} 个摘要`]
       );
 
-
+      // 清除选中状态
+      setSelectedSummaries({});
+      setPreviewSelection({ text: '', start: 0, end: 0 });
+      showToast(`已写入 ${summaryTargets.length} 个摘要`);
+      return;
     }
 
+    // ===== 原有逻辑：使用标题选择模式 =====
+    const ids = Object.keys(selectedOutlineExec || {}).filter((id) => selectedOutlineExec[id]);
+
+    if (!ids.length) {
+      showToast('请在大纲配置中勾选要写入的标题，或选中具体摘要');
+      return;
+    }
+
+    const selectedSections = (template?.sections || []).filter((s) => ids.includes(s.id));
+    const sectionLines = selectedSections.map((s) => {
+      const lvl = Number(s.level) || 1;
+      const prefix = levelLabel[lvl] || levelLabel[1] || '标题';
+      return `- ${prefix}：${(s.title || '').toString()}`;
+    });
+
+    const overwriteIds = [];
+    const emptyBeforeIds = [];
+    selectedSections.forEach((s) => {
+      if ((s?.summary || '').toString().trim().length) overwriteIds.push(s.id);
+      else emptyBeforeIds.push(s.id);
+    });
+
+    const nextTpl = (() => {
+      const prevTpl = template;
+      if (!prevTpl || !Array.isArray(prevTpl.sections)) return null;
+      const nextSections = (prevTpl.sections || []).map((s) => {
+        if (!ids.includes(s.id)) return s;
+        return { ...s, summary: snippetTrimmed };
+      });
+      return { ...prevTpl, sections: nextSections };
+    })();
+
+    if (nextTpl) {
+      setTemplate(nextTpl);
+      setScene((sc) => sc ? { ...sc, customTemplate: nextTpl } : sc);
+      if (scene?.id) {
+        try {
+          const res = await api(`/api/scene/${scene.id}/apply-template`, {
+            method: 'POST',
+            body: { template: nextTpl }
+          });
+          if (res?.template) setTemplate(res.template);
+          if (res?.scene) setScene(res.scene);
+        } catch (err) {
+          console.error(err);
+          showToast(err?.message || '摘要同步失败，已保留当前内容');
+        }
+      }
+    } else {
+      updateTemplateSections((sections) =>
+        (sections || []).map((s) => {
+          if (!ids.includes(s.id)) return s;
+          const prev = (s.summary || '').toString();
+          const next = prev.trim() ? `${prev}\n\n${snippetTrimmed}` : snippetTrimmed;
+          return { ...s, summary: next };
+        })
+      );
+    }
 
     // 获取选中内容的上下文（前后各100字符）
     const fullDocText = doc?.content || '';
@@ -11973,7 +12900,6 @@ ${combinedRequirements}
       {
         type: 'insert_to_summary',
         intentDescription: '填入摘要',
-        // === 输入信息：选中了什么内容 ===
         docName,
         docId: doc?.id || '',
         selection: { start: selStart, end: selEnd },
@@ -11984,10 +12910,8 @@ ${combinedRequirements}
             docName,
             contextSummary: docName,
             sourceType: 'selection',
-            // 选中内容的详细信息
-            textExcerpt: clipText(snippetTrimmed, 200),  // 选中的核心内容
+            textExcerpt: clipText(snippetTrimmed, 200),
             textLength: snippetTrimmed.length,
-            // 上下文信息：这段内容在文档中的前后文
             contextBefore: clipText(contextBefore, 80),
             contextAfter: clipText(contextAfter, 80)
           },
@@ -11997,106 +12921,59 @@ ${combinedRequirements}
             sourceType: 'outline_selected'
           }
         ],
-        // === 动作信息 ===
         process: '将内容预览中框选的文本追加到已勾选标题的摘要',
-        // === 输出信息：结果写入到哪里 ===
         outputs: {
           summary: `已写入摘要：${ids.length} 个标题（字数：${snippetTrimmed.length}）`,
           usedModel: '',
           status: 'done',
-          // 具体写入了哪些标题
           targetSections: targetSectionDetails
         },
-        // === 目标位置：作用在哪些标题下 ===
         destinations: [{ 
           kind: 'outline_section_summary_batch', 
           sectionTitle: targetSectionDetails.map(s => s.title).join('、'),
           count: ids.length 
         }],
-        // === 额外上下文：覆盖情况 ===
-          overwrittenSectionIds: overwriteIds,
-          emptyBeforeSectionIds: emptyBeforeIds
+        overwrittenSectionIds: overwriteIds,
+        emptyBeforeSectionIds: emptyBeforeIds
       },
       ['操作记录', sectionLines.length ? sectionLines.slice(0, 8).join('\n') : '(空)']
     );
 
-
     const endPos = domSel?.end ?? previewSelection.end;
-
-
     setPreviewSelection({ text: '', start: 0, end: 0 });
 
-
     try {
-
-
       previewTextRef.current?.setSelectionRange?.(endPos, endPos);
-
-
     } catch (_) {
-
-
       /* ignore */
     }
 
-
     showToast('已写入摘要');
-
-
   };
 
 
-  const setReplaySectionStatus = (depositId, sectionId, status, message) => {
-
-
+  const setReplaySectionStatus = (depositId, sectionId, status, message, replayMode = null) => {
     const normalizedMessage =
-
-
       message || (
-
-
         status === 'pass' ? '已通过（未记录原因）' : status === 'fail' ? '执行失败（未记录原因）' : '');
 
-
     setReplayState((prev) => {
-
-
       const current = prev[depositId] || { running: false, bySection: {} };
-
-
       return {
-
-
         ...prev,
-
-
         [depositId]: {
-
-
           ...current,
-
-
           bySection: {
-
-
             ...(current.bySection || {}),
-
-
-            [sectionId]: { status, message: normalizedMessage }
-
-
+            [sectionId]: { 
+              status, 
+              message: normalizedMessage,
+              replayMode: replayMode || (status === 'done' ? 'script' : null)  // 默认脚本模式
+            }
           }
-
-
         }
-
-
       };
-
-
     });
-
-
   };
 
 
@@ -12309,6 +13186,37 @@ ${combinedRequirements}
 
   };
 
+  // 辅助函数：获取最新的模板数据，解决 React 闭包问题
+  // 在 replay 时使用，确保始终获取最新数据
+  const getLatestTemplateSections = async () => {
+    // 优先从服务器获取
+    try {
+      const serverTpl = await getServerTemplate(scene?.id);
+      if (serverTpl?.sections?.length > 0) {
+        return serverTpl.sections;
+      }
+    } catch (e) {
+      console.warn('[getLatestTemplateSections] 从服务器获取失败:', e);
+    }
+    
+    // 如果服务器返回空，尝试直接调用 API
+    try {
+      const tplRes = await api('/api/template');
+      if (tplRes?.template?.sections?.length > 0) {
+        return tplRes.template.sections;
+      }
+    } catch (e) {
+      console.warn('[getLatestTemplateSections] API 调用失败:', e);
+    }
+    
+    // 最后使用前端状态作为备选
+    if (template?.sections?.length > 0) {
+      return template.sections;
+    }
+    
+    return [];
+  };
+
 
   const applyTemplateToServer = async (tpl) => {
 
@@ -12362,20 +13270,133 @@ ${combinedRequirements}
 
 
   const replayOneDepositSection = async (deposit, section) => {
-
-
-    const meta = extractReplayMeta(section?.content || '');
-
+    // ========== 确定 Replay 模式：优先使用 section 级别的设置 ==========
+    const sectionMode = section?.sectionReplayMode || deposit?.precipitationMode || 'llm';
+    const mode = normalizePrecipitationMode(sectionMode);
+    
+    // ========== 根据模式选择数据源 ==========
+    // 大模型模式：使用 llmScript 中的数据
+    // 脚本模式：使用 originalScript 或 content 中提取的 meta
+    let llmScript = section?.llmScript || {};
+    const originalScript = section?.originalScript || {};
+    
+    // ========== 回退机制：如果 llmScript.aiGuidance 为空，从多个来源尝试获取 ==========
+    console.log('[Replay] 初始 llmScript.aiGuidance:', llmScript?.aiGuidance?.substring(0, 100) || '(空)');
+    console.log('[Replay] deposit.llmRecordContent 长度:', deposit?.llmRecordContent?.length || 0);
+    console.log('[Replay] section.meta?.aiGuidance:', section?.meta?.aiGuidance?.substring(0, 100) || '(空)');
+    
+    if (mode === 'llm' && !llmScript.aiGuidance) {
+      // 尝试从多个来源获取 aiGuidance
+      let parsedAiGuidance = '';
+      
+      // 来源1: section.meta.aiGuidance
+      if (!parsedAiGuidance && section?.meta?.aiGuidance) {
+        parsedAiGuidance = section.meta.aiGuidance;
+        console.log('[Replay] 从 section.meta.aiGuidance 获取成功');
+      }
+      
+      // 来源2: section.llmScript.structuredScriptContent 中解析
+      if (!parsedAiGuidance && section?.llmScript?.structuredScriptContent) {
+        const structuredContent = section.llmScript.structuredScriptContent;
+        const regex = /【AI执行指导】\s*([\s\S]*?)(?=【[^A]|\[步骤|\n\n\n|---\n|===|$)/s;
+        const match = structuredContent.match(regex);
+        if (match) {
+          parsedAiGuidance = match[1].trim();
+          console.log('[Replay] 从 structuredScriptContent 解析成功');
+        }
+      }
+      
+      // 来源3: deposit.llmRecordContent 中解析
+      if (!parsedAiGuidance && deposit?.llmRecordContent) {
+        const llmRecordContent = deposit.llmRecordContent;
+        // 直接查找【AI执行指导】
+        const directRegex = /【AI执行指导】\s*([\s\S]*?)(?=【[^A]|\[步骤|\n\n\n|---\n|===|$)/s;
+        const directMatch = llmRecordContent.match(directRegex);
+        if (directMatch) {
+          parsedAiGuidance = directMatch[1].trim();
+          console.log('[Replay] 从 llmRecordContent 直接解析成功');
+        }
+      }
+      
+      // 来源4: section.content 中解析
+      if (!parsedAiGuidance && section?.content) {
+        const regex = /【AI执行指导】\s*([\s\S]*?)(?=【[^A]|\[步骤|\n\n\n|---\n|===|$)/s;
+        const match = section.content.match(regex);
+        if (match) {
+          parsedAiGuidance = match[1].trim();
+          console.log('[Replay] 从 section.content 解析成功');
+        }
+      }
+      
+      if (parsedAiGuidance) {
+        console.log('[Replay] 回退解析 aiGuidance 成功:', parsedAiGuidance.substring(0, 100));
+        llmScript = { ...llmScript, aiGuidance: parsedAiGuidance };
+      } else {
+        console.log('[Replay] 所有来源都没有找到 aiGuidance');
+      }
+    } else if (mode === 'llm' && llmScript.aiGuidance) {
+      console.log('[Replay] llmScript 已有 aiGuidance，无需回退');
+    }
+    
+    // 从 content 中提取的原始 meta（用于脚本模式）
+    const rawMeta = extractReplayMeta(section?.content || '');
+    
+    // 根据模式选择使用哪个数据源
+    let meta;
+    if (mode === 'llm') {
+      // 大模型模式：优先使用 llmScript，回退到 rawMeta
+      // 注意：先展开 rawMeta，再用 llmScript 覆盖关键字段
+      meta = {
+        ...rawMeta,  // 基础值
+      };
+      // llmScript 中的字段优先覆盖 rawMeta
+      if (llmScript.type) meta.type = llmScript.type;
+      if (llmScript.docName) meta.docName = llmScript.docName;
+      if (llmScript.targetSectionId) meta.sectionId = llmScript.targetSectionId;
+      if (llmScript.docSelector && typeof llmScript.docSelector === 'object') {
+        meta.docSelector = llmScript.docSelector;
+      }
+      // 灵活上传：如果有 flexKeywords，构建 docSelector
+      if (!meta.docSelector && llmScript.flexKeywords) {
+        meta.docSelector = {
+          kind: 'keywords',
+          keywords: llmScript.flexKeywords.split(/[,，\s]+/).filter(Boolean),
+          description: llmScript.flexKeywords,
+          mode: 'single'
+        };
+      }
+      if (llmScript.instructions || llmScript.promptContent) {
+        meta.instructions = llmScript.instructions || llmScript.promptContent;
+        meta.promptContent = llmScript.promptContent || llmScript.instructions;
+      }
+      if (llmScript.aiGuidance) meta.aiGuidance = llmScript.aiGuidance;
+      if (llmScript.specialRequirements) meta.specialRequirements = llmScript.specialRequirements;
+      if (llmScript.buttonId) meta.buttonId = llmScript.buttonId;
+      if (llmScript.selectedDocName) meta.selectedDocName = llmScript.selectedDocName;
+    } else {
+      // 脚本模式：使用 originalScript 或 rawMeta
+      meta = {
+        ...rawMeta,
+        // 用 originalScript 中的字段覆盖（如果有）
+        type: originalScript.type || rawMeta?.type,
+        docName: originalScript.docName || rawMeta?.docName,
+        sectionId: originalScript.sectionId || rawMeta?.sectionId,
+        instructions: originalScript.instructions || rawMeta?.instructions,
+        promptContent: originalScript.promptContent || rawMeta?.promptContent,
+        buttonId: originalScript.buttonId || rawMeta?.buttonId,
+        selectedDocName: originalScript.selectedDocName || rawMeta?.selectedDocName,
+      };
+    }
 
     const action = (section?.action || '').toString();
 
 
-    const mode = normalizePrecipitationMode(deposit?.precipitationMode);
-
-
-    // 获取校验模式：'strict'（强校验）或 'none'（不校验，默认）
-    const validationMode = deposit?.validationMode || 'none';
-    const isStrictValidation = validationMode === 'strict';
+    // ========== 校验模式逻辑 ==========
+    // 脚本模式：始终强校验（名称不一致就失败）
+    // 大模型模式：可以选择强校验或不校验（由 validationMode 控制）
+    const userValidationMode = deposit?.validationMode || 'none';
+    // 脚本模式强制使用强校验，大模型模式根据用户设置
+    const isStrictValidation = mode === 'script' ? true : (userValidationMode === 'strict');
 
 
     const softErrors = [];
@@ -12386,16 +13407,18 @@ ${combinedRequirements}
 
       if (cond) return true;
 
+      // 脚本模式：所有校验失败都直接抛错
+      // 大模型模式：非强制校验时记录软错误，强制校验时抛错
+      if (mode === 'script') {
+        // 脚本模式：严格校验，失败直接抛错
+        throw new Error(message || 'Replay 校验失败（脚本模式强校验）');
+      }
 
-      if (mode === 'llm' && !opts.strict) {
-
-
+      // 大模型模式：根据 opts.strict 和 isStrictValidation 决定
+      if (!opts.strict && !isStrictValidation) {
+        // 非强制校验项 + 非强校验模式：记录软错误
         softErrors.push(message || 'Replay 校验失败');
-
-
         return false;
-
-
       }
 
 
@@ -12483,16 +13506,154 @@ ${combinedRequirements}
 
       action === '删除摘要') {
 
+      const modeMsg = mode === 'llm' ? '🤖 大模型 Replay Done' : '📜 脚本 Replay Done';
+      return finalizeReplayResult({
+        status: 'done', message: modeMsg, replayMode: mode
+      });
 
-      return {
+    }
 
+    // 多摘要支持：添加摘要
+    if (meta?.type === 'add_summary_to_section' || action === '添加摘要') {
+      const sectionId = meta?.sectionId || meta?.targetSectionId;
+      const sectionTitle = meta?.sectionTitle || llmScript?.targetSectionTitle;
+      const insertAtIndex = meta?.insertAtIndex;
+      
+      // 查找章节
+      let targetSection = null;
+      
+      // 大模型模式：强制使用语义匹配，跳过精确匹配
+      if (mode === 'llm' && sectionTitle) {
+        const candidateSections = (template?.sections || []).map(s => ({ id: s.id, level: s.level, title: s.title }));
+        try {
+          const matchRes = await api('/api/replay/llm-match', { method: 'POST', body: { taskType: 'find_outline_section', recordedInfo: { targetTitle: sectionTitle, description: '添加摘要' }, candidates: candidateSections } });
+          console.log('[Replay add_summary] 大模型语义匹配结果:', matchRes);
+          if (matchRes.matchedId) {
+            targetSection = (template?.sections || []).find(s => s.id === matchRes.matchedId);
+            console.log('[Replay] 大模型匹配到章节:', targetSection?.title);
+          }
+        } catch (e) { console.warn('[Replay add_summary] 大模型匹配失败:', e); }
+      } else {
+        // 脚本模式：使用精确匹配
+        if (sectionTitle) {
+          targetSection = (template?.sections || []).find(s => s.title === sectionTitle);
+        }
+        if (!targetSection && sectionId) {
+          targetSection = (template?.sections || []).find(s => s.id === sectionId);
+        }
+      }
+      
+      // 大模型模式：找不到目标章节返回 pass
+      if (!targetSection) {
+        if (mode === 'llm') {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：当前大纲中未找到与「${sectionTitle || sectionId}」相似的目标章节`,
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+        console.warn('[Replay] 添加摘要：找不到目标章节', { sectionTitle, sectionId });
+        throw new Error(`未找到目标章节：${sectionTitle || sectionId}`);
+      }
+      
+      addSummaryToSection(targetSection.id, insertAtIndex);
+      await waitUiTick();
+      
+      const modeMsg = mode === 'llm' ? `🤖 大模型匹配添加摘要：${targetSection.title}` : '📜 脚本 Replay Done';
+      return finalizeReplayResult({ status: 'done', message: modeMsg, replayMode: mode });
+    }
 
-        status: 'pass', message: '已采用大模型泛化执行'
+    // 多摘要支持：删除摘要
+    if (meta?.type === 'remove_summary_from_section') {
+      const sectionId = meta?.sectionId || meta?.targetSectionId;
+      const sectionTitle = meta?.sectionTitle || llmScript?.targetSectionTitle;
+      const sumIdx = meta?.summaryIndex;
+      
+      let targetSection = null;
+      
+      // 大模型模式：强制使用语义匹配，跳过精确匹配
+      if (mode === 'llm' && sectionTitle) {
+        const candidateSections = (template?.sections || []).map(s => ({ id: s.id, level: s.level, title: s.title }));
+        try {
+          const matchRes = await api('/api/replay/llm-match', { method: 'POST', body: { taskType: 'find_outline_section', recordedInfo: { targetTitle: sectionTitle, description: '删除摘要' }, candidates: candidateSections } });
+          console.log('[Replay remove_summary] 大模型语义匹配结果:', matchRes);
+          if (matchRes.matchedId) {
+            targetSection = (template?.sections || []).find(s => s.id === matchRes.matchedId);
+            console.log('[Replay] 大模型匹配到章节:', targetSection?.title);
+          }
+        } catch (e) { console.warn('[Replay remove_summary] 大模型匹配失败:', e); }
+      } else {
+        // 脚本模式：使用精确匹配
+        if (sectionTitle) targetSection = (template?.sections || []).find(s => s.title === sectionTitle);
+        if (!targetSection && sectionId) targetSection = (template?.sections || []).find(s => s.id === sectionId);
+      }
+      
+      // 大模型模式：找不到目标章节或摘要索引返回 pass
+      if (!targetSection || typeof sumIdx !== 'number') {
+        if (mode === 'llm') {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：当前大纲中未找到与「${sectionTitle || sectionId}」相似的目标章节${typeof sumIdx !== 'number' ? '或摘要索引' : ''}`,
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+        console.warn('[Replay] 删除摘要：找不到目标章节或摘要索引', { sectionTitle, sectionId, sumIdx });
+        throw new Error(`未找到目标章节或摘要索引：${sectionTitle || sectionId}`);
+      }
+      
+      removeSummaryFromSection(targetSection.id, sumIdx);
+      await waitUiTick();
+      
+      const modeMsg = mode === 'llm' ? `🤖 大模型匹配删除摘要：${targetSection.title}` : '📜 脚本 Replay Done';
+      return finalizeReplayResult({ status: 'done', message: modeMsg, replayMode: mode });
+    }
 
-
-      };
-
-
+    // 多摘要支持：合并摘要
+    if (meta?.type === 'merge_summaries_in_section' || action === '合并摘要') {
+      const sectionId = meta?.sectionId || meta?.targetSectionId;
+      const sectionTitle = meta?.sectionTitle || llmScript?.targetSectionTitle;
+      const mergeType = meta?.mergeType || 'paragraph';
+      
+      let targetSection = null;
+      
+      // 大模型模式：强制使用语义匹配，跳过精确匹配
+      if (mode === 'llm' && sectionTitle) {
+        const candidateSections = (template?.sections || []).map(s => ({ id: s.id, level: s.level, title: s.title }));
+        try {
+          const matchRes = await api('/api/replay/llm-match', { method: 'POST', body: { taskType: 'find_outline_section', recordedInfo: { targetTitle: sectionTitle, description: '合并摘要' }, candidates: candidateSections } });
+          console.log('[Replay merge_summaries] 大模型语义匹配结果:', matchRes);
+          if (matchRes.matchedId) {
+            targetSection = (template?.sections || []).find(s => s.id === matchRes.matchedId);
+            console.log('[Replay] 大模型匹配到章节:', targetSection?.title);
+          }
+        } catch (e) { console.warn('[Replay merge_summaries] 大模型匹配失败:', e); }
+      } else {
+        // 脚本模式：使用精确匹配
+        if (sectionTitle) targetSection = (template?.sections || []).find(s => s.title === sectionTitle);
+        if (!targetSection && sectionId) targetSection = (template?.sections || []).find(s => s.id === sectionId);
+      }
+      
+      // 大模型模式：找不到目标章节返回 pass
+      if (!targetSection) {
+        if (mode === 'llm') {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：当前大纲中未找到与「${sectionTitle || sectionId}」相似的目标章节`,
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+        console.warn('[Replay] 合并摘要：找不到目标章节', { sectionTitle, sectionId });
+        throw new Error(`未找到目标章节：${sectionTitle || sectionId}`);
+      }
+      
+      mergeSummariesInSection(targetSection.id, mergeType);
+      await waitUiTick();
+      
+      const modeMsg = mode === 'llm' ? `🤖 大模型匹配合并摘要：${targetSection.title}` : '📜 脚本 Replay Done';
+      return finalizeReplayResult({ status: 'done', message: modeMsg, replayMode: mode });
     }
 
 
@@ -12500,8 +13661,14 @@ ${combinedRequirements}
       const docName = meta?.docName || ((section?.content || '').toString().split('添加文档：')[1] || '').trim();
       const isUpload = meta?.source === 'upload' || (section?.content || '').toString().includes('上传文档');
 
+      // 根据当前模式确定返回的 replayMode 和消息
+      const currentReplayMode = mode;
+      const modeMsg = mode === 'llm' ? '🤖 大模型 Replay Done' : '📜 脚本 Replay Done';
+
       if (isUpload) {
-        if (meta?.docSelector && typeof meta.docSelector === 'object') {
+        // ========== 脚本模式：强制使用精确文件名匹配，忽略 docSelector ==========
+        // 只有大模型模式才允许使用 docSelector 进行灵活/模糊匹配
+        if (mode === 'llm' && meta?.docSelector && typeof meta.docSelector === 'object') {
           const selector = normalizeDocSelector(meta.docSelector);
           const res = await uploadDocsFromReplayDirBySelector(selector);
           assertReplay(res.count > 0, '未匹配到任何文件，无法执行上传', { strict: true });
@@ -12510,10 +13677,12 @@ ${combinedRequirements}
           await refreshDocsFromServer();
           return finalizeReplayResult({
             status: 'done',
-            message: '手动/未知操作'
+            message: modeMsg,
+            replayMode: currentReplayMode
           });
         }
 
+        // 脚本模式或无 docSelector：使用精确文件名匹配
         assertReplay(!!docName, '未记录文档名，无法执行上传', { strict: true });
         const expectedOverwritten = typeof meta?.overwritten === 'boolean' ? meta.overwritten : null;
 
@@ -12540,11 +13709,9 @@ ${combinedRequirements}
         }
 
         const { doc, overwritten, text } = await uploadDocFromReplayDirByNameDetailed(docName);
-        if (expectedOverwritten !== null) {
-          assertReplay(
-            overwritten === expectedOverwritten,
-            `上传覆盖状态与原沉淀不一致：预期${expectedOverwritten ? '覆盖同名' : '新增'}，实际${overwritten ? '覆盖同名' : '新增'}`
-          );
+        // 允许覆盖同名上传，仅记录日志，不再作为错误
+        if (expectedOverwritten !== null && overwritten !== expectedOverwritten) {
+          console.log(`[Replay] 上传覆盖状态变化：预期${expectedOverwritten ? '覆盖同名' : '新增'}，实际${overwritten ? '覆盖同名' : '新增'}（已允许）`);
         }
         assertReplay(!!doc?.id, '上传未返回 doc', { strict: true });
         assertReplay((doc?.name || '').toString().trim() === docName.trim(), `上传文档名不一致：${doc?.name || ''}`);
@@ -12556,17 +13723,63 @@ ${combinedRequirements}
         assertReplay(!!id, `上传后未找到同名文档：${docName}`);
         return finalizeReplayResult({
           status: 'done',
-          message: '手动/未知操作'
+          message: modeMsg,
+          replayMode: currentReplayMode
         });
       }
 
-      const id = findDocIdByName(docName);
-      if (!id) throw new Error(`未找到同名文档：${docName || '(空)'}`);
+      // 非上传情况：选择现有文档
+      let id = findDocIdByName(docName);
+      
+      // 大模型模式：精确匹配失败时使用语义匹配
+      if (!id && mode === 'llm' && docs.length > 0) {
+        const docSelectorKeywords = llmScript?.docSelector?.keywords || [];
+        const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+        const docNameKeywords = (docName || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+        
+        const recordedDocInfo = {
+          docName: docName,
+          description: llmScript?.actionDescription || '选择文档',
+          aiGuidance: llmScript?.aiGuidance || '',
+          keywords: allKeywords.join(' '),
+          selectorDescription: llmScript?.docSelector?.description || '',
+          flexKeywords: llmScript?.flexKeywords || '',
+          structuredContent: typeof llmScript?.structuredScriptContent === 'string' 
+            ? llmScript.structuredScriptContent.substring(0, 500) : ''
+        };
+        
+        const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
+        try {
+          const docMatchRes = await api('/api/replay/llm-match', {
+            method: 'POST',
+            body: { taskType: 'find_document', recordedInfo: recordedDocInfo, candidates: candidateDocs }
+          });
+          console.log('[Replay add_doc] 大模型文档匹配结果:', docMatchRes);
+          if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+            id = candidateDocs[docMatchRes.matchedIndex].id;
+          }
+        } catch (e) {
+          console.warn('[Replay add_doc] 大模型文档匹配失败:', e);
+        }
+      }
+      
+      if (!id) {
+        if (mode === 'llm') {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：未找到与「${docName}」相似的文档`,
+            replayMode: 'skipped',
+            passReason: 'source_doc_not_found'
+          });
+        }
+        throw new Error(`未找到同名文档：${docName || '(空)'}`);
+      }
       setSelectedDocId(id);
       const d = docs.find((x) => x.id === id);
       setDocDraft(d?.content || '');
       await waitUiTick();
-      return finalizeReplayResult({ status: 'done', message: '📜 脚本 Replay Done', replayMode: 'script' });
+      return finalizeReplayResult({ status: 'done', message: modeMsg, replayMode: currentReplayMode });
     }
     if (meta?.type === 'outline_extract' || action === '全文大纲抽取') {
 
@@ -12577,25 +13790,71 @@ ${combinedRequirements}
       const btn = btnId && llmButtons.find((b) => b.id === btnId) || llmButtons.find((b) => b.kind === 'outline_extract' && b.enabled);
 
 
-      if (!btn) throw new Error('未找到可用的“全文大纲抽取”按钮');
+      // 大模型模式：找不到按钮返回 pass；脚本模式：严格校验
+      if (!btn) {
+        if (mode === 'llm') {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: '⏭️ 跳过执行：未找到可用的"全文大纲抽取"按钮',
+            replayMode: 'skipped',
+            passReason: 'button_not_found'
+          });
+        }
+        throw new Error('未找到可用的"全文大纲抽取"按钮');
+      }
 
 
       const prefer = meta?.selectedDocName || meta?.docName;
+      let targetDocId = null;
 
 
       if (prefer) {
 
 
-        const id = findDocIdByName(prefer);
+        targetDocId = findDocIdByName(prefer);
 
 
-        if (id) {
+        // 大模型模式：精确匹配失败时使用语义匹配
+        if (!targetDocId && mode === 'llm' && docs.length > 0) {
+          const docSelectorKeywords = llmScript?.docSelector?.keywords || [];
+          const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+          const docNameKeywords = (prefer || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+          const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+          
+          const recordedDocInfo = {
+            docName: prefer,
+            description: llmScript?.actionDescription || '全文大纲抽取',
+            aiGuidance: llmScript?.aiGuidance || '',
+            keywords: allKeywords.join(' '),
+            selectorDescription: llmScript?.docSelector?.description || '',
+            flexKeywords: llmScript?.flexKeywords || '',
+            structuredContent: typeof llmScript?.structuredScriptContent === 'string' 
+              ? llmScript.structuredScriptContent.substring(0, 500) : ''
+          };
+          
+          const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
+          try {
+            const docMatchRes = await api('/api/replay/llm-match', {
+              method: 'POST',
+              body: { taskType: 'find_document', recordedInfo: recordedDocInfo, candidates: candidateDocs }
+            });
+            console.log('[Replay outline_extract] 大模型文档匹配结果:', docMatchRes);
+            if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+              targetDocId = candidateDocs[docMatchRes.matchedIndex].id;
+            }
+          } catch (e) {
+            console.warn('[Replay outline_extract] 大模型文档匹配失败:', e);
+          }
+        }
 
 
-          const d = docs.find((x) => x.id === id);
+        if (targetDocId) {
 
 
-          setSelectedDocId(id);
+          const d = docs.find((x) => x.id === targetDocId);
+
+
+          setSelectedDocId(targetDocId);
 
 
           setDocDraft(d?.content || '');
@@ -12604,6 +13863,14 @@ ${combinedRequirements}
           await waitUiTick();
 
 
+        } else if (mode === 'llm') {
+          // 大模型模式：找不到文档返回 pass
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：未找到与「${prefer}」相似的文档`,
+            replayMode: 'skipped',
+            passReason: 'source_doc_not_found'
+          });
         }
 
 
@@ -12639,183 +13906,584 @@ ${combinedRequirements}
 
       await refreshSceneFromServer(scene?.id);
 
-      // 大纲抽取使用大模型
-      return finalizeReplayResult({ status: 'done', message: `🤖 大模型 Replay Done（大纲抽取：${count} 条）`, replayMode: 'llm' });
+      // 根据模式返回结果
+      const extractModeMsg = mode === 'llm' 
+        ? `🤖 大模型语义匹配抽取：${count} 条大纲` 
+        : `📜 脚本精确抽取：${count} 条大纲`;
+      return finalizeReplayResult({ status: 'done', message: extractModeMsg, replayMode: mode });
 
 
     }
 
 
     if (meta?.type === 'copy_full_to_summary' || action === '复制全文到摘要') {
-
-
+      // ========== 大模型模式：基于语义相似性匹配 ==========
+      if (mode === 'llm') {
+        console.log('[Replay copy_full_to_summary LLM模式]', { meta, llmScript });
+        
+        // 1. 根据记录特征找到相似文档
+        // 从 llmScript 中提取更丰富的信息
+        const docSelectorKeywords = llmScript?.docSelector?.keywords || [];
+        const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+        const docNameKeywords = (meta?.docName || llmScript?.docName || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+        
+        const recordedDocInfo = {
+          docName: meta?.docName || llmScript?.docName || '',
+          description: llmScript?.actionDescription || `从文档复制全文到摘要`,
+          aiGuidance: llmScript?.aiGuidance || meta?.aiGuidance || '',
+          keywords: allKeywords.join(' '),
+          // 额外提供沉淀记录中的完整信息
+          selectorDescription: llmScript?.docSelector?.description || '',
+          flexKeywords: llmScript?.flexKeywords || '',
+          targetSectionTitle: llmScript?.targetSectionTitle || meta?.targetSectionTitle || '',
+          structuredContent: typeof llmScript?.structuredScriptContent === 'string' 
+            ? llmScript.structuredScriptContent.substring(0, 500) : '',
+          // 内容特征用于验证
+          contentFeatures: llmScript?.inputs?.[0]?.contentFeatures || meta?.inputs?.[0]?.contentFeatures || null
+        };
+        
+        const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
+        let targetDocId = null;
+        let targetDoc = null;
+        
+        // 大模型模式：强制使用大模型语义匹配，跳过精确匹配
+        // 这样可以找到语义相似的文档，而不是要求完全相同的名称
+        if (candidateDocs.length > 0) {
+          try {
+            const docMatchRes = await api('/api/replay/llm-match', {
+              method: 'POST',
+              body: { taskType: 'find_document', recordedInfo: recordedDocInfo, candidates: candidateDocs }
+            });
+            console.log('[Replay copy_full_to_summary] 大模型文档匹配结果:', docMatchRes);
+            
+            if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+              targetDocId = candidateDocs[docMatchRes.matchedIndex].id;
+              targetDoc = docs.find(d => d.id === targetDocId);
+              console.log('[Replay] 大模型匹配到文档:', targetDoc?.name);
+            }
+          } catch (e) {
+            console.warn('[Replay] 大模型文档匹配失败:', e);
+          }
+        }
+        
+        // 尝试从目录上传
+        if (!targetDocId && replayDirConfig?.dirPath) {
+          try {
+            const selector = {
+              kind: 'keywords',
+              keywords: recordedDocInfo.keywords.split(/\s+/).filter(Boolean),
+              description: recordedDocInfo.docName,
+              mode: 'single'
+            };
+            const uploadRes = await uploadDocsFromReplayDirBySelector(selector);
+            if (uploadRes.count > 0 && uploadRes.names[0]) {
+              targetDocId = findDocIdByName(uploadRes.names[0]);
+              targetDoc = docs.find(d => d.id === targetDocId) || await api('/api/docs').then(r => r.docs?.find(d => d.id === targetDocId));
+            }
+          } catch (e) {
+            console.warn('[Replay] 从目录上传失败:', e);
+          }
+        }
+        
+        // 如果找不到相似文档，返回 pass
+        if (!targetDocId || !targetDoc) {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：未找到相似文档「${recordedDocInfo.docName}」`,
+            replayMode: 'skipped',
+            passReason: 'source_doc_not_found'
+          });
+        }
+        
+        // 2. 根据记录特征找到相似的大纲位置
+        const recordedSectionInfo = {
+          targetTitle: meta?.targetSectionTitle || llmScript?.targetSectionTitle || llmScript?.targetSection?.title || '',
+          targetLevel: llmScript?.targetSection?.level || '',
+          description: llmScript?.actionDescription || '',
+          aiGuidance: llmScript?.aiGuidance || ''
+        };
+        
+        // 始终从服务器获取最新模板，避免 React 闭包问题导致使用旧状态
+        // 首次 replay 时 template 可能是闭包中的旧值（null 或空）
+        let currentTemplate = await getServerTemplate(scene?.id);
+        // 如果服务器返回空但前端有数据，使用前端数据作为备选
+        if ((!currentTemplate || !Array.isArray(currentTemplate.sections) || currentTemplate.sections.length === 0) && template?.sections?.length > 0) {
+          currentTemplate = template;
+        }
+        if (!currentTemplate || !Array.isArray(currentTemplate.sections) || currentTemplate.sections.length === 0) {
+          throw new Error('无法获取模板（大纲数据为空）');
+        }
+        
+        // 使用前端状态构建候选列表，确保包含用户的最新修改
+        const candidateSections = currentTemplate.sections.map(s => ({
+          id: s.id, level: s.level, title: s.title, summary: (s.summary || '').substring(0, 100)
+        }));
+        console.log('[Replay copy_full_to_summary] 当前大纲标题列表:', candidateSections.map(s => s.title));
+        console.log('[Replay copy_full_to_summary] 目标标题:', recordedSectionInfo.targetTitle);
+        console.log('[Replay copy_full_to_summary] 候选数量:', candidateSections.length);
+        
+        let targetSectionId = null;
+        
+        // 大模型模式：强制使用大模型语义匹配，跳过精确匹配
+        // 这样可以找到语义相似的标题位置，而不是要求标题完全相同
+        let matchedSectionTitle = ''; // 记录实际匹配到的标题名称
+        
+        if (candidateSections.length > 0) {
+          try {
+            const sectionMatchRes = await api('/api/replay/llm-match', {
+              method: 'POST',
+              body: { taskType: 'find_outline_section', recordedInfo: recordedSectionInfo, candidates: candidateSections }
+            });
+            console.log('[Replay copy_full_to_summary] 大模型大纲位置匹配结果:', sectionMatchRes);
+            console.log('[Replay copy_full_to_summary] 匹配返回的 matchedId:', sectionMatchRes.matchedId);
+            console.log('[Replay copy_full_to_summary] 所有候选 ID:', candidateSections.map(s => s.id));
+            
+            if (sectionMatchRes.matchedId) {
+              // 验证返回的 ID 确实存在于当前大纲中
+              const matchedSec = candidateSections.find(s => s.id === sectionMatchRes.matchedId);
+              console.log('[Replay copy_full_to_summary] 验证匹配结果:', matchedSec ? '找到' : '未找到');
+              if (matchedSec) {
+                targetSectionId = sectionMatchRes.matchedId;
+                matchedSectionTitle = matchedSec.title; // 使用当前大纲中的实际标题
+                console.log('[Replay] 大模型匹配到大纲位置:', matchedSec.title, '(原记录标题:', recordedSectionInfo.targetTitle, ')');
+              } else {
+                console.warn('[Replay] 大模型返回的 matchedId 不存在于当前大纲中:', sectionMatchRes.matchedId);
+                // 尝试使用返回的 matchedTitle 进行二次匹配
+                if (sectionMatchRes.matchedTitle) {
+                  const fallbackSec = candidateSections.find(s => s.title === sectionMatchRes.matchedTitle || s.title?.includes(sectionMatchRes.matchedTitle) || sectionMatchRes.matchedTitle?.includes(s.title));
+                  if (fallbackSec) {
+                    targetSectionId = fallbackSec.id;
+                    matchedSectionTitle = fallbackSec.title;
+                    console.log('[Replay] 通过标题二次匹配成功:', fallbackSec.title);
+                  }
+                }
+              }
+            } else {
+              console.warn('[Replay copy_full_to_summary] 匹配结果中没有 matchedId');
+            }
+          } catch (e) {
+            console.warn('[Replay] 大模型位置匹配失败:', e);
+          }
+        } else {
+          console.warn('[Replay copy_full_to_summary] 候选列表为空！');
+        }
+        
+        // 大模型模式：不回退到原始 sectionId，必须通过语义匹配找到目标
+        
+        // 如果找不到目标位置，返回 pass（大模型模式不强制写入）
+        if (!targetSectionId) {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：当前大纲中未找到相似目标位置「${recordedSectionInfo.targetTitle}」`,
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+        
+        // 验证目标标题确实存在于当前大纲中
+        const targetSection = candidateSections.find(s => s.id === targetSectionId);
+        if (!targetSection) {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：目标标题ID「${targetSectionId}」在当前大纲中不存在`,
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+        
+        // 3. 执行复制操作 - 只修改摘要，不修改标题
+        const content = (targetDoc.content || '').toString();
+        const nextTpl = {
+          ...currentTemplate,
+          // 关键：只更新 summary 字段，保持 title 不变（使用前端最新状态）
+          sections: currentTemplate.sections.map(s => s.id === targetSectionId ? { ...s, summary: content } : s)
+        };
+        
+        const applied = await applyTemplateToServer(nextTpl);
+        const appliedSec = (applied?.sections || []).find(s => s.id === targetSectionId);
+        
+        if (!appliedSec) {
+          softErrors.push(`应用模板后未找到目标标题`);
+        }
+        
+        await waitUiTick();
+        
+        // 日志消息使用当前大纲中实际匹配到的标题，而不是记录中的旧标题
+        const actualTitle = matchedSectionTitle || targetSection.title;
+        const copyModeMsg = `🤖 大模型匹配复制：文档「${targetDoc.name}」→ 标题「${actualTitle}」`;
+        console.log('[Replay copy_full_to_summary] 完成，目标标题:', actualTitle, '(原记录:', recordedSectionInfo.targetTitle, ')');
+        return finalizeReplayResult({ status: 'done', message: copyModeMsg, replayMode: mode });
+      }
+      
+      // ========== 脚本模式：精确匹配（原逻辑）==========
       const sectionId = meta?.sectionId;
-
-
       const docName = meta?.docName;
 
-
       if (!sectionId) throw new Error('缺少 sectionId');
-
-
       if (!docName) throw new Error('缺少 docName');
 
-
       let id = findDocIdByName(docName);
-
-
       let doc = id ? docs.find((d) => d.id === id) : null;
-
 
       if (!id && replayDirConfig?.dirPath) {
         const uploaded = await uploadDocFromReplayDirByName(docName);
-
-
         id = uploaded?.id || null;
-
-
         doc = uploaded || null;
-
-
       }
-
 
       if (!id) throw new Error(`未找到同名文档：${docName}`);
 
-
       const content = (doc?.content || '').toString();
-
-
       const baseTpl = await getServerTemplate(scene?.id);
-
 
       assertReplay(!!baseTpl && Array.isArray(baseTpl.sections), '无法获取模板，无法复现复制全文', { strict: true });
 
-
       const target = (baseTpl.sections || []).find((s) => s.id === sectionId);
-
-
       assertReplay(!!target, `模板中未找到标题：${sectionId}`, { strict: true });
 
-
       const nextTpl = {
-
-
         ...baseTpl,
-
-
         sections: (baseTpl.sections || []).map((s) => s.id === sectionId ? { ...s, summary: content } : s)
-
-
       };
 
-
       const applied = await applyTemplateToServer(nextTpl);
-
-
       const appliedSec = (applied?.sections || []).find((s) => s.id === sectionId);
 
-
       assertReplay(!!appliedSec, `应用模板后未找到标题：${sectionId}`, { strict: true });
-
-
       assertReplay((appliedSec.summary || '') === content, '复制全文后摘要与文档内容不一致');
-
 
       await waitUiTick();
 
-
-      return finalizeReplayResult({ status: 'done', message: '📜 脚本 Replay Done', replayMode: 'script' });
-
-
+      const copyModeMsg = `📜 脚本精确复制：${docName}`;
+      return finalizeReplayResult({ status: 'done', message: copyModeMsg, replayMode: mode });
     }
 
 
     if (meta?.type === 'outline_link_doc' || action === '关联文档') {
-
-
+      // ========== 大模型模式：基于语义相似性匹配文档和目标位置 ==========
+      if (mode === 'llm') {
+        console.log('[Replay outline_link_doc LLM模式]', { meta, llmScript });
+        
+        // 1. 根据记录特征，用大模型找到相似文档
+        // 从 llmScript 中提取更丰富的信息：flexKeywords、docSelector 等
+        const docSelectorKeywords = llmScript?.docSelector?.keywords || [];
+        const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+        const docNameKeywords = (meta?.docName || llmScript?.docName || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        // 合并所有关键词，去重
+        const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+        
+        const recordedDocInfo = {
+          docName: meta?.docName || llmScript?.docName || '',
+          description: llmScript?.actionDescription || llmScript?.description || `将文档关联到大纲`,
+          aiGuidance: llmScript?.aiGuidance || meta?.aiGuidance || '',
+          keywords: allKeywords.join(' '),
+          // 额外提供沉淀记录中的完整信息，帮助大模型更好地匹配
+          selectorDescription: llmScript?.docSelector?.description || '',
+          flexKeywords: llmScript?.flexKeywords || '',
+          targetSectionTitle: llmScript?.targetSectionTitle || meta?.targetSectionTitle || '',
+          structuredContent: typeof llmScript?.structuredScriptContent === 'string' 
+            ? llmScript.structuredScriptContent.substring(0, 500) : ''
+        };
+        
+        // 准备候选文档列表
+        const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
+        
+        let targetDocId = null;
+        let targetDocName = '';
+        
+        // 大模型模式：强制使用大模型语义匹配，跳过精确匹配
+        // 这样可以找到语义相似的文档，而不是要求完全相同的名称
+        if (candidateDocs.length > 0) {
+          try {
+            const docMatchRes = await api('/api/replay/llm-match', {
+              method: 'POST',
+              body: {
+                taskType: 'find_document',
+                recordedInfo: recordedDocInfo,
+                candidates: candidateDocs
+              }
+            });
+            console.log('[Replay outline_link_doc] 大模型文档匹配结果:', docMatchRes);
+            
+            if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+              targetDocId = candidateDocs[docMatchRes.matchedIndex].id;
+              targetDocName = candidateDocs[docMatchRes.matchedIndex].name;
+              console.log('[Replay] 大模型匹配到文档:', targetDocName);
+            } else if (docMatchRes.matchedName) {
+              // 尝试用返回的名称查找
+              targetDocId = findDocIdByName(docMatchRes.matchedName);
+              targetDocName = docMatchRes.matchedName;
+            }
+          } catch (e) {
+            console.warn('[Replay] 大模型文档匹配失败，尝试从目录上传:', e);
+          }
+        }
+        
+        // 如果仍未找到，尝试从配置目录上传
+        if (!targetDocId && replayDirConfig?.dirPath) {
+          try {
+            // 使用灵活匹配从目录上传
+            const selector = {
+              kind: 'keywords',
+              keywords: recordedDocInfo.keywords.split(/\s+/).filter(Boolean),
+              description: recordedDocInfo.docName,
+              mode: 'single'
+            };
+            const uploadRes = await uploadDocsFromReplayDirBySelector(selector);
+            if (uploadRes.count > 0 && uploadRes.names[0]) {
+              targetDocId = findDocIdByName(uploadRes.names[0]);
+              targetDocName = uploadRes.names[0];
+              console.log('[Replay] 从目录上传并匹配到文档:', targetDocName);
+            }
+          } catch (e) {
+            console.warn('[Replay] 从目录上传失败:', e);
+          }
+        }
+        
+        // 如果找不到相似文档，返回 pass（跳过执行）
+        if (!targetDocId) {
+          console.log('[Replay outline_link_doc] 未找到相似文档，跳过执行');
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：未找到相似文档「${recordedDocInfo.docName}」`,
+            replayMode: 'skipped',
+            passReason: 'source_doc_not_found'
+          });
+        }
+        
+        // 2. 根据记录特征，用大模型找到相似的大纲位置
+        const recordedSectionInfo = {
+          targetTitle: meta?.targetSectionTitle || llmScript?.targetSectionTitle || llmScript?.targetSection?.title || '',
+          targetLevel: meta?.targetSection?.level || llmScript?.targetSection?.level || '',
+          description: llmScript?.actionDescription || `关联到标题「${meta?.targetSectionTitle || ''}」`,
+          aiGuidance: llmScript?.aiGuidance || meta?.aiGuidance || '',
+          targetSummary: llmScript?.targetSection?.summary || ''
+        };
+        
+        // 准备候选大纲位置 - 使用 getLatestTemplateSections 确保获取最新数据
+        const latestSections = await getLatestTemplateSections();
+        const candidateSections = latestSections.map(s => ({
+          id: s.id,
+          level: s.level,
+          title: s.title,
+          summary: (s.summary || s.hint || '').substring(0, 100)
+        }));
+        console.log('[Replay outline_link_doc] 候选大纲数量:', candidateSections.length, '标题:', candidateSections.map(s => s.title).slice(0, 5));
+        
+        let targetSectionId = null;
+        
+        // 大模型模式：强制使用大模型语义匹配，跳过精确匹配
+        // 这样可以找到语义相似的标题位置，而不是要求标题完全相同
+        let matchedSectionTitle = ''; // 记录实际匹配到的标题名称
+        
+        if (candidateSections.length > 0) {
+          try {
+            const sectionMatchRes = await api('/api/replay/llm-match', {
+              method: 'POST',
+              body: {
+                taskType: 'find_outline_section',
+                recordedInfo: recordedSectionInfo,
+                candidates: candidateSections
+              }
+            });
+            console.log('[Replay outline_link_doc] 大模型大纲位置匹配结果:', sectionMatchRes);
+            console.log('[Replay outline_link_doc] 匹配返回的 matchedId:', sectionMatchRes.matchedId);
+            
+            if (sectionMatchRes.matchedId) {
+              // 验证返回的 ID 确实存在于当前大纲中
+              const matchedSec = candidateSections.find(s => s.id === sectionMatchRes.matchedId);
+              if (matchedSec) {
+                targetSectionId = sectionMatchRes.matchedId;
+                matchedSectionTitle = matchedSec.title; // 使用当前大纲中的实际标题
+                console.log('[Replay] 大模型匹配到大纲位置:', matchedSec.title, '(原记录标题:', recordedSectionInfo.targetTitle, ')');
+              } else {
+                console.warn('[Replay] 大模型返回的 matchedId 不存在于当前大纲中:', sectionMatchRes.matchedId);
+                // 尝试使用返回的 matchedTitle 进行二次匹配
+                if (sectionMatchRes.matchedTitle) {
+                  const fallbackSec = candidateSections.find(s => s.title === sectionMatchRes.matchedTitle || s.title?.includes(sectionMatchRes.matchedTitle) || sectionMatchRes.matchedTitle?.includes(s.title));
+                  if (fallbackSec) {
+                    targetSectionId = fallbackSec.id;
+                    matchedSectionTitle = fallbackSec.title;
+                    console.log('[Replay] 通过标题二次匹配成功:', fallbackSec.title);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[Replay] 大模型大纲位置匹配失败:', e);
+          }
+        }
+        
+        // 大模型模式：不回退到原始 sectionId，必须通过语义匹配找到目标
+        
+        // 如果找不到目标位置，返回 pass（跳过执行）
+        if (!targetSectionId) {
+          console.log('[Replay outline_link_doc] 当前大纲中未找到相似目标位置，跳过执行');
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：当前大纲中未找到相似目标位置「${recordedSectionInfo.targetTitle}」`,
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+        
+        // 3. 执行关联操作 - 只关联文档，不修改标题
+        const current = sectionDocLinks[targetSectionId] || [];
+        const nextLinks = current.includes(targetDocId) ? sectionDocLinks : { ...sectionDocLinks, [targetSectionId]: [...current, targetDocId] };
+        
+        setSectionDocLinks(nextLinks);
+        setSectionDocPick((prev) => ({ ...prev, [targetSectionId]: targetDocId }));
+        await persistSectionLinks(nextLinks);
+        
+        const s = await refreshSceneFromServer(scene?.id);
+        const serverLinks = s?.sectionDocLinks?.[targetSectionId] || [];
+        
+        // 大模型模式使用软校验
+        if (!serverLinks.includes(targetDocId)) {
+          softErrors.push(`后端关联可能未完全同步：${targetDocName}`);
+        }
+        
+        await waitUiTick();
+        await refreshDocsFromServer();
+        
+        // 日志消息使用当前大纲中实际匹配到的标题，而不是记录中的旧标题
+        const actualTitle = matchedSectionTitle || candidateSections.find(s => s.id === targetSectionId)?.title || targetSectionId;
+        const linkModeMsg = `🤖 大模型匹配关联：文档「${targetDocName}」→ 标题「${actualTitle}」`;
+        console.log('[Replay outline_link_doc] 完成，目标标题:', actualTitle, '(原记录:', recordedSectionInfo.targetTitle, ')');
+        return finalizeReplayResult({ status: 'done', message: linkModeMsg, replayMode: mode });
+      }
+      
+      // ========== 脚本模式：精确匹配（原逻辑）==========
       const sectionId = meta?.sectionId;
-
-
       const docName = meta?.docName;
 
-
       if (!sectionId) throw new Error('缺少 sectionId');
-
-
       if (!docName) throw new Error('缺少 docName');
-
 
       let id = findDocIdByName(docName);
 
-
       if (!id && replayDirConfig?.dirPath) {
         const d = await uploadDocFromReplayDirByName(docName);
-
-
         id = d?.id || null;
-
-
       }
-
 
       if (!id) throw new Error(`未找到同名文档：${docName}`);
 
-
       const current = sectionDocLinks[sectionId] || [];
-
-
       const nextLinks = current.includes(id) ? sectionDocLinks : { ...sectionDocLinks, [sectionId]: [...current, id] };
 
-
       setSectionDocLinks(nextLinks);
-
-
       setSectionDocPick((prev) => ({ ...prev, [sectionId]: id }));
-
-
       await persistSectionLinks(nextLinks);
 
-
       const s = await refreshSceneFromServer(scene?.id);
-
-
       const serverLinks = s?.sectionDocLinks?.[sectionId] || [];
-
 
       assertReplay(serverLinks.includes(id), `后端未成功关联文档：${docName}`, { strict: true });
 
-
       await waitUiTick();
-
-
       await refreshDocsFromServer();
 
-
-      return finalizeReplayResult({ status: 'done', message: `已关联文档：${docName}` });
-
-
+      const linkModeMsg = `📜 脚本精确关联：${docName}`;
+      return finalizeReplayResult({ status: 'done', message: linkModeMsg, replayMode: mode });
     }
 
 
     if (meta?.type === 'outline_unlink_doc' || action === '取消关联') {
+      // ========== 大模型模式：基于语义相似性匹配 ==========
+      if (mode === 'llm') {
+        // 从 llmScript 中提取更丰富的信息
+        const docSelectorKeywords = llmScript?.docSelector?.keywords || [];
+        const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+        const docNameKeywords = (meta?.docName || llmScript?.docName || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+        const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+        
+        const recordedDocInfo = {
+          docName: meta?.docName || llmScript?.docName || '',
+          description: llmScript?.actionDescription || '取消关联文档',
+          aiGuidance: llmScript?.aiGuidance || '',
+          keywords: allKeywords.join(' '),
+          selectorDescription: llmScript?.docSelector?.description || '',
+          flexKeywords: llmScript?.flexKeywords || '',
+          targetSectionTitle: llmScript?.targetSectionTitle || meta?.targetSectionTitle || '',
+          structuredContent: typeof llmScript?.structuredScriptContent === 'string' 
+            ? llmScript.structuredScriptContent.substring(0, 500) : ''
+        };
+        const recordedSectionInfo = {
+          targetTitle: meta?.targetSectionTitle || llmScript?.targetSectionTitle || '',
+          targetLevel: llmScript?.targetSection?.level || '',
+          description: llmScript?.actionDescription || '',
+          aiGuidance: llmScript?.aiGuidance || ''
+        };
 
+        const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
+        let targetDocId = null;
+        let targetDocName = '';
 
+        // 大模型模式：强制使用语义匹配，跳过精确匹配
+        if (candidateDocs.length > 0) {
+          try {
+            const docMatchRes = await api('/api/replay/llm-match', { method: 'POST', body: { taskType: 'find_document', recordedInfo: recordedDocInfo, candidates: candidateDocs } });
+            console.log('[Replay unlink] 大模型文档匹配结果:', docMatchRes);
+            if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+              targetDocId = candidateDocs[docMatchRes.matchedIndex].id;
+              targetDocName = candidateDocs[docMatchRes.matchedIndex].name;
+              console.log('[Replay] 大模型匹配到文档:', targetDocName);
+            }
+          } catch (e) { console.warn('[Replay unlink] 文档匹配失败:', e); }
+        }
+
+        if (!targetDocId) {
+          return finalizeReplayResult({ status: 'pass', message: `⏭️ 跳过执行：未找到相似文档「${recordedDocInfo.docName}」`, replayMode: 'skipped', passReason: 'source_doc_not_found' });
+        }
+
+        // 大模型模式：强制使用语义匹配，跳过精确匹配
+        // 使用 getLatestTemplateSections 确保获取最新数据
+        const latestSections = await getLatestTemplateSections();
+        const candidateSections = latestSections.map(s => ({ id: s.id, level: s.level, title: s.title, summary: (s.summary || '').substring(0, 100) }));
+        console.log('[Replay unlink] 候选大纲数量:', candidateSections.length);
+        let targetSectionId = null;
+
+        if (recordedSectionInfo.targetTitle && candidateSections.length > 0) {
+          try {
+            const sectionMatchRes = await api('/api/replay/llm-match', { method: 'POST', body: { taskType: 'find_outline_section', recordedInfo: recordedSectionInfo, candidates: candidateSections } });
+            console.log('[Replay unlink] 大模型大纲位置匹配结果:', sectionMatchRes);
+            if (sectionMatchRes.matchedId) {
+              targetSectionId = sectionMatchRes.matchedId;
+              const matchedSec = candidateSections.find(s => s.id === targetSectionId);
+              console.log('[Replay] 大模型匹配到大纲位置:', matchedSec?.title);
+            }
+          } catch (e) { console.warn('[Replay unlink] 位置匹配失败:', e); }
+        }
+        if (!targetSectionId) {
+          return finalizeReplayResult({ status: 'pass', message: `⏭️ 跳过执行：当前大纲中未找到相似目标位置`, replayMode: 'skipped', passReason: 'target_section_not_found' });
+        }
+
+        // 执行取消关联
+        const current = sectionDocLinks[targetSectionId] || [];
+        const nextList = current.filter((d) => d !== targetDocId);
+        const next = { ...sectionDocLinks, [targetSectionId]: nextList };
+        if (!nextList.length) delete next[targetSectionId];
+
+        setSectionDocLinks(next);
+        setSectionDocPick((prev) => { const n = { ...prev }; if (n[targetSectionId] === targetDocId) delete n[targetSectionId]; return n; });
+        await persistSectionLinks(next);
+        await refreshSceneFromServer(scene?.id);
+        await waitUiTick();
+
+        const matchedSection = candidateSections.find(s => s.id === targetSectionId);
+        return finalizeReplayResult({ status: 'done', message: `🤖 大模型匹配取消关联：文档「${targetDocName}」← 标题「${matchedSection?.title || targetSectionId}」`, replayMode: 'llm' });
+      }
+
+      // ========== 脚本模式：精确匹配 ==========
       const sectionId = meta?.sectionId;
-
-
       const docName = meta?.docName;
 
-
       if (!sectionId) throw new Error('缺少 sectionId');
-
-
       if (!docName) throw new Error('缺少 docName');
 
-
       const id = findDocIdByName(docName);
-
-
       if (!id) throw new Error(`未找到同名文档：${docName}`);
 
 
@@ -12887,57 +14555,174 @@ ${combinedRequirements}
 
       await waitUiTick();
 
-
-      return finalizeReplayResult({ status: 'done', message: `已取消关联文档：${docName}` });
+      // 根据当前模式返回正确的 replayMode
+      const unlinkModeMsg = mode === 'llm' ? `🤖 已取消关联文档：${docName}` : `📜 已取消关联文档：${docName}`;
+      return finalizeReplayResult({ status: 'done', message: unlinkModeMsg, replayMode: mode });
 
 
     }
 
 
-    if (meta?.type === 'insert_to_summary' || action === '添入摘要' || action === '填入摘要') {
-
-
-      const ids = Array.isArray(meta?.targetSectionIds) ? meta.targetSectionIds : [];
-
-
+    if (meta?.type === 'insert_to_summary' || meta?.type === 'insert_to_summary_multi' || action === '添入摘要' || action === '填入摘要' || action === '填入摘要（多选）') {
+      // 检查是否是多摘要模式
+      const isMultiSummaryInsert = meta?.type === 'insert_to_summary_multi';
+      let ids = Array.isArray(meta?.targetSectionIds) ? meta.targetSectionIds : [];
       const selectionInput = Array.isArray(meta?.inputs) ? meta.inputs.find((x) => x?.kind === 'selection') : null;
-
-
       let text = (selectionInput?.text || selectionInput?.textExcerpt || '').toString().trim();
 
+      // 大模型模式：缺少数据返回 pass；脚本模式：严格校验
+      if (!ids.length) {
+        if (mode === 'llm') {
+          return finalizeReplayResult({ status: 'pass', message: '⏭️ 跳过执行：未记录目标章节ID', replayMode: 'skipped', passReason: 'no_target_section_ids' });
+        }
+        throw new Error('未记录 targetSectionIds');
+      }
+      if (!text) {
+        if (mode === 'llm') {
+          return finalizeReplayResult({ status: 'pass', message: '⏭️ 跳过执行：未记录选中文本', replayMode: 'skipped', passReason: 'no_selection_text' });
+        }
+        throw new Error('未记录选中文本');
+      }
 
-      if (!ids.length) throw new Error('未记录 targetSectionIds');
+      // ========== 大模型模式：基于语义相似性匹配目标章节 ==========
+      if (mode === 'llm') {
+        const baseTplForMatch = await getServerTemplate(scene?.id);
+        if (baseTplForMatch && Array.isArray(baseTplForMatch.sections)) {
+          const candidateSections = baseTplForMatch.sections.map(s => ({
+            id: s.id, level: s.level, title: s.title, summary: (s.summary || '').substring(0, 100)
+          }));
+          
+          // 获取记录的目标章节标题信息
+          const recordedDestinations = Array.isArray(meta?.destinations) ? meta.destinations : [];
+          const recordedTitles = recordedDestinations.map(d => d?.sectionTitle || '').filter(Boolean);
+          
+          // 大模型模式：强制使用大模型语义匹配，跳过精确匹配
+          // 这样可以找到语义相似的标题位置，而不是要求标题完全相同
+          if (recordedTitles.length > 0 && candidateSections.length > 0) {
+            const matchedIds = [];
+            for (const targetTitle of recordedTitles) {
+              // 强制使用大模型语义匹配
+              try {
+                const matchRes = await api('/api/replay/llm-match', {
+                  method: 'POST',
+                  body: {
+                    taskType: 'find_outline_section',
+                    recordedInfo: {
+                      targetTitle: targetTitle,
+                      description: llmScript?.actionDescription || `填入摘要到标题「${targetTitle}」`,
+                      aiGuidance: llmScript?.aiGuidance || ''
+                    },
+                    candidates: candidateSections
+                  }
+                });
+                console.log('[Replay insert_to_summary] 大模型语义匹配结果:', matchRes);
+                if (matchRes.matchedId) {
+                  matchedIds.push(matchRes.matchedId);
+                  const matchedSec = candidateSections.find(s => s.id === matchRes.matchedId);
+                  console.log('[Replay] 大模型匹配到大纲位置:', matchedSec?.title);
+                }
+              } catch (e) {
+                console.warn('[Replay insert_to_summary] 大模型位置匹配失败:', e);
+              }
+            }
+            // 如果成功匹配到目标，使用匹配结果
+            if (matchedIds.length > 0) {
+              ids = matchedIds;
+              console.log('[Replay insert_to_summary] 大模型语义匹配目标章节:', ids);
+            } else {
+              // 大模型模式下未匹配到任何目标章节，返回 pass
+              const targetTitleStr = recordedTitles.join('、') || '(未知)';
+              return finalizeReplayResult({
+                status: 'pass',
+                message: `⏭️ 跳过执行：当前大纲中未找到与「${targetTitleStr}」相似的目标章节`,
+                replayMode: 'skipped',
+                passReason: 'target_section_not_found'
+              });
+            }
+          }
+        }
+      }
 
-
-      if (!text) throw new Error('未记录选中文本');
-
-      // ========== 大模型智能处理：当模式为 llm 时始终尝试 AI 处理 ==========
-      const llmScript = section?.llmScript || null;
-      const aiGuidance = llmScript?.aiGuidance || '';
-      const specialRequirements = llmScript?.specialRequirements || '';
+      // ========== 根据模式选择数据源 ==========
+      // 大模型模式：使用 llmScript 中的 AI 指导
+      // 脚本模式：不使用大模型指导，直接执行原始脚本
+      const copyAiGuidance = mode === 'llm' ? (llmScript?.aiGuidance || '') : '';
+      const copySpecialRequirements = mode === 'llm' ? (llmScript?.specialRequirements || '') : '';
+      
+      console.log('[insert_to_summary] ========== 开始 AI 处理 ==========');
+      console.log('[insert_to_summary] mode:', mode);
+      console.log('[insert_to_summary] copyAiGuidance 长度:', copyAiGuidance?.length || 0);
+      console.log('[insert_to_summary] copyAiGuidance 预览:', copyAiGuidance?.substring(0, 200) || '(空)');
+      console.log('[insert_to_summary] llmScript.aiGuidance:', llmScript?.aiGuidance?.substring(0, 200) || '(空)');
+      console.log('[insert_to_summary] text (原始内容) 长度:', text?.length || 0);
       
       // 跟踪是否成功使用了大模型
       let usedLLM = false;
       let llmFailReason = '';
       
-      // 修改：大模型模式下始终尝试 AI 处理，即使没有明确的 aiGuidance
+      // 修改：只有大模型模式下才尝试 AI 处理
       if (mode === 'llm') {
         showToast('🤖 大模型处理中...');
         
         try {
-          // 构建智能处理 prompt - 即使没有 aiGuidance 也提供默认的智能处理
-          const hasGuidance = !!(aiGuidance || specialRequirements);
-          const processPrompt = hasGuidance 
-            ? `你是一个智能数据处理助手。请按照用户的指导要求，对提取的原始内容进行处理。
+          // 检查 aiGuidance 中是否包含计算公式
+          const hasCalculation = copyAiGuidance && (
+            copyAiGuidance.includes('计算') ||
+            copyAiGuidance.includes('公式') ||
+            copyAiGuidance.includes('{{') ||
+            /\d+\s*[+\-*/]\s*\d+/.test(copyAiGuidance) ||
+            /次数|总数|合计|总计/.test(copyAiGuidance)
+          );
+          
+          console.log('[insert_to_summary] hasCalculation:', hasCalculation);
+          
+          // 构建智能处理 prompt - 特别增强计算需求的处理
+          const hasGuidance = !!(copyAiGuidance || copySpecialRequirements);
+          let processPrompt;
+          
+          if (hasCalculation) {
+            // 计算类任务：使用专门的计算 prompt
+            processPrompt = `你是一个数据计算助手。请严格按照用户的计算指导，从原始内容中提取数据并进行计算。
+
+【原始内容（从中提取数据）】
+${text}
+
+【用户的计算指导】
+${copyAiGuidance}
+
+${copySpecialRequirements ? `【特殊要求】\n${copySpecialRequirements}` : ''}
+
+【执行步骤】
+1. 仔细阅读【用户的计算指导】，理解需要提取哪些数值
+2. 从【原始内容】中找到并提取这些数值（注意：数值可能以"XX次"、"XX个"等形式出现）
+3. 按照指导中的公式进行数学计算
+4. 按照指导中的输出格式生成最终结果
+
+【计算示例】
+如果指导说："XXX = 预警调度次数 + 电台调度次数 + 视频巡检次数 + 实地检查次数"
+原始内容是："开展预警调度指挥68次，对一线带班领导电台调度89次，视频巡检373次，实地检查岗位29个"
+那么：
+- 提取：预警调度=68, 电台调度=89, 视频巡检=373, 实地检查=29
+- 计算：68 + 89 + 373 + 29 = 559
+- 输出："政治中心区调度检查 559 次"（或按指导的输出格式）
+
+【重要】
+- 必须执行数学计算，不能简单复制原始内容
+- 确保数值提取准确
+- 输出必须包含计算结果
+
+请直接返回计算结果，不要包含解释说明。`;
+          } else if (hasGuidance) {
+            processPrompt = `你是一个智能数据处理助手。请按照用户的指导要求，对提取的原始内容进行处理。
 
 【原始内容】
 ${text}
 
 【用户的处理指导】
-${aiGuidance || '无特殊指导'}
+${copyAiGuidance || '无特殊指导'}
 
 【特殊要求】
-${specialRequirements || '无'}
+${copySpecialRequirements || '无'}
 
 【任务】
 严格按照用户的处理指导对原始内容进行处理。例如：
@@ -12950,8 +14735,9 @@ ${specialRequirements || '无'}
 - 如果是提取姓名类任务，确保不遗漏任何人员
 - 处理结果应该简洁明了
 
-请直接返回处理后的结果，不要包含任何解释说明。`
-            : `你是一个智能数据处理助手。请对提取的原始内容进行智能处理和清洗。
+请直接返回处理后的结果，不要包含任何解释说明。`;
+          } else {
+            processPrompt = `你是一个智能数据处理助手。请对提取的原始内容进行智能处理和清洗。
 
 【原始内容】
 ${text}
@@ -12968,6 +14754,9 @@ ${text}
 - 如果原内容已经很规范，可以保持不变
 
 请直接返回处理后的结果，不要包含任何解释说明。`;
+          }
+          
+          console.log('[insert_to_summary] 是否包含计算:', hasCalculation, '指导:', copyAiGuidance?.substring(0, 100));
 
           const processResponse = await fetch('/api/ai/chat', {
             method: 'POST',
@@ -13053,49 +14842,61 @@ ${text}
       }
 
 
+      // 多摘要模式：获取目标摘要信息
+      const targetSummaries = isMultiSummaryInsert && Array.isArray(meta?.targetSummaries) ? meta.targetSummaries : [];
+      
       const nextTpl = {
-
-
         ...baseTpl,
-
-
         sections: (baseTpl.sections || []).map((s) => {
-
-
+          // 多摘要模式：更新特定摘要（替换，不是追加）
+          if (isMultiSummaryInsert) {
+            const targets = targetSummaries.filter(t => t.sectionId === s.id);
+            if (!targets.length) return s;
+            
+            // 多摘要数组模式
+            if (Array.isArray(s.summaries) && s.summaries.length > 0) {
+              const newSummaries = s.summaries.map((sum, idx) => {
+                const target = targets.find(t => t.summaryIndex === idx);
+                if (target) {
+                  // 替换：直接使用新内容，不追加
+                  return { ...sum, content: text };
+                }
+                return sum;
+              });
+              const mergedSummary = newSummaries.map(sum => sum.content || '').filter(Boolean).join('\n\n');
+              return { ...s, summaries: newSummaries, summary: mergedSummary };
+            } else {
+              // 单摘要：替换
+              const target = targets.find(t => t.summaryIndex === 0);
+              if (target) {
+                // 替换：直接使用新内容，不追加
+                return { ...s, summary: text };
+              }
+              return s;
+            }
+          }
+          
+          // 原有逻辑：标题选择模式（已是替换）
           if (!ids.includes(s.id)) return s;
-
-
           return { ...s, summary: text };
-
-
         })
-
-
       };
 
-
       const applied = await applyTemplateToServer(nextTpl);
-
-
       const excerpt = (meta?.outputs?.insertedExcerpt || text).toString().trim();
 
+      // 多摘要模式跳过标准校验
+      if (!isMultiSummaryInsert) {
+        ids.forEach((sid) => {
+          const sec = (applied?.sections || []).find((s) => s.id === sid);
+          assertReplay(!!sec, `应用模板后未找到标题：${sid}`, { strict: true });
 
-      ids.forEach((sid) => {
-
-
-        const sec = (applied?.sections || []).find((s) => s.id === sid);
-
-
-        assertReplay(!!sec, `应用模板后未找到标题：${sid}`, { strict: true });
-
-        // 大模型模式下放宽校验（因为内容已被处理）
-        if (mode !== 'llm') {
-          assertReplay((sec.summary || '').toString() === text, `摘要未按"覆盖"写入到标题：${sid}`);
-        }
-
-
-      });
-
+          // 大模型模式下放宽校验（因为内容已被处理）
+          if (mode !== 'llm') {
+            assertReplay((sec.summary || '').toString() === text, `摘要未按"覆盖"写入到标题：${sid}`);
+          }
+        });
+      }
 
       await waitUiTick();
 
@@ -13127,27 +14928,66 @@ ${text}
 
 
     if (meta?.type === 'delete_outline_section' || action === '删除标题') {
-
-
-      const sectionId = meta?.sectionId;
-
-
-      if (!sectionId) throw new Error('缺少 sectionId');
-
-
       const baseTpl = await getServerTemplate(scene?.id);
-
-
-      assertReplay(!!baseTpl && Array.isArray(baseTpl.sections), '无法获取模板，无法复现删除标题', { strict: true });
-
-
+      if (!baseTpl || !Array.isArray(baseTpl.sections)) throw new Error('无法获取模板');
       const sections = baseTpl.sections || [];
 
+      // ========== 大模型模式：基于语义相似性匹配目标标题 ==========
+      let targetSectionId = meta?.sectionId;
 
-      const idx = sections.findIndex((s) => s.id === sectionId);
+      if (mode === 'llm') {
+        const recordedSectionInfo = {
+          targetTitle: meta?.targetSectionTitle || llmScript?.targetSectionTitle || llmScript?.targetSection?.title || '',
+          targetLevel: llmScript?.targetSection?.level || '',
+          description: llmScript?.actionDescription || '删除标题',
+          aiGuidance: llmScript?.aiGuidance || ''
+        };
 
+        const candidateSections = sections.map(s => ({ id: s.id, level: s.level, title: s.title, summary: (s.summary || '').substring(0, 50) }));
 
-      assertReplay(idx !== -1, `模板中未找到标题：${sectionId}`, { strict: true });
+        // 大模型模式：强制使用大模型语义匹配，跳过精确匹配
+        // 这样可以找到语义相似的标题位置，而不是要求标题完全相同
+        if (recordedSectionInfo.targetTitle && candidateSections.length > 0) {
+          try {
+            const matchRes = await api('/api/replay/llm-match', { method: 'POST', body: { taskType: 'find_outline_section', recordedInfo: recordedSectionInfo, candidates: candidateSections } });
+            console.log('[Replay delete_section] 大模型语义匹配结果:', matchRes);
+            if (matchRes.matchedId) {
+              targetSectionId = matchRes.matchedId;
+              const matchedSec = candidateSections.find(s => s.id === targetSectionId);
+              console.log('[Replay] 大模型匹配到大纲位置:', matchedSec?.title);
+            }
+          } catch (e) { console.warn('[Replay delete_section] 大模型匹配失败:', e); }
+        }
+      }
+
+      // 大模型模式：找不到目标返回 pass；脚本模式：严格校验
+      if (!targetSectionId) {
+        if (mode === 'llm') {
+          const targetTitle = meta?.targetSectionTitle || llmScript?.targetSectionTitle || '(未知)';
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：当前大纲中未找到与「${targetTitle}」相似的目标标题`,
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+        throw new Error('缺少 sectionId');
+      }
+
+      const idx = sections.findIndex((s) => s.id === targetSectionId);
+
+      // 大模型模式：找不到目标返回 pass；脚本模式：严格校验
+      if (idx === -1) {
+        if (mode === 'llm') {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：模板中未找到标题「${targetSectionId}」`,
+            replayMode: 'skipped',
+            passReason: 'target_section_not_found'
+          });
+        }
+      }
+      assertReplay(idx !== -1, `模板中未找到标题：${targetSectionId}`, { strict: true });
 
 
       const baseLevel = Math.max(1, Math.min(3, Number(sections[idx]?.level) || 1));
@@ -13188,8 +15028,9 @@ ${text}
 
       await waitUiTick();
 
-
-      return finalizeReplayResult({ status: 'done', message: '已删除标题（含下级）' });
+      // 根据当前模式返回正确的 replayMode
+      const deleteModeMsg = mode === 'llm' ? '🤖 已删除标题（含下级）' : '📜 已删除标题（含下级）';
+      return finalizeReplayResult({ status: 'done', message: deleteModeMsg, replayMode: mode });
 
 
     }
@@ -13223,7 +15064,9 @@ ${text}
       setSummaryExpanded({});
       setOutlineEditing({});
       await waitUiTick();
-      return finalizeReplayResult({ status: 'done', message: '📜 脚本 Replay Done', replayMode: 'script' });
+      // 根据当前模式返回正确的 replayMode
+      const clearModeMsg = mode === 'llm' ? '🤖 大模型 Replay Done' : '📜 脚本 Replay Done';
+      return finalizeReplayResult({ status: 'done', message: clearModeMsg, replayMode: mode });
     }
 
     if (meta?.type === 'restore_history_outline' || action === '历史大纲选取') {
@@ -13234,7 +15077,17 @@ ${text}
       const historyItem = outlineHistory.find((h) => h.id === outlineId) ||
         outlineHistory.find((h) => (h.title || h.docName) === title);
 
+      // 大模型模式：找不到历史存档时返回 pass
+      // 脚本模式：严格校验，找不到则失败
       if (!historyItem) {
+        if (mode === 'llm') {
+          return finalizeReplayResult({
+            status: 'pass',
+            message: `⏭️ 跳过执行：未找到匹配的历史大纲存档「${title || outlineId}」`,
+            replayMode: 'skipped',
+            passReason: 'history_outline_not_found'
+          });
+        }
         throw new Error(`未找到匹配的历史大纲存档: ${title || outlineId}`);
       }
 
@@ -13243,18 +15096,31 @@ ${text}
       setTemplate(applyRes.template);
       setScene(applyRes.scene);
       setShowOutlineMode(true);
+      
+      // 恢复多摘要合并方式选择状态
+      if (historyItem.sectionMergeType && typeof historyItem.sectionMergeType === 'object') {
+        setSectionMergeType(historyItem.sectionMergeType);
+      } else {
+        setSectionMergeType({});
+      }
+      
       await waitUiTick();
-      return finalizeReplayResult({ status: 'done', message: '📜 脚本 Replay Done', replayMode: 'script' });
+      // 根据当前模式返回正确的 replayMode
+      const historyModeMsg = mode === 'llm' ? '🤖 大模型 Replay Done' : '📜 脚本 Replay Done';
+      return finalizeReplayResult({ status: 'done', message: historyModeMsg, replayMode: mode });
     }
-    if (meta?.type === 'dispatch' || action === '执行指令') {
-
+    if (meta?.type === 'dispatch' || meta?.type === 'dispatch_multi_summary' || action === '执行指令') {
 
       if (!scene?.id) throw new Error('scene 未初始化，无法获取大纲');
+      
+      // 检查是否是多摘要模式
+      const isMultiSummaryDispatch = meta?.type === 'dispatch_multi_summary' || meta?.isMultiSummaryMode;
 
-      // ========== 获取 llmScript 中的 AI 指导 ==========
-      const llmScript = section?.llmScript || null;
-      const aiGuidance = llmScript?.aiGuidance || '';
-      const specialRequirements = llmScript?.specialRequirements || '';
+      // ========== 根据模式选择数据源 ==========
+      // 大模型模式：使用 llmScript 中的 AI 指导
+      // 脚本模式：仅使用原始脚本记录，不使用大模型指导
+      const aiGuidance = mode === 'llm' ? (llmScript?.aiGuidance || '') : '';
+      const specialRequirements = mode === 'llm' ? (llmScript?.specialRequirements || '') : '';
 
 
       let instructions =
@@ -13281,6 +15147,7 @@ ${text}
       if (!instructions) throw new Error('未记录指令内容');
 
       // ========== 大模型模式：将 AI 指导添加到 instructions ==========
+      // 脚本模式下跳过此步骤，仅使用原始脚本指令
       if (mode === 'llm' && (aiGuidance || specialRequirements)) {
         showToast('🤖 正在按 AI 指导执行指令...');
         // 将 AI 指导追加到原始指令中，让大模型在执行时考虑这些指导
@@ -13292,6 +15159,8 @@ ${aiGuidance || '无特殊指导'}
 【特殊要求】
 ${specialRequirements || '无'}`;
         console.log('🤖 大模型 Replay - 增强指令:', instructions);
+      } else if (mode === 'script') {
+        console.log('📜 脚本 Replay - 使用原始指令:', instructions);
       }
 
 
@@ -13360,31 +15229,61 @@ ${specialRequirements || '无'}`;
         // 优先按标题名称定位 section（适应大纲重新生成的情况）
         const allSections = template?.sections || [];
         let picked = [];
-        
-        // 方法1：使用 targetSectionsDetail 中的标题定位
         const detailsToUse = targetSectionsDetail.length > 0 ? targetSectionsDetail : llmTargetSectionsDetail;
-        if (detailsToUse.length > 0) {
-          picked = detailsToUse.map(detail => {
-            let found = allSections.find(s => s.title === detail.title);
-            if (!found && detail.id) found = allSections.find(s => s.id === detail.id);
-            return found;
-          }).filter(Boolean);
-        }
         
-        // 方法2：使用 selectedSectionTitles 定位
-        if (picked.length === 0 && targetTitles.length > 0) {
-          picked = targetTitles.map(title => allSections.find(s => s.title === title)).filter(Boolean);
-        }
-        
-        // 方法3：使用 selectedSectionIds 定位（兼容旧记录）
-        if (picked.length === 0 && outlineIds.length > 0) {
-          picked = allSections.filter(s => outlineIds.includes(s.id));
-        }
-        
-        // 方法4：使用 llmScript 中的 targetTitle 匹配
-        if (picked.length === 0 && llmScriptInfo?.targetTitle) {
-          const found = allSections.find(s => s.title?.includes(llmScriptInfo.targetTitle) || llmScriptInfo.targetTitle?.includes(s.title));
-          if (found) picked = [found];
+        // 大模型模式：强制使用语义匹配，跳过精确匹配
+        if (mode === 'llm') {
+          const candidateSections = allSections.map(s => ({ id: s.id, level: s.level, title: s.title, summary: (s.summary || '').substring(0, 100) }));
+          // 从记录中提取目标特征
+          const targetFeatures = {
+            targetTitle: llmScriptInfo?.targetTitle || targetTitles[0] || detailsToUse[0]?.title || '',
+            targetLevel: detailsToUse[0]?.level || llmScriptInfo?.targetLevel || '',
+            description: llmScriptInfo?.actionDescription || instructions,
+            aiGuidance: aiGuidance
+          };
+          
+          if (targetFeatures.targetTitle && candidateSections.length > 0) {
+            try {
+              const matchRes = await api('/api/replay/llm-match', {
+                method: 'POST',
+                body: { taskType: 'find_outline_section', recordedInfo: targetFeatures, candidates: candidateSections }
+              });
+              console.log('[dispatch replay] 大模型语义匹配结果:', matchRes);
+              if (matchRes.matchedId) {
+                const matchedSec = allSections.find(s => s.id === matchRes.matchedId);
+                if (matchedSec) {
+                  picked = [matchedSec];
+                  console.log('[dispatch replay] 大模型匹配到大纲位置:', matchedSec.title);
+                }
+              }
+            } catch (e) { console.warn('[dispatch replay] 大模型匹配失败:', e); }
+          }
+        } else {
+          // 脚本模式：使用精确匹配
+          // 方法1：使用 targetSectionsDetail 中的标题定位
+          if (detailsToUse.length > 0) {
+            picked = detailsToUse.map(detail => {
+              let found = allSections.find(s => s.title === detail.title);
+              if (!found && detail.id) found = allSections.find(s => s.id === detail.id);
+              return found;
+            }).filter(Boolean);
+          }
+          
+          // 方法2：使用 selectedSectionTitles 定位
+          if (picked.length === 0 && targetTitles.length > 0) {
+            picked = targetTitles.map(title => allSections.find(s => s.title === title)).filter(Boolean);
+          }
+          
+          // 方法3：使用 selectedSectionIds 定位（兼容旧记录）
+          if (picked.length === 0 && outlineIds.length > 0) {
+            picked = allSections.filter(s => outlineIds.includes(s.id));
+          }
+          
+          // 方法4：使用 llmScript 中的 targetTitle 匹配
+          if (picked.length === 0 && llmScriptInfo?.targetTitle) {
+            const found = allSections.find(s => s.title?.includes(llmScriptInfo.targetTitle) || llmScriptInfo.targetTitle?.includes(s.title));
+            if (found) picked = [found];
+          }
         }
         
         // 回退到当前 UI 选中
@@ -13539,6 +15438,9 @@ ${specialRequirements || '无'}`;
 
 
           const ensuredDocs = [];
+          
+          // 大模型模式：准备候选文档列表，用于语义匹配
+          const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
 
 
           // eslint-disable-next-line no-restricted-syntax
@@ -13551,6 +15453,39 @@ ${specialRequirements || '无'}`;
 
 
             let docObj = id ? docs.find((x) => x.id === id) : null;
+            
+            // 大模型模式：精确匹配失败时使用语义匹配
+            if (!docObj && mode === 'llm' && candidateDocs.length > 0) {
+              const docSelectorKeywords = llmScript?.docSelector?.keywords || [];
+              const flexKeywordsArr = (llmScript?.flexKeywords || '').split(/[,，\s]+/).filter(Boolean);
+              const docNameKeywords = (name || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').trim().split(/\s+/).filter(Boolean);
+              const allKeywords = [...new Set([...docSelectorKeywords, ...flexKeywordsArr, ...docNameKeywords])];
+              
+              const recordedDocInfo = {
+                docName: name,
+                description: llmScript?.actionDescription || '执行指令-文档资源',
+                aiGuidance: aiGuidance,
+                keywords: allKeywords.join(' '),
+                selectorDescription: llmScript?.docSelector?.description || '',
+                flexKeywords: llmScript?.flexKeywords || '',
+                structuredContent: typeof llmScript?.structuredScriptContent === 'string' 
+                  ? llmScript.structuredScriptContent.substring(0, 500) : ''
+              };
+              
+              try {
+                const docMatchRes = await api('/api/replay/llm-match', {
+                  method: 'POST',
+                  body: { taskType: 'find_document', recordedInfo: recordedDocInfo, candidates: candidateDocs }
+                });
+                console.log(`[Replay dispatch] 大模型文档匹配「${name}」结果:`, docMatchRes);
+                if (docMatchRes.matchedIndex >= 0 && docMatchRes.matchedIndex < candidateDocs.length) {
+                  id = candidateDocs[docMatchRes.matchedIndex].id;
+                  docObj = docs.find((x) => x.id === id);
+                }
+              } catch (e) {
+                console.warn(`[Replay dispatch] 大模型文档匹配「${name}」失败:`, e);
+              }
+            }
 
 
             if (!docObj && replayDirConfig?.dirPath) {
@@ -13566,7 +15501,16 @@ ${specialRequirements || '无'}`;
             }
 
 
-            if (!docObj) throw new Error(`未找到同名文档：${name}`);
+            // 大模型模式：找不到文档时跳过该文档，继续处理其他
+            // 脚本模式：严格校验，找不到文档则失败
+            if (!docObj) {
+              if (mode === 'llm') {
+                console.warn(`[Replay dispatch] 大模型模式：跳过未找到的文档「${name}」`);
+                continue; // 继续处理下一个文档
+              } else {
+                throw new Error(`未找到同名文档：${name}`);
+              }
+            }
 
 
             ensuredDocs.push(docObj);
@@ -13731,8 +15675,12 @@ ${specialRequirements || '无'}`;
 
       const selectedIds = outlineIds.length ? outlineIds : Object.keys(selectedOutlineExec || {}).filter((k) => selectedOutlineExec[k]);
 
-      // 收集 outlineSegments 中的 sectionId 列表，用于索引匹配（与 runDispatch 中的 resolveEditSectionId 逻辑一致）
-      const segmentIdListForReplay = outlineSegments.map(seg => seg.sectionId);
+      // 收集 outlineSegments 中的标识列表，用于索引匹配（与 runDispatch 中的 resolveEditSectionId 逻辑一致）
+      // 多摘要模式下使用 summaryKey (sectionId_summaryIndex)，否则使用 sectionId
+      const segmentIdListForReplay = outlineSegments.map(seg => 
+        isMultiSummaryDispatch && seg.summaryKey ? seg.summaryKey : seg.sectionId
+      );
+      
       const resolveEditIdForReplay = (rawId) => {
         if (!rawId) return null;
         const str = String(rawId).trim();
@@ -13740,6 +15688,12 @@ ${specialRequirements || '无'}`;
         if (idMatch) return idMatch[1].trim();
         const labelContentMatch = str.match(/片段\d+\s*[:：]\s*(.+)/);
         if (labelContentMatch) return labelContentMatch[1].trim();
+        // 支持 "摘要N" 格式（多摘要模式）
+        const summaryLabelMatch = str.match(/摘要(\d+)/);
+        if (summaryLabelMatch) {
+          const idx = parseInt(summaryLabelMatch[1], 10) - 1;
+          if (idx >= 0 && idx < segmentIdListForReplay.length) return segmentIdListForReplay[idx];
+        }
         if (/^\d+$/.test(str)) {
           const idx = parseInt(str, 10) - 1;
           if (idx >= 0 && idx < segmentIdListForReplay.length) return segmentIdListForReplay[idx];
@@ -13752,16 +15706,59 @@ ${specialRequirements || '无'}`;
         return str;
       };
 
+      // 构建下一个模板
       const nextTpl = {
         ...baseTpl,
         sections: (baseTpl.sections || []).map((sec) => {
+          // 多摘要模式：更新特定摘要
+          if (isMultiSummaryDispatch) {
+            const editsForThisSection = Array.isArray(result.edits) ? result.edits.filter((e) => {
+              const resolvedId = resolveEditIdForReplay(e.sectionId);
+              return resolvedId && resolvedId.startsWith(sec.id + '_');
+            }) : [];
+            
+            if (!editsForThisSection.length) return sec;
+            
+            // 更新 summaries 数组中的特定摘要
+            if (Array.isArray(sec.summaries) && sec.summaries.length > 0) {
+              const newSummaries = sec.summaries.map((sum, idx) => {
+                const edit = editsForThisSection.find((e) => {
+                  const resolvedId = resolveEditIdForReplay(e.sectionId);
+                  return resolvedId === `${sec.id}_${idx}`;
+                });
+                if (edit && edit.field === 'summary' && edit.content) {
+                  return { ...sum, content: edit.content };
+                }
+                return sum;
+              });
+              const mergedSummary = newSummaries.map(s => s.content || '').filter(Boolean).join('\n\n');
+              return { ...sec, summaries: newSummaries, summary: mergedSummary };
+            } else {
+              // 单摘要：检查是否匹配 sectionId_0
+              const edit = editsForThisSection.find((e) => {
+                const resolvedId = resolveEditIdForReplay(e.sectionId);
+                return resolvedId === `${sec.id}_0`;
+              });
+              if (edit && edit.field === 'summary' && edit.content) {
+                return { ...sec, summary: edit.content };
+              }
+              return sec;
+            }
+          }
+          
+          // 原有逻辑：标题选择模式
           const found = Array.isArray(result.edits) ? result.edits.find((e) => {
             const resolvedId = resolveEditIdForReplay(e.sectionId);
             return resolvedId === sec.id || e.sectionId === sec.id;
           }) : null;
+          
+          // 按照用户录制时的要求执行修改：
+          // - 如果 AI 返回修改标题的指令，就修改标题
+          // - 如果 AI 返回修改摘要的指令，就修改摘要
+          // 大模型匹配只用于定位，执行的动作取决于 AI 返回的 edits
           const patched = {
             ...sec,
-            title: found?.field === 'title' && found.content ? found.content : sec.title,
+            title: (!isMultiSummaryDispatch && found?.field === 'title' && found.content) ? found.content : sec.title,
             summary: found?.field === 'summary' && found.content ? found.content : sec.summary
           };
           if (detail && selectedIds.includes(sec.id)) return { ...patched, summary: detail };
@@ -13892,17 +15889,14 @@ ${specialRequirements || '无'}`;
 
         const res = await replayOneDepositSection(dep, s);
 
-
-        setReplaySectionStatus(depositId, s.id, res.status, res.message || '');
-
+        // 传递 replayMode（大模型/脚本）
+        setReplaySectionStatus(depositId, s.id, res.status, res.message || '', res.replayMode || 'script');
 
       } catch (err) {
 
-
         await restoreReplaySnapshot(snap);
 
-
-        setReplaySectionStatus(depositId, s.id, 'fail', err?.message || 'Replay 失败');
+        setReplaySectionStatus(depositId, s.id, 'fail', err?.message || 'Replay 失败', null);
 
 
       }
@@ -13917,6 +15911,59 @@ ${specialRequirements || '无'}`;
     showToast('Replay 完成');
 
 
+  };
+
+  // 批量 Replay 专用函数：不检查运行状态，确保顺序执行
+  const replayDepositForBatch = async (depositId) => {
+    const dep = deposits.find((d) => d.id === depositId);
+    if (!dep) {
+      console.warn(`[批量Replay] 沉淀 ${depositId} 不存在，跳过`);
+      return;
+    }
+
+    // ========== 关键：确保模板数据是最新的 ==========
+    // 首次执行时 template 状态可能还未加载，需要先从服务器获取
+    if (!template || !template.sections || template.sections.length === 0) {
+      console.log('[批量Replay] 检测到模板为空，正在从服务器加载...');
+      try {
+        const serverTemplate = await api('/api/template');
+        if (serverTemplate?.template?.sections?.length > 0) {
+          setTemplate(serverTemplate.template);
+          console.log('[批量Replay] 模板加载成功，共', serverTemplate.template.sections.length, '个标题');
+          // 等待状态更新
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (e) {
+        console.warn('[批量Replay] 模板加载失败:', e);
+      }
+    }
+
+    // 设置状态为运行中
+    setExpandedLogs((prev) => ({ ...prev, [depositId]: true }));
+    setReplayState((prev) => ({ ...prev, [depositId]: { running: true, bySection: {} } }));
+
+    // 按顺序处理每个 section
+    for (let i = 0; i < (dep.sections || []).length; i++) {
+      const s = dep.sections[i];
+      console.log(`[批量Replay] 沉淀「${dep.name}」处理步骤 ${i + 1}/${dep.sections.length}: ${s.action || s.id}`);
+      
+      setReplaySectionStatus(depositId, s.id, 'running', '');
+      const snap = captureReplaySnapshot();
+
+      try {
+        const res = await replayOneDepositSection(dep, s);
+        setReplaySectionStatus(depositId, s.id, res.status, res.message || '', res.replayMode || 'script');
+        console.log(`[批量Replay] 步骤 ${i + 1} 完成，状态: ${res.status}`);
+      } catch (err) {
+        await restoreReplaySnapshot(snap);
+        setReplaySectionStatus(depositId, s.id, 'fail', err?.message || 'Replay 失败', null);
+        console.error(`[批量Replay] 步骤 ${i + 1} 失败:`, err?.message);
+      }
+    }
+
+    // 设置状态为完成
+    setReplayState((prev) => ({ ...prev, [depositId]: { ...(prev?.[depositId] || {}), running: false } }));
+    console.log(`[批量Replay] 沉淀「${dep.name}」全部步骤处理完成`);
   };
 
 
@@ -13989,6 +16036,8 @@ ${specialRequirements || '无'}`;
     selectedOutlineExec,
     sectionCollapsed,
     summaryExpanded,
+    sectionMergeType,
+    selectedSummaries,
     docs,
     isSectionHiddenByParent,
     updateSectionLevel,
@@ -14003,10 +16052,14 @@ ${specialRequirements || '无'}`;
     toggleSectionCollapse,
     clearOutlineSummary,
     setSummaryExpanded,
+    setSelectedSummaries,
     setSectionDocPick,
     addDocToSection,
     removeDocFromSection,
     copyPreviewToSummary,
+    addSummaryToSection,
+    removeSummaryFromSection,
+    selectSectionMergeType,
   });
 
 
@@ -15473,26 +17526,18 @@ ${specialRequirements || '无'}`;
                       <div className="section-actions" style={{ gap: 6 }}>
 
 
-                        {depositStatus ?
-
-
+                        {/* 只有当所有 section 都完成时才显示 DONE，其他状态正常显示 */}
+                        {depositStatus && (depositStatus === 'done' || depositStatus !== 'done') && (
+                          // done 状态：必须所有 section 都完成才显示
+                          // 非 done 状态：正常显示
+                          (depositStatus !== 'done' || (dep.sections?.length > 0 && replayState?.[dep.id]?.bySection && Object.keys(replayState[dep.id].bySection).length === dep.sections.length)) ? (
                           <span
-
-
                             className={`status ${statusClass}`}
-
-
                             title={depositReason || UI_TEXT.t122}>
-
-
-                            {depositStatus}
-
-
-                          </span> :
-
-
-                          null}
-
+                            {depositStatus === 'done' ? 'DONE' : depositStatus}
+                          </span>
+                          ) : null
+                        )}
 
                         {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
@@ -15663,66 +17708,190 @@ ${specialRequirements || '无'}`;
                                   </span>
 
 
-                                  {replay?.status ?
-
-
-                                    <span className={`status ${replay.status}`} title={replay.message || ''}>
-
-
-                                      {replay.status}
-
-
-                                    </span> :
-
-
-                                    null}
+                                  {replay?.status ? (
+                                    <span 
+                                      className={`status ${replay.status}`} 
+                                      title={replay.message || ''}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        fontSize: '10px',
+                                        padding: '2px 6px',
+                                        borderRadius: '3px',
+                                        background: replay.status === 'done' 
+                                          ? (replay.replayMode === 'llm' ? '#dbeafe' : '#dcfce7')
+                                          : replay.status === 'fail' ? '#fee2e2' : '#fef3c7',
+                                        color: replay.status === 'done'
+                                          ? (replay.replayMode === 'llm' ? '#1e40af' : '#166534')
+                                          : replay.status === 'fail' ? '#b91c1c' : '#b45309'
+                                      }}
+                                    >
+                                      {replay.status === 'done' && replay.replayMode === 'llm' && '🤖'}
+                                      {replay.status === 'done' && replay.replayMode !== 'llm' && '📜'}
+                                      {replay.status === 'fail' && '❌'}
+                                      {replay.status === 'pass' && '⚠️'}
+                                      {replay.status === 'running' && '⏳'}
+                                      {replay.status.toUpperCase()}
+                                      {replay.status === 'done' && replay.replayMode === 'llm' && ' (大模型)'}
+                                      {replay.status === 'done' && replay.replayMode === 'script' && ' (脚本)'}
+                                      {replay.status === 'done' && replay.replayMode === 'script_fallback' && ' (脚本回退)'}
+                                    </span>
+                                  ) : null}
 
 
                                 </div>
 
 
-                                <div className="section-actions" style={{ gap: 6 }}>
+                                <div className="section-actions" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                                  {/* Replay 模式下拉框 */}
+                                  <select
+                                    value={s.sectionReplayMode || dep.precipitationMode || 'llm'}
+                                    onChange={(e) => updateSectionReplayMode(dep.id, s.id, e.target.value)}
+                                    title="选择此步骤的 Replay 模式"
+                                    style={{ 
+                                      fontSize: 10, 
+                                      padding: '2px 6px',
+                                      background: (s.sectionReplayMode || dep.precipitationMode || 'llm') === 'llm' ? '#dbeafe' : '#dcfce7',
+                                      color: (s.sectionReplayMode || dep.precipitationMode || 'llm') === 'llm' ? '#1e40af' : '#166534',
+                                      borderRadius: 4,
+                                      border: '1px solid #d1d5db',
+                                      cursor: 'pointer',
+                                      minWidth: '85px'
+                                    }}
+                                  >
+                                    <option value="llm">🤖 大模型</option>
+                                    <option value="script">📜 脚本</option>
+                                  </select>
 
-
-                                  {canFlexUpload ?
-
-
-                                    <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)}>{UI_TEXT.t73}
-
-
-                                    </button> :
-
-
-                                    null}
-
-
-                                  <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
-
-
+                                  {/* 单独 Replay 按钮 */}
+                                  <button 
+                                    className="ghost xsmall" 
+                                    type="button"
+                                    title="单独执行此步骤的 Replay"
+                                    onClick={() => replaySingleSection(dep.id, s.id)}
+                                    disabled={replay?.status === 'running'}
+                                    style={{ fontSize: 10, padding: '2px 6px' }}
+                                  >
+                                    Replay
                                   </button>
 
+                                  {/* 展开/收起详情按钮 */}
+                                  <button 
+                                    className="ghost xsmall" 
+                                    type="button"
+                                    onClick={() => toggleSectionExpanded(dep.id, s.id)}
+                                    style={{ fontSize: 10, padding: '2px 6px' }}
+                                  >
+                                    {sectionExpanded[`${dep.id}_${s.id}`] ? '收起' : '展开'}
+                                  </button>
 
+                                  {canFlexUpload && (
+                                    <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)} style={{ fontSize: 10 }}>{UI_TEXT.t73}</button>
+                                  )}
+
+                                  <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)} style={{ fontSize: 10, color: '#b91c1c' }}>✕</button>
                                 </div>
-
-
                               </div>
 
-
-                              {/* 只读显示沉淀内容摘要（请使用"编辑"按钮通过弹窗修改） */}
-                              {s.llmScript && (
-                                <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                    <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型</span>
-                                    {s.llmScript.description && <span style={{ fontSize: 12, color: '#0c4a6e' }}>{s.llmScript.description}</span>}
+                              {/* 脚本记录和大模型记录 - 可展开/收起 */}
+                              {sectionExpanded[`${dep.id}_${s.id}`] !== false && (
+                              <>
+                              {/* 脚本记录内容显示 */}
+                              {(() => {
+                                // 获取脚本内容：优先 structuredScriptContent，其次 rawContent，最后 content
+                                const scriptContent = s.llmScript?.structuredScriptContent 
+                                  || s.llmScript?.rawContent 
+                                  || s.originalScript?.content
+                                  || (s.content && !s.content.includes('__REPLAY_META__') ? s.content : s.content?.split('__REPLAY_META__')[0]?.trim());
+                                
+                                // 提取脚本中的关键字段用于摘要显示
+                                const extractField = (text, fieldName) => {
+                                  if (!text) return '';
+                                  const regex = new RegExp(`【${fieldName}】([^【]*?)(?=【|$)`, 's');
+                                  const match = text.match(regex);
+                                  return match ? match[1].trim() : '';
+                                };
+                                
+                                const opType = extractField(scriptContent, '操作类型') || s.llmScript?.type || sectionMeta?.type || '';
+                                const docName = extractField(scriptContent, '文档名称') || s.llmScript?.docName || sectionMeta?.docName || '';
+                                const execResult = extractField(scriptContent, '执行结果') || s.llmScript?.outputs?.summary || sectionMeta?.outputs?.summary || '';
+                                const specialReq = extractField(scriptContent, '特殊要求');
+                                
+                                // 判断是否有有效内容显示
+                                const hasContent = scriptContent || opType || docName || execResult;
+                                
+                                if (!hasContent) return null;
+                                
+                                return (
+                                  <div style={{ background: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)', border: '1px solid #fcd34d', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                      <span style={{ background: '#f59e0b', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>📋 脚本记录</span>
+                                      {opType && <span style={{ fontSize: 11, color: '#92400e', background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>{opType}</span>}
+                                    </div>
+                                    {docName && <div style={{ fontSize: 11, color: '#78350f', marginBottom: 2 }}>📄 文档: {docName}</div>}
+                                    {execResult && <div style={{ fontSize: 11, color: '#78350f', marginBottom: 2 }}>✅ 结果: {execResult.length > 80 ? execResult.substring(0, 80) + '...' : execResult}</div>}
+                                    {specialReq && specialReq !== '无' && <div style={{ fontSize: 11, color: '#78350f' }}>📌 要求: {specialReq}</div>}
+                                    {/* 显示完整脚本内容（可折叠） */}
+                                    {scriptContent && (
+                                      <details style={{ marginTop: 6 }}>
+                                        <summary style={{ fontSize: 10, color: '#a16207', cursor: 'pointer', userSelect: 'none' }}>展开完整脚本...</summary>
+                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflow: 'auto' }}>
+                                          {scriptContent}
+                                        </pre>
+                                      </details>
+                                    )}
                                   </div>
-                                  {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 11, color: '#64748b' }}>指令: {(s.llmScript.instructions || s.llmScript.promptContent).substring(0, 60)}...</div>}
-                                  {s.llmScript.inputSourceDesc && <div style={{ fontSize: 11, color: '#64748b' }}>输入: {s.llmScript.inputSourceDesc}</div>}
-                                  {s.llmScript.targetTitle && <div style={{ fontSize: 11, color: '#64748b' }}>目标: {s.llmScript.targetTitle}</div>}
-                                </div>
+                                );
+                              })()}
+                              
+                              {/* 大模型记录 - 始终显示 */}
+                              {/* 大模型记录 - 始终显示 */}
+                              {(() => {
+                                const llm = s.llmScript || {};
+                                const meta = sectionMeta || s.meta || {};
+                                // 灵活上传的关键词
+                                const flexKeywords = meta?.docSelector?.description || llm?.docSelector?.description || llm?.flexKeywords || '';
+                                // 输入来源描述
+                                const inputDesc = llm.inputSourceDesc || meta?.inputs?.[0]?.contextSummary || '';
+                                // AI 指导内容
+                                const aiGuidance = llm.aiGuidance || meta?.aiGuidance || '';
+                                // 特殊要求
+                                const specialReqs = llm.specialRequirements || meta?.specialRequirements || '';
+                                
+                                return (
+                                  <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                      <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
+                                      {llm.type && <span style={{ fontSize: 11, color: '#0369a1', background: '#e0f2fe', padding: '1px 4px', borderRadius: 3 }}>{llm.type}</span>}
+                                    </div>
+                                    {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
+                                    {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
+                                    {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
+                                    {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
+                                    {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
+                                    {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
+                                    {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
+                                    {/* 如果没有任何具体内容，显示提示 */}
+                                    {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && (
+                                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              </>
                               )}
-                              {replay?.status && replay.status !== 'done' && (
-                                <div className="hint" style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e', marginTop: 4, fontSize: 11 }}>
-                                  {replay.message || UI_TEXT.t129}
+                              {replay?.status && (
+                                <div className="hint" style={{ 
+                                  whiteSpace: 'pre-wrap', 
+                                  color: replay.status === 'fail' ? '#b91c1c' : replay.status === 'done' ? '#166534' : '#92400e', 
+                                  marginTop: 4, 
+                                  fontSize: 11,
+                                  background: replay.status === 'done' ? '#f0fdf4' : replay.status === 'fail' ? '#fef2f2' : 'transparent',
+                                  padding: replay.status === 'done' || replay.status === 'fail' ? '4px 8px' : 0,
+                                  borderRadius: '4px'
+                                }}>
+                                  {replay.message || (replay.status === 'done' ? '✅ Replay 完成' : UI_TEXT.t129)}
                                 </div>
                               )}
 
@@ -16982,6 +19151,7 @@ ${specialRequirements || '无'}`;
 
                     <DocumentListPanelContent
                       docs={docs}
+                      setDocs={setDocs}
                       selectedDocId={selectedDocId}
                       setSelectedDocId={setSelectedDocId}
                       deleteDoc={deleteDoc}
@@ -17329,14 +19499,23 @@ ${specialRequirements || '无'}`;
                             <div>
 
 
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px' }}>
-
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'flex-end', 
+                                gap: '8px', 
+                                marginBottom: '12px',
+                                position: 'sticky',
+                                top: 0,
+                                backgroundColor: '#fff',
+                                zIndex: 10,
+                                paddingTop: '12px',
+                                paddingBottom: '8px',
+                                borderBottom: '1px solid #f1f5f9'
+                              }}>
 
                                 <button
 
-
                                   className="ghost small"
-
 
                                   onClick={() => setShowDocPreviewModal(true)}
 
@@ -17678,26 +19857,16 @@ ${specialRequirements || '无'}`;
                                       <div className="section-actions" style={{ gap: 6 }}>
 
 
-                                        {depositStatus ?
-
-
+                                        {/* 只有当所有 section 都完成时才显示 DONE，其他状态正常显示 */}
+                                        {depositStatus && (depositStatus === 'done' || depositStatus !== 'done') && (
+                                          (depositStatus !== 'done' || (dep.sections?.length > 0 && replayState?.[dep.id]?.bySection && Object.keys(replayState[dep.id].bySection).length === dep.sections.length)) ? (
                                           <span
-
-
                                             className={`status ${statusClass}`}
-
-
                                             title={depositReason || UI_TEXT.t122}>
-
-
-                                            {depositStatus}
-
-
-                                          </span> :
-
-
-                                          null}
-
+                                            {depositStatus === 'done' ? 'DONE' : depositStatus}
+                                          </span>
+                                          ) : null
+                                        )}
 
                                         {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
@@ -17842,66 +20011,178 @@ ${specialRequirements || '无'}`;
                                   </span>
 
 
-                                                  {replay?.status ?
-
-
-                                                    <span className={`status ${replay.status}`} title={replay.message || ''}>
-
-
-                                                      {replay.status}
-
-
-                                                    </span> :
-
-
-                                                    null}
-
+                                                  {replay?.status ? (
+                                                    <span 
+                                                      className={`status ${replay.status}`} 
+                                                      title={replay.message || ''}
+                                                      style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        fontSize: '10px',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '3px',
+                                                        background: replay.status === 'done' 
+                                                          ? (replay.replayMode === 'llm' ? '#dbeafe' : '#dcfce7')
+                                                          : replay.status === 'fail' ? '#fee2e2' : '#fef3c7',
+                                                        color: replay.status === 'done'
+                                                          ? (replay.replayMode === 'llm' ? '#1e40af' : '#166534')
+                                                          : replay.status === 'fail' ? '#b91c1c' : '#b45309'
+                                                      }}
+                                                    >
+                                                      {replay.status === 'done' && replay.replayMode === 'llm' && '🤖'}
+                                                      {replay.status === 'done' && replay.replayMode !== 'llm' && '📜'}
+                                                      {replay.status === 'fail' && '❌'}
+                                                      {replay.status === 'pass' && '⚠️'}
+                                                      {replay.status === 'running' && '⏳'}
+                                                      {replay.status.toUpperCase()}
+                                                      {replay.status === 'done' && replay.replayMode === 'llm' && ' (大模型)'}
+                                                      {replay.status === 'done' && replay.replayMode === 'script' && ' (脚本)'}
+                                                      {replay.status === 'done' && replay.replayMode === 'script_fallback' && ' (脚本回退)'}
+                                                    </span>
+                                                  ) : null}
 
                                                 </div>
 
+                                                <div className="section-actions" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                                                  {/* Replay 模式下拉框 */}
+                                                  <select
+                                                    value={s.sectionReplayMode || dep.precipitationMode || 'llm'}
+                                                    onChange={(e) => updateSectionReplayMode(dep.id, s.id, e.target.value)}
+                                                    title="选择此步骤的 Replay 模式"
+                                                    style={{ 
+                                                      fontSize: 10, 
+                                                      padding: '2px 6px',
+                                                      background: (s.sectionReplayMode || dep.precipitationMode || 'llm') === 'llm' ? '#dbeafe' : '#dcfce7',
+                                                      color: (s.sectionReplayMode || dep.precipitationMode || 'llm') === 'llm' ? '#1e40af' : '#166534',
+                                                      borderRadius: 4,
+                                                      border: '1px solid #d1d5db',
+                                                      cursor: 'pointer',
+                                                      minWidth: '85px'
+                                                    }}
+                                                  >
+                                                    <option value="llm">🤖 大模型</option>
+                                                    <option value="script">📜 脚本</option>
+                                                  </select>
 
-                                                <div className="section-actions" style={{ gap: 6 }}>
-
-
-                                                  {canFlexUpload ?
-
-
-                                                    <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)}>{UI_TEXT.t73}
-
-
-                                                    </button> :
-
-
-                                                    null}
-
-
-                                                  <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
-
-
+                                                  {/* 单独 Replay 按钮 */}
+                                                  <button 
+                                                    className="ghost xsmall" 
+                                                    type="button"
+                                                    title="单独执行此步骤的 Replay"
+                                                    onClick={() => replaySingleSection(dep.id, s.id)}
+                                                    disabled={replay?.status === 'running'}
+                                                    style={{ fontSize: 10, padding: '2px 6px' }}
+                                                  >
+                                                    Replay
                                                   </button>
 
+                                                  {/* 展开/收起详情按钮 */}
+                                                  <button 
+                                                    className="ghost xsmall" 
+                                                    type="button"
+                                                    onClick={() => toggleSectionExpanded(dep.id, s.id)}
+                                                    style={{ fontSize: 10, padding: '2px 6px' }}
+                                                  >
+                                                    {sectionExpanded[`${dep.id}_${s.id}`] ? '收起' : '展开'}
+                                                  </button>
 
+                                                  {canFlexUpload && (
+                                                    <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)} style={{ fontSize: 10 }}>{UI_TEXT.t73}</button>
+                                                  )}
+
+                                                  <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)} style={{ fontSize: 10, color: '#b91c1c' }}>✕</button>
                                                 </div>
-
-
                                               </div>
 
-
-                              {/* 只读显示沉淀内容摘要 */}
-                              {s.llmScript && (
-                                <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                    <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型</span>
-                                    {s.llmScript.description && <span style={{ fontSize: 12, color: '#0c4a6e' }}>{s.llmScript.description}</span>}
+                              {/* 脚本记录和大模型记录 - 可展开/收起 */}
+                              {sectionExpanded[`${dep.id}_${s.id}`] !== false && (
+                              <>
+                              {/* 脚本记录内容显示 */}
+                              {(() => {
+                                const scriptContent = s.llmScript?.structuredScriptContent 
+                                  || s.llmScript?.rawContent 
+                                  || s.originalScript?.content
+                                  || (s.content && !s.content.includes('__REPLAY_META__') ? s.content : s.content?.split('__REPLAY_META__')[0]?.trim());
+                                
+                                const extractField = (text, fieldName) => {
+                                  if (!text) return '';
+                                  const regex = new RegExp(`【${fieldName}】([^【]*?)(?=【|$)`, 's');
+                                  const match = text.match(regex);
+                                  return match ? match[1].trim() : '';
+                                };
+                                
+                                const opType = extractField(scriptContent, '操作类型') || s.llmScript?.type || '';
+                                const docName = extractField(scriptContent, '文档名称') || s.llmScript?.docName || '';
+                                const execResult = extractField(scriptContent, '执行结果') || s.llmScript?.outputs?.summary || '';
+                                const specialReq = extractField(scriptContent, '特殊要求');
+                                
+                                const hasContent = scriptContent || opType || docName || execResult;
+                                
+                                if (!hasContent) return null;
+                                
+                                return (
+                                  <div style={{ background: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)', border: '1px solid #fcd34d', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                      <span style={{ background: '#f59e0b', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>📋 脚本记录</span>
+                                      {opType && <span style={{ fontSize: 11, color: '#92400e', background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>{opType}</span>}
+                                    </div>
+                                    {docName && <div style={{ fontSize: 11, color: '#78350f', marginBottom: 2 }}>📄 文档: {docName}</div>}
+                                    {execResult && <div style={{ fontSize: 11, color: '#78350f', marginBottom: 2 }}>✅ 结果: {execResult.length > 80 ? execResult.substring(0, 80) + '...' : execResult}</div>}
+                                    {specialReq && specialReq !== '无' && <div style={{ fontSize: 11, color: '#78350f' }}>📌 要求: {specialReq}</div>}
+                                    {scriptContent && (
+                                      <details style={{ marginTop: 6 }}>
+                                        <summary style={{ fontSize: 10, color: '#a16207', cursor: 'pointer', userSelect: 'none' }}>展开完整脚本...</summary>
+                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflow: 'auto' }}>
+                                          {scriptContent}
+                                        </pre>
+                                      </details>
+                                    )}
                                   </div>
-                                  {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 11, color: '#64748b' }}>指令: {(s.llmScript.instructions || s.llmScript.promptContent).substring(0, 60)}...</div>}
-                                  {s.llmScript.inputSourceDesc && <div style={{ fontSize: 11, color: '#64748b' }}>输入: {s.llmScript.inputSourceDesc}</div>}
-                                  {s.llmScript.targetTitle && <div style={{ fontSize: 11, color: '#64748b' }}>目标: {s.llmScript.targetTitle}</div>}
-                                </div>
+                                );
+                              })()}
+                              
+                              {/* 大模型记录 - 始终显示 */}
+                              {(() => {
+                                const llm = s.llmScript || {};
+                                const meta = sectionMeta || s.meta || {};
+                                const flexKeywords = meta?.docSelector?.description || llm?.docSelector?.description || '';
+                                const inputDesc = llm.inputSourceDesc || meta?.inputs?.[0]?.contextSummary || '';
+                                const aiGuidance = llm.aiGuidance || meta?.aiGuidance || '';
+                                const specialReqs = llm.specialRequirements || meta?.specialRequirements || '';
+                                
+                                return (
+                                  <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                      <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
+                                      {llm.type && <span style={{ fontSize: 11, color: '#0369a1', background: '#e0f2fe', padding: '1px 4px', borderRadius: 3 }}>{llm.type}</span>}
+                                    </div>
+                                    {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
+                                    {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
+                                    {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
+                                    {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
+                                    {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
+                                    {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
+                                    {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
+                                    {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && (
+                                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              </>
                               )}
-                              {replay?.status && replay.status !== 'done' && (
-                                <div className="hint" style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e', marginTop: 4, fontSize: 11 }}>
-                                  {replay.message || UI_TEXT.t129}
+                              {replay?.status && (
+                                <div className="hint" style={{ 
+                                  whiteSpace: 'pre-wrap', 
+                                  color: replay.status === 'fail' ? '#b91c1c' : replay.status === 'done' ? '#166534' : '#92400e', 
+                                  marginTop: 4, 
+                                  fontSize: 11,
+                                  background: replay.status === 'done' ? '#f0fdf4' : replay.status === 'fail' ? '#fef2f2' : 'transparent',
+                                  padding: replay.status === 'done' || replay.status === 'fail' ? '4px 8px' : 0,
+                                  borderRadius: '4px'
+                                }}>
+                                  {replay.message || (replay.status === 'done' ? '✅ Replay 完成' : UI_TEXT.t129)}
                                 </div>
                               )}
 
@@ -18374,6 +20655,7 @@ ${specialRequirements || '无'}`;
 
                   <DocumentListPanelContent
                     docs={docs}
+                    setDocs={setDocs}
                     selectedDocId={selectedDocId}
                     setSelectedDocId={setSelectedDocId}
                     deleteDoc={deleteDoc}
@@ -18679,11 +20961,21 @@ ${specialRequirements || '无'}`;
                           <div>
 
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              marginBottom: '12px',
+                              position: 'sticky',
+                              top: 0,
+                              backgroundColor: '#fff',
+                              zIndex: 10,
+                              paddingTop: '12px',
+                              paddingBottom: '8px',
+                              borderBottom: '1px solid #f1f5f9'
+                            }}>
 
                               <button
-
 
                                 onClick={handleOpenHistory}
 
@@ -19332,26 +21624,16 @@ ${specialRequirements || '无'}`;
                                     <div className="section-actions" style={{ gap: 6 }}>
 
 
-                                      {depositStatus ?
-
-
+                                      {/* 只有当所有 section 都完成时才显示 DONE，其他状态正常显示 */}
+                                      {depositStatus && (depositStatus === 'done' || depositStatus !== 'done') && (
+                                        (depositStatus !== 'done' || (dep.sections?.length > 0 && replayState?.[dep.id]?.bySection && Object.keys(replayState[dep.id].bySection).length === dep.sections.length)) ? (
                                         <span
-
-
                                           className={`status ${statusClass}`}
-
-
                                           title={depositReason || UI_TEXT.t122}>
-
-
-                                          {depositStatus}
-
-
-                                        </span> :
-
-
-                                        null}
-
+                                          {depositStatus === 'done' ? 'DONE' : depositStatus}
+                                        </span>
+                                        ) : null
+                                      )}
 
                                       {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
@@ -19496,66 +21778,178 @@ ${specialRequirements || '无'}`;
                                   </span>
 
 
-                                                {replay?.status ?
-
-
-                                                  <span className={`status ${replay.status}`} title={replay.message || ''}>
-
-
-                                                    {replay.status}
-
-
-                                                  </span> :
-
-
-                                                  null}
-
+                                                {replay?.status ? (
+                                                  <span 
+                                                    className={`status ${replay.status}`} 
+                                                    title={replay.message || ''}
+                                                    style={{
+                                                      display: 'inline-flex',
+                                                      alignItems: 'center',
+                                                      gap: '4px',
+                                                      fontSize: '10px',
+                                                      padding: '2px 6px',
+                                                      borderRadius: '3px',
+                                                      background: replay.status === 'done' 
+                                                        ? (replay.replayMode === 'llm' ? '#dbeafe' : '#dcfce7')
+                                                        : replay.status === 'fail' ? '#fee2e2' : '#fef3c7',
+                                                      color: replay.status === 'done'
+                                                        ? (replay.replayMode === 'llm' ? '#1e40af' : '#166534')
+                                                        : replay.status === 'fail' ? '#b91c1c' : '#b45309'
+                                                    }}
+                                                  >
+                                                    {replay.status === 'done' && replay.replayMode === 'llm' && '🤖'}
+                                                    {replay.status === 'done' && replay.replayMode !== 'llm' && '📜'}
+                                                    {replay.status === 'fail' && '❌'}
+                                                    {replay.status === 'pass' && '⚠️'}
+                                                    {replay.status === 'running' && '⏳'}
+                                                    {replay.status.toUpperCase()}
+                                                    {replay.status === 'done' && replay.replayMode === 'llm' && ' (大模型)'}
+                                                    {replay.status === 'done' && replay.replayMode === 'script' && ' (脚本)'}
+                                                    {replay.status === 'done' && replay.replayMode === 'script_fallback' && ' (脚本回退)'}
+                                                  </span>
+                                                ) : null}
 
                                               </div>
 
+                                              <div className="section-actions" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                                                {/* Replay 模式下拉框 */}
+                                                <select
+                                                  value={s.sectionReplayMode || dep.precipitationMode || 'llm'}
+                                                  onChange={(e) => updateSectionReplayMode(dep.id, s.id, e.target.value)}
+                                                  title="选择此步骤的 Replay 模式"
+                                                  style={{ 
+                                                    fontSize: 10, 
+                                                    padding: '2px 6px',
+                                                    background: (s.sectionReplayMode || dep.precipitationMode || 'llm') === 'llm' ? '#dbeafe' : '#dcfce7',
+                                                    color: (s.sectionReplayMode || dep.precipitationMode || 'llm') === 'llm' ? '#1e40af' : '#166534',
+                                                    borderRadius: 4,
+                                                    border: '1px solid #d1d5db',
+                                                    cursor: 'pointer',
+                                                    minWidth: '85px'
+                                                  }}
+                                                >
+                                                  <option value="llm">🤖 大模型</option>
+                                                  <option value="script">📜 脚本</option>
+                                                </select>
 
-                                              <div className="section-actions" style={{ gap: 6 }}>
-
-
-                                                {canFlexUpload ?
-
-
-                                                  <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)}>{UI_TEXT.t73}
-
-
-                                                  </button> :
-
-
-                                                  null}
-
-
-                                                <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)}>{UI_TEXT.t25}
-
-
+                                                {/* 单独 Replay 按钮 */}
+                                                <button 
+                                                  className="ghost xsmall" 
+                                                  type="button"
+                                                  title="单独执行此步骤的 Replay"
+                                                  onClick={() => replaySingleSection(dep.id, s.id)}
+                                                  disabled={replay?.status === 'running'}
+                                                  style={{ fontSize: 10, padding: '2px 6px' }}
+                                                >
+                                                  Replay
                                                 </button>
 
+                                                {/* 展开/收起详情按钮 */}
+                                                <button 
+                                                  className="ghost xsmall" 
+                                                  type="button"
+                                                  onClick={() => toggleSectionExpanded(dep.id, s.id)}
+                                                  style={{ fontSize: 10, padding: '2px 6px' }}
+                                                >
+                                                  {sectionExpanded[`${dep.id}_${s.id}`] ? '收起' : '展开'}
+                                                </button>
 
+                                                {canFlexUpload && (
+                                                  <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)} style={{ fontSize: 10 }}>{UI_TEXT.t73}</button>
+                                                )}
+
+                                                <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)} style={{ fontSize: 10, color: '#b91c1c' }}>✕</button>
                                               </div>
-
-
                                             </div>
 
-
-                              {/* 只读显示沉淀内容摘要 */}
-                              {s.llmScript && (
-                                <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                    <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型</span>
-                                    {s.llmScript.description && <span style={{ fontSize: 12, color: '#0c4a6e' }}>{s.llmScript.description}</span>}
+                              {/* 脚本记录和大模型记录 - 可展开/收起 */}
+                              {sectionExpanded[`${dep.id}_${s.id}`] !== false && (
+                              <>
+                              {/* 脚本记录内容显示 */}
+                              {(() => {
+                                const scriptContent = s.llmScript?.structuredScriptContent 
+                                  || s.llmScript?.rawContent 
+                                  || s.originalScript?.content
+                                  || (s.content && !s.content.includes('__REPLAY_META__') ? s.content : s.content?.split('__REPLAY_META__')[0]?.trim());
+                                
+                                const extractField = (text, fieldName) => {
+                                  if (!text) return '';
+                                  const regex = new RegExp(`【${fieldName}】([^【]*?)(?=【|$)`, 's');
+                                  const match = text.match(regex);
+                                  return match ? match[1].trim() : '';
+                                };
+                                
+                                const opType = extractField(scriptContent, '操作类型') || s.llmScript?.type || '';
+                                const docName = extractField(scriptContent, '文档名称') || s.llmScript?.docName || '';
+                                const execResult = extractField(scriptContent, '执行结果') || s.llmScript?.outputs?.summary || '';
+                                const specialReq = extractField(scriptContent, '特殊要求');
+                                
+                                const hasContent = scriptContent || opType || docName || execResult;
+                                
+                                if (!hasContent) return null;
+                                
+                                return (
+                                  <div style={{ background: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)', border: '1px solid #fcd34d', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                      <span style={{ background: '#f59e0b', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>📋 脚本记录</span>
+                                      {opType && <span style={{ fontSize: 11, color: '#92400e', background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>{opType}</span>}
+                                    </div>
+                                    {docName && <div style={{ fontSize: 11, color: '#78350f', marginBottom: 2 }}>📄 文档: {docName}</div>}
+                                    {execResult && <div style={{ fontSize: 11, color: '#78350f', marginBottom: 2 }}>✅ 结果: {execResult.length > 80 ? execResult.substring(0, 80) + '...' : execResult}</div>}
+                                    {specialReq && specialReq !== '无' && <div style={{ fontSize: 11, color: '#78350f' }}>📌 要求: {specialReq}</div>}
+                                    {scriptContent && (
+                                      <details style={{ marginTop: 6 }}>
+                                        <summary style={{ fontSize: 10, color: '#a16207', cursor: 'pointer', userSelect: 'none' }}>展开完整脚本...</summary>
+                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflow: 'auto' }}>
+                                          {scriptContent}
+                                        </pre>
+                                      </details>
+                                    )}
                                   </div>
-                                  {(s.llmScript.instructions || s.llmScript.promptContent) && <div style={{ fontSize: 11, color: '#64748b' }}>指令: {(s.llmScript.instructions || s.llmScript.promptContent).substring(0, 60)}...</div>}
-                                  {s.llmScript.inputSourceDesc && <div style={{ fontSize: 11, color: '#64748b' }}>输入: {s.llmScript.inputSourceDesc}</div>}
-                                  {s.llmScript.targetTitle && <div style={{ fontSize: 11, color: '#64748b' }}>目标: {s.llmScript.targetTitle}</div>}
-                                </div>
+                                );
+                              })()}
+                              
+                              {/* 大模型记录 - 始终显示 */}
+                              {(() => {
+                                const llm = s.llmScript || {};
+                                const meta = sectionMeta || s.meta || {};
+                                const flexKeywords = meta?.docSelector?.description || llm?.docSelector?.description || '';
+                                const inputDesc = llm.inputSourceDesc || meta?.inputs?.[0]?.contextSummary || '';
+                                const aiGuidance = llm.aiGuidance || meta?.aiGuidance || '';
+                                const specialReqs = llm.specialRequirements || meta?.specialRequirements || '';
+                                
+                                return (
+                                  <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                      <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
+                                      {llm.type && <span style={{ fontSize: 11, color: '#0369a1', background: '#e0f2fe', padding: '1px 4px', borderRadius: 3 }}>{llm.type}</span>}
+                                    </div>
+                                    {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
+                                    {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
+                                    {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
+                                    {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
+                                    {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
+                                    {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
+                                    {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
+                                    {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && (
+                                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              </>
                               )}
-                              {replay?.status && replay.status !== 'done' && (
-                                <div className="hint" style={{ whiteSpace: 'pre-wrap', color: replay.status === 'fail' ? '#b91c1c' : '#92400e', marginTop: 4, fontSize: 11 }}>
-                                  {replay.message || UI_TEXT.t129}
+                              {replay?.status && (
+                                <div className="hint" style={{ 
+                                  whiteSpace: 'pre-wrap', 
+                                  color: replay.status === 'fail' ? '#b91c1c' : replay.status === 'done' ? '#166534' : '#92400e', 
+                                  marginTop: 4, 
+                                  fontSize: 11,
+                                  background: replay.status === 'done' ? '#f0fdf4' : replay.status === 'fail' ? '#fef2f2' : 'transparent',
+                                  padding: replay.status === 'done' || replay.status === 'fail' ? '4px 8px' : 0,
+                                  borderRadius: '4px'
+                                }}>
+                                  {replay.message || (replay.status === 'done' ? '✅ Replay 完成' : UI_TEXT.t129)}
                                 </div>
                               )}
 

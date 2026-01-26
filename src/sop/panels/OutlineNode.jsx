@@ -2,7 +2,8 @@
  * OutlineNode - 大纲节点渲染组件
  * 从 SOPWorkbench.jsx 提取的独立组件
  */
-import React from 'react';
+import React, { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { UI_TEXT } from '../SOPConstants';
 
 /**
@@ -37,6 +38,11 @@ import { UI_TEXT } from '../SOPConstants';
  * @param {Function} props.addDocToSection - 添加文档到章节
  * @param {Function} props.removeDocFromSection - 从章节移除文档
  * @param {Function} props.copyPreviewToSummary - 复制预览到摘要
+ * @param {Function} props.addSummaryToSection - 在章节添加新摘要
+ * @param {Function} props.removeSummaryFromSection - 从章节删除摘要
+ * @param {Function} props.copyPreviewToSummaryAtIndex - 复制预览到指定索引的摘要
+ * @param {Object} props.sectionMergeType - 章节合并方式选择状态
+ * @param {Function} props.selectSectionMergeType - 选择章节合并方式（不立即执行）
  * @param {Function} props.renderOutlineNode - 递归渲染函数（用于渲染子节点）
  */
 export const OutlineNode = ({
@@ -51,6 +57,8 @@ export const OutlineNode = ({
   selectedOutlineExec,
   sectionCollapsed,
   summaryExpanded,
+  sectionMergeType,
+  selectedSummaries,
   docs,
   isSectionHiddenByParent,
   updateSectionLevel,
@@ -65,10 +73,15 @@ export const OutlineNode = ({
   toggleSectionCollapse,
   clearOutlineSummary,
   setSummaryExpanded,
+  setSelectedSummaries,
   setSectionDocPick,
   addDocToSection,
   removeDocFromSection,
   copyPreviewToSummary,
+  addSummaryToSection,
+  removeSummaryFromSection,
+  copyPreviewToSummaryAtIndex,
+  selectSectionMergeType,
   renderOutlineNode,
 }) => {
   // 检查是否应该被隐藏
@@ -80,13 +93,24 @@ export const OutlineNode = ({
   const level = sec?.level || 1;
   const prefix = levelLabel[level] || levelLabel[1];
   const titleKey = `${sec.id}||title`;
-  const summaryKey = `${sec.id}||summary`;
   const editingTitle = outlineEditing[titleKey];
-  const editingSummary = outlineEditing[summaryKey];
   const linkedDocIds = sectionDocLinks[sec.id] || [];
   const doneMap = sectionDocDone[sec.id] || {};
   const storedPickDocId = sectionDocPick[sec.id] || '';
   const pickDocId = storedPickDocId || linkedDocIds[linkedDocIds.length - 1] || '';
+
+  // 多摘要支持：获取 summaries 数组，向后兼容单 summary 字段
+  const getSummaries = () => {
+    if (Array.isArray(sec.summaries) && sec.summaries.length > 0) {
+      return sec.summaries;
+    }
+    // 向后兼容：如果有单个 summary，转换为数组
+    if (sec.summary || sec.hint) {
+      return [{ id: `${sec.id}_sum_0`, content: sec.summary || sec.hint || '' }];
+    }
+    return [];
+  };
+  const summaries = getSummaries();
 
   const canCopyFullToSummary =
     showOutlineMode &&
@@ -147,7 +171,7 @@ export const OutlineNode = ({
 
         <div
           className="section-actions btn-compact"
-          style={{ position: 'absolute', right: '8px', top: '8px' }}>
+          style={{ position: 'absolute', right: '8px', top: '8px', display: 'flex', alignItems: 'center', gap: '2px' }}>
           <label className="inline-check">
             <input
               type="checkbox"
@@ -157,11 +181,21 @@ export const OutlineNode = ({
               }
             />
           </label>
-          <button className="ghost xsmall" type="button" onClick={() => addSectionBelow(sec.id)}>
+          <button 
+            className="ghost xsmall" 
+            type="button" 
+            onClick={() => addSectionBelow(sec.id)}
+            style={{ width: '20px', height: '20px', padding: 0, fontSize: '14px', lineHeight: '18px', fontWeight: 'bold' }}
+            title="在同级标题末尾新增">
             +
           </button>
-          <button className="ghost xsmall" type="button" onClick={() => removeSectionById(sec.id)}>
-            {UI_TEXT.t25}
+          <button 
+            className="ghost xsmall" 
+            type="button" 
+            onClick={() => removeSectionById(sec.id)}
+            style={{ width: '20px', height: '20px', padding: 0, fontSize: '14px', lineHeight: '18px', fontWeight: 'bold' }}
+            title="删除此标题及其下级">
+            −
           </button>
           {/* 展开/收起按钮 - 仅当有下级标题时显示 */}
           {hasChildSections(sec.id) && (
@@ -182,60 +216,197 @@ export const OutlineNode = ({
         </div>
       </div>
 
-      <div
-        className="hint"
-        style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        {editingSummary !== undefined ? (
-          <>
-            <textarea
-              rows={2}
-              value={editingSummary}
-              onChange={(e) =>
-                setOutlineEditing((prev) => ({ ...prev, [summaryKey]: e.target.value }))
-              }
-              style={{ minWidth: 260 }}
-            />
-            <button
-              className="ghost small"
-              onClick={() => applyOutlineUpdate(sec.id, 'summary', editingSummary)}>
-              {UI_TEXT.t24}
-            </button>
-            <button className="ghost small" onClick={() => cancelEditOutline(sec.id, 'summary')}>
-              {UI_TEXT.t22}
-            </button>
-          </>
-        ) : (
-          <>
-            <div className={`summary-text ${summaryExpanded[sec.id] ? 'expanded' : ''}`}>
-              {sec.summary || sec.hint || UI_TEXT.t127}
-            </div>
-            {(sec.summary || sec.hint) && (
-              <>
-                <button
-                  className="ghost xsmall"
-                  type="button"
-                  style={{ fontSize: '11px', padding: '2px 6px' }}
-                  onClick={() =>
-                    setSummaryExpanded((prev) => ({ ...prev, [sec.id]: !prev[sec.id] }))
-                  }>
-                  {summaryExpanded[sec.id] ? UI_TEXT.t142 : UI_TEXT.t143}
-                </button>
-                <button
-                  className="ghost xsmall"
-                  style={{ fontSize: '11px', padding: '2px 6px' }}
-                  type="button"
-                  onClick={() => clearOutlineSummary(sec.id)}>
-                  {UI_TEXT.t25}
-                </button>
-              </>
-            )}
+      {/* 多摘要支持：渲染所有摘要 */}
+      <div className="summaries-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {summaries.length === 0 ? (
+          /* 无摘要时显示添加按钮和占位提示 */
+          <div
+            className="hint"
+            style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <button
               className="ghost xsmall"
-              style={{ fontSize: '11px', padding: '2px 6px' }}
-              onClick={() => startEditOutline(sec.id, 'summary', sec.summary || sec.hint || '')}>
-              {UI_TEXT.t26}
+              type="button"
+              onClick={() => addSummaryToSection && addSummaryToSection(sec.id)}
+              style={{ 
+                width: '20px', height: '20px', padding: 0, 
+                fontSize: '14px', lineHeight: '18px', fontWeight: 'bold',
+                color: '#10b981', border: '1px dashed #10b981', borderRadius: '4px'
+              }}
+              title="添加摘要">
+              +
             </button>
-          </>
+            <span style={{ color: '#9ca3af', fontSize: '13px' }}>{UI_TEXT.t127}</span>
+          </div>
+        ) : (
+          summaries.map((sum, sumIdx) => {
+            const summaryKey = `${sec.id}||summary||${sumIdx}`;
+            const editingSummary = outlineEditing[summaryKey];
+            const isExpanded = summaryExpanded[`${sec.id}_${sumIdx}`];
+            const summaryCheckKey = `${sec.id}_${sumIdx}`;
+            const isSummarySelected = selectedSummaries?.[summaryCheckKey] || false;
+            
+            return (
+              <div
+                key={sum.id || sumIdx}
+                className="hint summary-item"
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: 8, 
+                  flexWrap: 'wrap',
+                  padding: summaries.length > 1 ? '6px 8px' : '0',
+                  background: isSummarySelected 
+                    ? '#dbeafe' 
+                    : (summaries.length > 1 ? (sumIdx % 2 === 0 ? '#f9fafb' : '#fff') : 'transparent'),
+                  borderRadius: summaries.length > 1 ? '6px' : '0',
+                  border: isSummarySelected 
+                    ? '2px solid #3b82f6' 
+                    : (summaries.length > 1 ? '1px solid #e5e7eb' : 'none'),
+                  position: 'relative'
+                }}>
+                {/* 摘要多选框 */}
+                <input
+                  type="checkbox"
+                  checked={isSummarySelected}
+                  onChange={(e) => {
+                    setSelectedSummaries && setSelectedSummaries((prev) => ({
+                      ...prev,
+                      [summaryCheckKey]: e.target.checked
+                    }));
+                  }}
+                  style={{ 
+                    width: '16px', 
+                    height: '16px', 
+                    flexShrink: 0, 
+                    marginTop: '3px',
+                    cursor: 'pointer',
+                    accentColor: '#3b82f6'
+                  }}
+                  title="选中此摘要用于填入内容"
+                />
+                {/* 摘要左侧的 + 按钮 */}
+                <button
+                  className="ghost xsmall"
+                  type="button"
+                  onClick={() => addSummaryToSection && addSummaryToSection(sec.id, sumIdx + 1)}
+                  style={{ 
+                    width: '18px', height: '18px', padding: 0, 
+                    fontSize: '12px', lineHeight: '16px', fontWeight: 'bold',
+                    color: '#10b981', border: '1px dashed #10b981', borderRadius: '3px',
+                    flexShrink: 0, marginTop: '2px'
+                  }}
+                  title="在此摘要后添加新摘要">
+                  +
+                </button>
+                
+                {editingSummary !== undefined ? (
+                  <>
+                    <textarea
+                      rows={2}
+                      value={editingSummary}
+                      onChange={(e) =>
+                        setOutlineEditing((prev) => ({ ...prev, [summaryKey]: e.target.value }))
+                      }
+                      style={{ minWidth: 260, flex: 1 }}
+                    />
+                    <button
+                      className="ghost small"
+                      onClick={() => applyOutlineUpdate(sec.id, 'summary', editingSummary, sumIdx)}>
+                      {UI_TEXT.t24}
+                    </button>
+                    <button className="ghost small" onClick={() => cancelEditOutline(sec.id, 'summary', sumIdx)}>
+                      {UI_TEXT.t22}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div 
+                      className={`summary-text ${isExpanded ? 'expanded' : ''}`}
+                      style={{ flex: 1, minWidth: 0, color: sum.content ? 'inherit' : '#9ca3af' }}>
+                      {sum.content || UI_TEXT.t127}
+                    </div>
+                    {/* 展开/删除/编辑按钮 - 始终显示 */}
+                    {sum.content && (
+                      <button
+                        className="ghost xsmall"
+                        type="button"
+                        style={{ fontSize: '11px', padding: '2px 6px' }}
+                        onClick={() =>
+                          setSummaryExpanded((prev) => ({ ...prev, [`${sec.id}_${sumIdx}`]: !prev[`${sec.id}_${sumIdx}`] }))
+                        }>
+                        {isExpanded ? UI_TEXT.t142 : UI_TEXT.t143}
+                      </button>
+                    )}
+                    <button
+                      className="ghost xsmall"
+                      style={{ fontSize: '11px', padding: '2px 6px', color: '#ef4444' }}
+                      type="button"
+                      onClick={() => removeSummaryFromSection && removeSummaryFromSection(sec.id, sumIdx)}
+                      title="删除此摘要">
+                      {UI_TEXT.t25}
+                    </button>
+                    <button
+                      className="ghost xsmall"
+                      style={{ fontSize: '11px', padding: '2px 6px' }}
+                      onClick={() => startEditOutline(sec.id, 'summary', sum.content || '', sumIdx)}>
+                      {UI_TEXT.t26}
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })
+        )}
+        {/* 多摘要合并方式选择 - 当有多个摘要时显示，点击选择合并方式（高亮），实际合并在最终文档生成时执行 */}
+        {summaries.length > 1 && (
+          <div 
+            className="merge-actions"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              marginTop: '4px',
+              padding: '4px 8px',
+              background: '#f0fdf4',
+              borderRadius: '6px',
+              border: '1px dashed #86efac'
+            }}>
+            <span style={{ fontSize: '12px', color: '#16a34a' }}>合并 {summaries.length} 个摘要：</span>
+            <button
+              className="ghost xsmall"
+              type="button"
+              onClick={() => selectSectionMergeType && selectSectionMergeType(sec.id, 'paragraph')}
+              style={{ 
+                fontSize: '11px', 
+                padding: '2px 8px', 
+                background: sectionMergeType?.[sec.id] === 'paragraph' ? '#22c55e' : '#dcfce7', 
+                color: sectionMergeType?.[sec.id] === 'paragraph' ? '#fff' : '#16a34a',
+                border: sectionMergeType?.[sec.id] === 'paragraph' ? '1px solid #16a34a' : '1px solid #86efac', 
+                borderRadius: '4px',
+                fontWeight: sectionMergeType?.[sec.id] === 'paragraph' ? '600' : '400',
+                transition: 'all 0.15s ease'
+              }}
+              title="用换行分隔，形成多段落（点击选择，生成时合并）">
+              段落拼接
+            </button>
+            <button
+              className="ghost xsmall"
+              type="button"
+              onClick={() => selectSectionMergeType && selectSectionMergeType(sec.id, 'sentence')}
+              style={{ 
+                fontSize: '11px', 
+                padding: '2px 8px', 
+                background: sectionMergeType?.[sec.id] === 'sentence' ? '#22c55e' : '#dcfce7', 
+                color: sectionMergeType?.[sec.id] === 'sentence' ? '#fff' : '#16a34a',
+                border: sectionMergeType?.[sec.id] === 'sentence' ? '1px solid #16a34a' : '1px solid #86efac', 
+                borderRadius: '4px',
+                fontWeight: sectionMergeType?.[sec.id] === 'sentence' ? '600' : '400',
+                transition: 'all 0.15s ease'
+              }}
+              title="用分号分隔，形成长句（点击选择，生成时合并）">
+              句子拼接
+            </button>
+          </div>
         )}
       </div>
 

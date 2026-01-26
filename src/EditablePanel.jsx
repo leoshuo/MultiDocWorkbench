@@ -227,7 +227,7 @@ export function EditableLayoutPanel({
     flexDirection: 'column',
     zIndex: isDragging ? 1000 : 10,
     cursor: isDragging ? 'grabbing' : 'grab',
-    overflow: 'auto'
+    overflow: 'visible' // 改为 visible 以确保调整把手不被裁剪
   };
 
   return (
@@ -315,35 +315,35 @@ export function EditableLayoutPanel({
       {/* 调整大小把手 - 上边 */}
       {isEditing &&
       <div
-        style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '12px', cursor: 'ns-resize', zIndex: 10 }}
+        style={{ position: 'absolute', left: 0, right: 0, top: -6, height: '12px', cursor: 'ns-resize', zIndex: 100, background: 'rgba(59, 130, 246, 0.3)' }}
         onMouseDown={(e) => {e.stopPropagation();handleMouseDown(e, 'resize-n');}} />
 
       }
       {/* 调整大小把手 - 左边 */}
       {isEditing &&
       <div
-        style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '12px', cursor: 'ew-resize', zIndex: 10 }}
+        style={{ position: 'absolute', left: -6, top: 0, bottom: 0, width: '12px', cursor: 'ew-resize', zIndex: 100, background: 'rgba(59, 130, 246, 0.3)' }}
         onMouseDown={(e) => {e.stopPropagation();handleMouseDown(e, 'resize-w');}} />
 
       }
       {/* 调整大小把手 - 左上角 */}
       {isEditing &&
       <div
-        style={{ position: 'absolute', left: 0, top: 0, width: '16px', height: '16px', cursor: 'nwse-resize', zIndex: 11 }}
+        style={{ position: 'absolute', left: -6, top: -6, width: '16px', height: '16px', cursor: 'nwse-resize', zIndex: 101, background: 'rgba(59, 130, 246, 0.5)', borderRadius: '4px' }}
         onMouseDown={(e) => {e.stopPropagation();handleMouseDown(e, 'resize-nw');}} />
 
       }
       {/* 调整大小把手 - 右上角 */}
       {isEditing &&
       <div
-        style={{ position: 'absolute', right: 0, top: 0, width: '16px', height: '16px', cursor: 'nesw-resize', zIndex: 11 }}
+        style={{ position: 'absolute', right: -6, top: -6, width: '16px', height: '16px', cursor: 'nesw-resize', zIndex: 101, background: 'rgba(59, 130, 246, 0.5)', borderRadius: '4px' }}
         onMouseDown={(e) => {e.stopPropagation();handleMouseDown(e, 'resize-ne');}} />
 
       }
       {/* 调整大小把手 - 左下角 */}
       {isEditing &&
       <div
-        style={{ position: 'absolute', left: 0, bottom: 0, width: '16px', height: '16px', cursor: 'nesw-resize', zIndex: 11 }}
+        style={{ position: 'absolute', left: -6, bottom: -6, width: '16px', height: '16px', cursor: 'nesw-resize', zIndex: 101, background: 'rgba(59, 130, 246, 0.5)', borderRadius: '4px' }}
         onMouseDown={(e) => {e.stopPropagation();handleMouseDown(e, 'resize-sw');}} />
 
       }
@@ -353,19 +353,19 @@ export function EditableLayoutPanel({
       <div
         style={{
           position: 'absolute',
-          right: 0,
+          right: -6,
           top: 0,
           bottom: 0,
           width: '12px',
           cursor: 'ew-resize',
-          zIndex: 10,
-          background: 'linear-gradient(90deg, transparent 0%, #3b82f6 100%)',
-          opacity: 0.5,
+          zIndex: 100,
+          background: 'rgba(59, 130, 246, 0.4)',
+          opacity: 0.7,
           transition: 'opacity 0.2s'
         }}
         onMouseDown={(e) => {e.stopPropagation();handleMouseDown(e, 'resize-e');}}
         onMouseEnter={(e) => e.target.style.opacity = '1'}
-        onMouseLeave={(e) => e.target.style.opacity = '0.5'}
+        onMouseLeave={(e) => e.target.style.opacity = '0.7'}
         title={UI_TEXT.t5} />
 
       }
@@ -377,17 +377,17 @@ export function EditableLayoutPanel({
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: 0,
+          bottom: -6,
           height: '12px',
           cursor: 'ns-resize',
-          zIndex: 10,
-          background: 'linear-gradient(180deg, transparent 0%, #3b82f6 100%)',
-          opacity: 0.5,
+          zIndex: 100,
+          background: 'rgba(59, 130, 246, 0.4)',
+          opacity: 0.7,
           transition: 'opacity 0.2s'
         }}
         onMouseDown={(e) => {e.stopPropagation();handleMouseDown(e, 'resize-s');}}
         onMouseEnter={(e) => e.target.style.opacity = '1'}
-        onMouseLeave={(e) => e.target.style.opacity = '0.5'}
+        onMouseLeave={(e) => e.target.style.opacity = '0.7'}
         title={UI_TEXT.t6} />
 
       }
@@ -397,20 +397,20 @@ export function EditableLayoutPanel({
       <div
         style={{
           position: 'absolute',
-          right: 0,
-          bottom: 0,
+          right: -6,
+          bottom: -6,
           width: '24px',
           height: '24px',
           cursor: 'nwse-resize',
-          zIndex: 10,
-          background: 'linear-gradient(135deg, transparent 50%, #3b82f6 50%)',
-          borderRadius: '0 0 6px 0',
-          opacity: 0.7,
+          zIndex: 101,
+          background: '#3b82f6',
+          borderRadius: '4px',
+          opacity: 0.8,
           transition: 'opacity 0.2s'
         }}
         onMouseDown={(e) => {e.stopPropagation();handleMouseDown(e, 'resize-se');}}
         onMouseEnter={(e) => e.target.style.opacity = '1'}
-        onMouseLeave={(e) => e.target.style.opacity = '0.7'}
+        onMouseLeave={(e) => e.target.style.opacity = '0.8'}
         title={UI_TEXT.t7} />
 
       }

@@ -1543,6 +1543,46 @@ router.patch("/precipitation/records/:id", (req, res) => {
 
 });
 
+// PUT 路由：完整更新沉淀记录（支持编辑后保存）
+router.put("/precipitation/records/:id", (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedRecord = req.body;
+
+        if (!updatedRecord || typeof updatedRecord !== 'object') {
+            return res.status(400).json({ error: "无效的沉淀记录数据" });
+        }
+
+        const existingRecords = readJsonFile(PRECIPITATION_RECORDS_PATH) || [];
+        const idx = existingRecords.findIndex(r => r.id === id);
+
+        if (idx === -1) {
+            return res.status(404).json({ error: "未找到该沉淀记录" });
+        }
+
+        // 保留原始记录的关键字段，合并更新
+        const current = existingRecords[idx];
+        const next = {
+            ...current,
+            ...updatedRecord,
+            id: id, // 确保 ID 不变
+            updatedAt: Date.now()
+        };
+
+        existingRecords[idx] = next;
+
+        if (writeJsonFile(PRECIPITATION_RECORDS_PATH, existingRecords)) {
+            logger.info('PRECIPITATION', `已完整更新沉淀记录: ${id}`);
+            res.json({ ok: true, record: next });
+        } else {
+            res.status(500).json({ error: "更新沉淀记录失败" });
+        }
+    } catch (error) {
+        logger.error('PRECIPITATION', '完整更新沉淀记录失败', error);
+        res.status(500).json({ error: '更新沉淀记录失败' });
+    }
+});
+
 
 
 router.post("/precipitation/records/order", (req, res) => {

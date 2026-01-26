@@ -1,5 +1,5 @@
 {
   "sources-panel": true,
   "chat-panel": true,
-  "studio-panel": true
+  "studio-panel": false
 }

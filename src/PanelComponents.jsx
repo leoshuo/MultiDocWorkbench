@@ -3,7 +3,7 @@
  * 将大型 App.jsx 拆分成独立的可拖动面板
  */
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   FileText,
   Upload,
@@ -15,7 +15,8 @@ import {
   Terminal,
   Play,
   Settings,
-  History } from
+  History,
+  GripVertical } from
 'lucide-react';
 
 /**
@@ -57,6 +58,7 @@ export function InputFormPanelContent({
  */
 export function DocumentListPanelContent({
   docs,
+  setDocs,
   selectedDocId,
   setSelectedDocId,
   deleteDoc,
@@ -69,6 +71,88 @@ export function DocumentListPanelContent({
   saveReplayDirConfig,
   replayDirConfigSaving
 }) {
+  // 拖拽排序状态
+  const [draggedDocId, setDraggedDocId] = useState(null);
+  const [dragOverDocId, setDragOverDocId] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // 处理拖拽开始
+  const handleDragStart = (e, docId) => {
+    setDraggedDocId(docId);
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', docId);
+    // 设置拖拽图像
+    if (e.target) {
+      e.dataTransfer.setDragImage(e.target, 20, 20);
+    }
+  };
+
+  // 处理拖拽经过
+  const handleDragOver = (e, docId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (docId !== draggedDocId) {
+      setDragOverDocId(docId);
+    }
+  };
+
+  // 处理拖拽离开
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragOverDocId(null);
+  };
+
+  // 处理放置
+  const handleDrop = (e, targetDocId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedDocId || draggedDocId === targetDocId) {
+      setDraggedDocId(null);
+      setDragOverDocId(null);
+      setIsDragging(false);
+      return;
+    }
+
+    // 重新排序文档
+    if (setDocs) {
+      setDocs(prevDocs => {
+        const newDocs = [...prevDocs];
+        const draggedIndex = newDocs.findIndex(d => d.id === draggedDocId);
+        const targetIndex = newDocs.findIndex(d => d.id === targetDocId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return prevDocs;
+        
+        // 移除拖拽的文档
+        const [draggedDoc] = newDocs.splice(draggedIndex, 1);
+        // 插入到目标位置
+        newDocs.splice(targetIndex, 0, draggedDoc);
+        
+        return newDocs;
+      });
+    }
+
+    setDraggedDocId(null);
+    setDragOverDocId(null);
+    setIsDragging(false);
+  };
+
+  // 处理拖拽结束
+  const handleDragEnd = () => {
+    setDraggedDocId(null);
+    setDragOverDocId(null);
+    setIsDragging(false);
+  };
+
+  // 处理点击（避免拖拽时触发选择）
+  const handleItemClick = (docId) => {
+    if (!isDragging) {
+      setSelectedDocId(docId);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
@@ -83,10 +167,37 @@ export function DocumentListPanelContent({
         {docs.map((d) =>
         <div
           key={d.id}
-          className={`list-item ${selectedDocId === d.id ? 'active' : ''}`}
-          onClick={() => setSelectedDocId(d.id)}>
+          className={`list-item ${selectedDocId === d.id ? 'active' : ''} ${draggedDocId === d.id ? 'dragging' : ''} ${dragOverDocId === d.id ? 'drag-over' : ''}`}
+          onClick={() => handleItemClick(d.id)}
+          draggable="true"
+          onDragStart={(e) => handleDragStart(e, d.id)}
+          onDragOver={(e) => handleDragOver(e, d.id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, d.id)}
+          onDragEnd={handleDragEnd}
+          style={{
+            cursor: 'grab',
+            opacity: draggedDocId === d.id ? 0.5 : 1,
+            borderTop: dragOverDocId === d.id ? '2px solid #3b82f6' : 'none',
+            background: dragOverDocId === d.id ? '#f0f9ff' : undefined,
+            transition: 'border-top 0.15s ease, background 0.15s ease'
+          }}>
           
-            <div style={{ fontWeight: 500 }}>{d.name}</div>
+            {/* 拖拽把手 */}
+            <div 
+              className="drag-handle"
+              style={{ 
+                cursor: 'grab', 
+                marginRight: '8px', 
+                color: '#9ca3af',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <GripVertical size={14} />
+            </div>
+
+            <div style={{ fontWeight: 500, flex: 1, cursor: 'pointer' }}>{d.name}</div>
 
             <div className="section-actions" style={{ justifyContent: 'flex-end' }}>
               <button

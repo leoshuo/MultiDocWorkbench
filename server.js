@@ -1308,7 +1308,20 @@ async function callQwenOutline(text, options = {}) {
 
 async function callQwenDispatch({ instructions, scene, docContent, outlineSegments = [], systemPrompt }) {
   // 默认系统提示语（包含 JSON 关键词，因为使用了 response_format: json_object）
-  const defaultSysPrompt = "你是中文文档处理助手。请根据用户指令处理给定文本，严格用中文输出 JSON 对象，字段：summary（一句话说明你做了什么，必须为中文），detail（处理后的正文，必须为中文），edits（可选数组，每项：{sectionId, field:'title'|'summary', content}）。注意：如果文档中包含形如【片段N | ID=xxx】的标记，edits 中的 sectionId 必须使用 ID= 后面的实际值（如 'sec_1' 或数字），不要包含 '片段N' 等前缀。不要返回其他字段，不要解释。";
+  const defaultSysPrompt = `你是中文文档处理助手。请根据用户指令处理给定文本，严格用中文输出 JSON 对象，字段：summary（一句话说明你做了什么，必须为中文），detail（处理后的正文，必须为中文），edits（可选数组，每项：{sectionId, field:'title'|'summary', content}）。
+
+**重要 - 执行计算指令时必须遵守：**
+1. 如果用户指令中包含计算公式（如 "XXX = A + B + C"），你必须：
+   - 从文档中准确提取所有需要的数值
+   - 严格按照公式进行数学计算
+   - 将计算结果填入指定的输出格式中
+2. 示例：如果指令要求 "输出: 政治中心区调度检查 XXX 次，XXX = 预警调度次数 + 电台调度次数 + 视频巡检次数 + 实地检查次数"
+   - 从文档提取：预警调度68次、电台调度89次、视频巡检373次、实地检查29次
+   - 计算：68 + 89 + 373 + 29 = 559
+   - 输出：detail 应为 "政治中心区调度检查 559 次"
+3. 不要简单复制原文，必须执行用户要求的计算和转换
+
+注意：如果文档中包含形如【片段N | ID=xxx】的标记，edits 中的 sectionId 必须使用 ID= 后面的实际值（如 'sec_1' 或数字），不要包含 '片段N' 等前缀。不要返回其他字段，不要解释。`;
   
   // 如果有自定义 systemPrompt，将其作为补充指导，但保留默认的 JSON 输出要求
   // 因为使用了 response_format: json_object，messages 中必须包含 "json" 关键词
@@ -1809,6 +1822,257 @@ app.post("/api/replay/file-selector", async (req, res) => {
 
 });
 
+
+// ========== 大模型语义匹配 API（用于大模型Replay）==========
+// 根据记录的特征，在候选列表中找到相似项
+async function callQwenSemanticMatch({ taskType, recordedInfo, candidates, context }) {
+  // taskType: 'find_document' | 'find_outline_section' | 'extract_content'
+  // recordedInfo: 记录中的特征信息
+  // candidates: 候选列表
+  // context: 额外上下文（如新文档内容）
+  
+  let systemPrompt = '';
+  let userContent = '';
+  
+  if (taskType === 'find_document') {
+    systemPrompt = `你是文档匹配助手。根据沉淀记录中的文档特征信息，在候选文档列表中找到最相似的文档。
+
+重要：你需要基于语义相似性进行匹配，而不是精确名称匹配。例如：
+- 记录中"无人机素材"应该匹配"无人机-----最新.txt"
+- 记录中"公交总队"应该匹配"公交总队（输入）.txt"
+- 关键词"无人机"、"UAV"应该匹配包含"无人机"的文档
+
+输出 JSON 对象：{
+  "matchedIndex": 数字（候选列表中的索引，从0开始，如果确实没有相关文档返回-1），
+  "matchedName": "匹配的文档名称",
+  "confidence": 0-1之间的置信度,
+  "reason": "匹配理由"
+}
+不要输出其他字段，不要解释。`;
+
+    // 构建用户内容，包含沉淀记录中的丰富信息
+    const extraInfo = [];
+    if (recordedInfo.selectorDescription) extraInfo.push(`选择器描述：${recordedInfo.selectorDescription}`);
+    if (recordedInfo.flexKeywords) extraInfo.push(`灵活关键词：${recordedInfo.flexKeywords}`);
+    if (recordedInfo.targetSectionTitle) extraInfo.push(`目标章节：${recordedInfo.targetSectionTitle}`);
+    if (recordedInfo.structuredContent) extraInfo.push(`结构化内容摘要：${recordedInfo.structuredContent.substring(0, 200)}`);
+
+    userContent = `【沉淀记录中的文档特征】
+原记录名称：${recordedInfo.docName || ''}
+描述：${recordedInfo.description || ''}
+AI指导：${recordedInfo.aiGuidance || ''}
+关键词：${recordedInfo.keywords || ''}
+${extraInfo.length > 0 ? '\n【额外参考信息】\n' + extraInfo.join('\n') : ''}
+
+【当前文档列表（候选）】
+${candidates.map((c, i) => `${i}. ${c.name}`).join('\n')}
+
+请根据沉淀记录的特征，从当前文档列表中找出最相似的文档。注意进行语义匹配，不要求名称完全一致。`;
+
+  } else if (taskType === 'find_outline_section') {
+    systemPrompt = `你是大纲位置匹配助手。根据记录的目标位置特征，在当前大纲中找到最相似的位置。
+输出 JSON 对象：{
+  "matchedId": "匹配的章节ID",
+  "matchedTitle": "匹配的章节标题",
+  "confidence": 0-1之间的置信度,
+  "reason": "匹配理由"
+}
+不要输出其他字段，不要解释。`;
+
+    userContent = `【记录的目标位置特征】
+标题：${recordedInfo.targetTitle || ''}
+级别：${recordedInfo.targetLevel || ''}
+描述：${recordedInfo.description || ''}
+AI指导：${recordedInfo.aiGuidance || ''}
+摘要提示：${recordedInfo.targetSummary || ''}
+
+【当前大纲结构】
+${candidates.map(c => `- ID: ${c.id}, 级别: ${c.level}, 标题: ${c.title}${c.summary ? `, 摘要: ${(c.summary || '').substring(0, 50)}...` : ''}`).join('\n')}
+
+请根据记录的特征，找出当前大纲中最相似的位置。`;
+
+  } else if (taskType === 'extract_content') {
+    systemPrompt = `你是内容提取助手。根据记录的内容特征，从新文档中找到并提取相似的内容片段。
+输出 JSON 对象：{
+  "extractedContent": "提取的内容",
+  "startExcerpt": "提取内容的开头（用于定位）",
+  "endExcerpt": "提取内容的结尾（用于定位）",
+  "confidence": 0-1之间的置信度,
+  "reason": "提取理由"
+}
+不要输出其他字段，不要解释。`;
+
+    userContent = `【记录的内容特征】
+原内容开头：${recordedInfo.contentStart || ''}
+原内容结尾：${recordedInfo.contentEnd || ''}
+内容摘要：${recordedInfo.contentSummary || ''}
+上下文特征：${recordedInfo.contextFeatures || ''}
+AI指导：${recordedInfo.aiGuidance || ''}
+
+【新文档内容】
+${context?.newDocContent || ''}
+
+请根据记录的特征，从新文档中找到并提取相似的内容片段。`;
+  }
+
+  if (!QWEN_API_KEY) {
+    // 无API KEY时使用增强的关键词匹配
+    if (taskType === 'find_document') {
+      const recordedName = (recordedInfo.docName || '').toLowerCase();
+      // 提取所有关键词（从 docName、keywords、flexKeywords）
+      const allKeywords = [
+        ...(recordedInfo.docName || '').replace(/[（）()【】\[\].txt.docx.doc\-_]/g, ' ').toLowerCase().split(/\s+/),
+        ...(recordedInfo.keywords || '').toLowerCase().split(/\s+/),
+        ...(recordedInfo.flexKeywords || '').toLowerCase().split(/[,，\s]+/)
+      ].filter(k => k && k.length > 1);
+      
+      // 计算每个候选文档的匹配分数
+      let bestMatch = { idx: -1, score: 0 };
+      candidates.forEach((c, i) => {
+        const candidateName = (c.name || '').toLowerCase();
+        let score = 0;
+        
+        // 名称直接包含关系
+        if (candidateName.includes(recordedName) || recordedName.includes(candidateName)) {
+          score += 10;
+        }
+        
+        // 关键词匹配
+        allKeywords.forEach(kw => {
+          if (candidateName.includes(kw)) {
+            score += 3;
+          }
+        });
+        
+        if (score > bestMatch.score) {
+          bestMatch = { idx: i, score };
+        }
+      });
+      
+      console.log('[Semantic Match Fallback] find_document:', { 
+        recordedName, 
+        allKeywords: allKeywords.slice(0, 5),
+        bestMatchIdx: bestMatch.idx,
+        bestMatchName: bestMatch.idx >= 0 ? candidates[bestMatch.idx]?.name : null,
+        bestScore: bestMatch.score,
+        candidateCount: candidates.length 
+      });
+      
+      return {
+        matchedIndex: bestMatch.idx >= 0 ? bestMatch.idx : (candidates.length > 0 ? 0 : -1),
+        matchedName: bestMatch.idx >= 0 ? candidates[bestMatch.idx]?.name : candidates[0]?.name,
+        confidence: bestMatch.score >= 10 ? 0.8 : (bestMatch.score >= 3 ? 0.6 : 0.3),
+        reason: `基于关键词匹配（未配置大模型）- 关键词: ${allKeywords.slice(0, 5).join(', ')}`
+      };
+    } else if (taskType === 'find_outline_section') {
+      const recordedTitle = (recordedInfo.targetTitle || '').toLowerCase();
+      // 从记录的标题中提取关键词（去除标点符号）
+      const cleanTitle = recordedTitle.replace(/[【】\[\]()（）\-_\s]/g, '');
+      const titleKeywords = cleanTitle.split('').filter(Boolean);
+      
+      // 尝试多种匹配策略
+      let matched = null;
+      let bestScore = 0;
+      
+      for (const c of candidates) {
+        const candidateTitle = (c.title || '').toLowerCase();
+        const cleanCandidateTitle = candidateTitle.replace(/[【】\[\]()（）\-_\s]/g, '');
+        
+        let score = 0;
+        
+        // 策略1：直接包含
+        if (candidateTitle.includes(cleanTitle) || cleanTitle.includes(cleanCandidateTitle)) {
+          score += 100;
+        }
+        
+        // 策略2：关键词匹配（检查每个关键字是否出现）
+        for (const kw of titleKeywords) {
+          if (kw.length >= 2 && cleanCandidateTitle.includes(kw)) {
+            score += 10;
+          }
+        }
+        
+        // 策略3：特殊关键词匹配
+        const specialKeywords = ['无人机', '公交', '网安', '指挥', '治安', '内保', '出入境', '天安门', '勤务', '政治'];
+        for (const kw of specialKeywords) {
+          if (cleanTitle.includes(kw) && cleanCandidateTitle.includes(kw)) {
+            score += 50;
+          }
+        }
+        
+        if (score > bestScore) {
+          bestScore = score;
+          matched = c;
+        }
+      }
+      
+      console.log('[Semantic Match Fallback] find_outline_section:', { 
+        recordedTitle, 
+        cleanTitle,
+        matchedTitle: matched?.title, 
+        bestScore,
+        candidateCount: candidates.length 
+      });
+      
+      return {
+        matchedId: matched?.id || (candidates.length > 0 ? candidates[0].id : null),
+        matchedTitle: matched?.title || (candidates.length > 0 ? candidates[0].title : ''),
+        confidence: bestScore >= 50 ? 0.7 : (bestScore >= 10 ? 0.5 : 0.3),
+        reason: `基于关键词匹配（未配置大模型）- 得分: ${bestScore}`
+      };
+    }
+    return { error: '未配置大模型，无法执行语义匹配' };
+  }
+
+  const resp = await fetchWithRetry(QWEN_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${QWEN_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: QWEN_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2, // 低温度确保稳定性
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`大模型匹配失败: ${resp.status} - ${errText}`);
+  }
+
+  const data = await resp.json();
+  const content = data.choices?.[0]?.message?.content || "{}";
+
+  try {
+    return JSON.parse(content);
+  } catch {
+    return { error: "解析大模型返回失败", raw: content };
+  }
+}
+
+app.post("/api/replay/llm-match", async (req, res) => {
+  try {
+    const { taskType, recordedInfo, candidates, context } = req.body || {};
+    
+    if (!taskType || !recordedInfo) {
+      return res.status(400).json({ error: "taskType 和 recordedInfo 必填" });
+    }
+
+    const usedModel = !!QWEN_API_KEY;
+    const result = await callQwenSemanticMatch({ taskType, recordedInfo, candidates, context });
+    
+    res.json({ ...result, usedModel });
+  } catch (err) {
+    console.error('[LLM Match Error]', err);
+    res.status(500).json({ error: err.message || "语义匹配失败" });
+  }
+});
 
 
 app.post("/api/dispatch", async (req, res) => {
@@ -2373,6 +2637,9 @@ app.post("/api/scene/:id/apply-template", (req, res) => {
 
       summary: s.summary || "",
 
+      // 保留多摘要数组 summaries
+      summaries: Array.isArray(s.summaries) ? s.summaries : undefined,
+
       level: Number.isInteger(s.level) ? Math.min(5, Math.max(1, s.level)) : 1,
 
     })),
@@ -2856,6 +3123,8 @@ app.post('/api/ai/chat', async (req, res) => {
       content: m.content || ''
     }));
     
+    console.log('[AI Chat] 开始调用 AI...', { messageCount: apiMessages.length });
+    
     const response = await fetchWithRetry(QWEN_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -2867,15 +3136,18 @@ app.post('/api/ai/chat', async (req, res) => {
         messages: apiMessages,
         max_tokens: maxTokens,
         temperature: 0.7
-      })
-    });
+      }),
+      timeout: 60000  // 60秒超时，避免长时间等待
+    }, 2);  // 最多重试 2 次
     
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content || '';
     
+    console.log('[AI Chat] AI 返回成功', { contentLength: content.length });
     res.json({ content, usedModel: true });
   } catch (error) {
     logger.error('AI_CHAT', 'AI 聊天失败', error);
+    console.error('[AI Chat] 错误:', error.message);
     // 返回空让前端使用回退方案
     res.json({ content: null, usedModel: false, error: error.message });
   }

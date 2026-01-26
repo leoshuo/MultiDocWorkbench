@@ -1,9 +1,9 @@
 {
   "preview-panel": {
-    "left": 18,
+    "left": 0,
     "top": 0,
-    "width": 484,
-    "height": 337
+    "width": 387,
+    "height": 328
   },
   "input-form-panel": {
     "left": 22,
@@ -12,21 +12,21 @@
     "height": 172
   },
   "document-list-panel": {
-    "left": 24,
-    "top": 348,
-    "width": 475,
-    "height": 440
+    "left": 0,
+    "top": 336,
+    "width": 390,
+    "height": 338
   },
   "processing-panel": {
-    "left": 526,
+    "left": 405,
     "top": 0,
-    "width": 1068,
-    "height": 575
+    "width": 1020,
+    "height": 479
   },
   "operations-panel": {
-    "left": 523,
-    "top": 585,
-    "width": 1070,
-    "height": 202
+    "left": 405,
+    "top": 491,
+    "width": 1022,
+    "height": 182
   }
 }

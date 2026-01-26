@@ -26,6 +26,7 @@ export function DraggablePanel({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState('');
+  const [resizeStart, setResizeStart] = useState({ mouseX: 0, mouseY: 0, width: 0, height: 0, x: 0, y: 0 });
 
   const panelRef = useRef(null);
   const headerRef = useRef(null);
@@ -103,36 +104,59 @@ export function DraggablePanel({
   const handleResizeMouseDown = (direction) => (e) => {
     if (e.button !== 0) return;
 
+    // 记录初始状态
+    setResizeStart({
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      width: size.width,
+      height: size.height,
+      x: position.x,
+      y: position.y
+    });
     setIsResizing(true);
     setResizeDirection(direction);
     e.preventDefault();
+    e.stopPropagation();
   };
 
   useEffect(() => {
     if (!isResizing) return;
 
     const handleMouseMove = (e) => {
-      const deltaX = e.clientX - (position.x + size.width);
-      const deltaY = e.clientY - (position.y + size.height);
+      // 计算相对于初始点击位置的变化
+      const deltaX = e.clientX - resizeStart.mouseX;
+      const deltaY = e.clientY - resizeStart.mouseY;
 
-      let newWidth = size.width;
-      let newHeight = size.height;
-      let newX = position.x;
-      let newY = position.y;
+      let newWidth = resizeStart.width;
+      let newHeight = resizeStart.height;
+      let newX = resizeStart.x;
+      let newY = resizeStart.y;
 
       if (resizeDirection.includes('right')) {
-        newWidth = Math.max(minWidth, size.width + deltaX);
+        newWidth = Math.max(minWidth, resizeStart.width + deltaX);
       }
       if (resizeDirection.includes('bottom')) {
-        newHeight = Math.max(minHeight, size.height + deltaY);
+        newHeight = Math.max(minHeight, resizeStart.height + deltaY);
       }
       if (resizeDirection.includes('left')) {
-        newWidth = Math.max(minWidth, size.width - deltaX);
-        newX = Math.min(position.x + deltaX, position.x);
+        const widthDelta = -deltaX;
+        newWidth = Math.max(minWidth, resizeStart.width + widthDelta);
+        // 只有当宽度真的变化时才移动位置
+        if (newWidth > minWidth) {
+          newX = resizeStart.x + deltaX;
+        } else {
+          newX = resizeStart.x + resizeStart.width - minWidth;
+        }
       }
       if (resizeDirection.includes('top')) {
-        newHeight = Math.max(minHeight, size.height - deltaY);
-        newY = Math.min(position.y + deltaY, position.y);
+        const heightDelta = -deltaY;
+        newHeight = Math.max(minHeight, resizeStart.height + heightDelta);
+        // 只有当高度真的变化时才移动位置
+        if (newHeight > minHeight) {
+          newY = resizeStart.y + deltaY;
+        } else {
+          newY = resizeStart.y + resizeStart.height - minHeight;
+        }
       }
 
       setSize({ width: newWidth, height: newHeight });
@@ -151,7 +175,7 @@ export function DraggablePanel({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, resizeDirection, position, size, minWidth, minHeight]);
+  }, [isResizing, resizeDirection, resizeStart, minWidth, minHeight]);
 
   return (
     <div

@@ -1,20 +1,20 @@
 {
   "layoutSize": {
-    "width": 1590,
-    "height": 800
+    "width": 1463.947998046875,
+    "height": 674
   },
   "panelPositions": {
     "sources-panel": {
-      "left": 20,
-      "top": 40,
-      "width": 320,
-      "height": 900
+      "left": 0,
+      "top": 0,
+      "width": 342,
+      "height": 652
     },
     "chat-panel": {
-      "left": 360,
-      "top": 40,
-      "width": 800,
-      "height": 900
+      "left": 352,
+      "top": 0,
+      "width": 1088,
+      "height": 652
     },
     "studio-panel": {
       "left": 1180,
@@ -31,6 +31,48 @@
   "panelVisibility": {
     "sources-panel": true,
     "chat-panel": true,
-    "studio-panel": true
+    "studio-panel": false
+  },
+  "headerTitles": {
+    "title": {
+      "text": "多文档处理工作台",
+      "style": {
+        "fontSize": 28,
+        "fontWeight": 400,
+        "color": "#202124",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "borderColor": "#e2e8f0",
+        "borderWidth": 1,
+        "borderRadius": 6
+      },
+      "position": {
+        "left": -1,
+        "top": 3
+      },
+      "width": 300,
+      "height": 40
+    },
+    "eyebrow": {
+      "text": "Multi-Doc Studio",
+      "style": {
+        "fontSize": 18,
+        "letterSpacing": "1px",
+        "color": "#5f6368",
+        "textTransform": "uppercase",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "fontWeight": 500,
+        "borderColor": "#e2e8f0",
+        "borderWidth": 1,
+        "borderRadius": 6
+      },
+      "position": {
+        "left": 12,
+        "top": -5
+      },
+      "width": 200,
+      "height": 30
+    }
   }
 }
