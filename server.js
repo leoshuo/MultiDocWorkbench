@@ -2088,25 +2088,47 @@ app.post("/api/replay/execute-section", async (req, res) => {
       return res.status(400).json({ error: "section 必填" });
     }
 
-    let scene = scenes.get(sceneId);
+    // 优先使用 'main' scene（与后管端保持一致）
+    const effectiveSceneId = sceneId || 'main';
+    let scene = scenes.get(effectiveSceneId);
+    
+    // 如果 scene 不存在，尝试获取 'main' scene
+    if (!scene && effectiveSceneId !== 'main') {
+      scene = scenes.get('main');
+    }
+    
     if (!scene) {
-      // 自动创建 scene
+      // 自动创建 scene，使用 cachedOutlineTemplate
       scene = {
-        id: sceneId,
+        id: effectiveSceneId,
         docIds: [],
         sectionDocLinks: {},
         customTemplate: cachedOutlineTemplate || null,
         template: cachedOutlineTemplate || defaultTemplate,
         sections: buildSectionsMap(cachedOutlineTemplate || defaultTemplate)
       };
-      scenes.set(sceneId, scene);
+      scenes.set(effectiveSceneId, scene);
+    }
+    
+    // 确保 scene 使用最新的 cachedOutlineTemplate
+    if (cachedOutlineTemplate && (!scene.customTemplate || !scene.customTemplate.sections?.length)) {
+      scene.customTemplate = cachedOutlineTemplate;
+      scene.template = cachedOutlineTemplate;
     }
 
     const meta = section.meta || {};
     const metaType = (meta.type || '').toString();
     const llmScript = section.llmScript || {};
     
-    logger.info('REPLAY', `执行 section: ${metaType}`, { sceneId, mode });
+    // 日志：输出当前大纲状态
+    const tplSections = (scene.customTemplate || scene.template || cachedOutlineTemplate)?.sections || [];
+    logger.info('REPLAY', `执行 section: ${metaType}`, { 
+      sceneId: effectiveSceneId, 
+      mode, 
+      tplSectionsCount: tplSections.length,
+      docsCount: docs.length,
+      hasCachedTemplate: !!cachedOutlineTemplate
+    });
 
     let status = 'done';
     let reason = '';
