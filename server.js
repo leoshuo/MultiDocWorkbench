@@ -2225,12 +2225,43 @@ app.post("/api/replay/execute-section", async (req, res) => {
       reason = '📜 脚本 Replay Done（编辑操作已记录）';
       
     } else if (metaType === 'add_summary_to_section' || section.action === '添加摘要') {
-      // 添加摘要
-      try {
-        const tpl = getTemplate();
-        const targetSection = findSection(meta.sectionId || meta.targetSectionId, meta.targetSectionTitle, tpl);
-        if (!targetSection) throw new Error('未找到目标标题');
-        
+      // 添加摘要（与后管端逻辑一致：找不到时跳过而非失败）
+      const tpl = getTemplate();
+      const sectionTitle = meta.targetSectionTitle || llmScript?.targetSectionTitle || '';
+      
+      // LLM 模式：语义匹配
+      let targetSection = null;
+      if (mode === 'llm' && sectionTitle) {
+        try {
+          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+          const matchRes = await callQwenSemanticMatch({
+            taskType: 'find_outline_section',
+            recordedInfo: { targetTitle: sectionTitle, description: '添加摘要' },
+            candidates
+          });
+          if (matchRes.matchedId) {
+            targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '语义匹配失败，回退到精确匹配', { error: e.message });
+        }
+      }
+      
+      if (!targetSection) {
+        targetSection = findSection(meta.sectionId || meta.targetSectionId, sectionTitle, tpl);
+      }
+      
+      // 【重要】找不到目标时跳过（与后管端逻辑一致）
+      if (!targetSection) {
+        if (mode === 'llm') {
+          status = 'pass';
+          reason = `⏭️ 跳过执行：当前大纲中未找到与「${sectionTitle || '(空)'}」相似的目标章节`;
+          replayMode = 'skipped';
+        } else {
+          status = 'fail';
+          reason = '未找到目标标题';
+        }
+      } else {
         const summaries = Array.isArray(targetSection.summaries) ? [...targetSection.summaries] : [];
         summaries.push({ content: '', createdAt: Date.now() });
         
@@ -2240,23 +2271,55 @@ app.post("/api/replay/execute-section", async (req, res) => {
         };
         applyTemplate(nextTpl);
         status = 'done';
-        reason = `📜 脚本 Replay Done（已添加摘要到「${targetSection.title}」）`;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '添加摘要失败';
+        reason = mode === 'llm'
+          ? `🤖 大模型匹配添加摘要：${targetSection.title}`
+          : `📜 脚本 Replay Done（已添加摘要到「${targetSection.title}」）`;
+        replayMode = mode;
       }
       
     } else if (metaType === 'remove_summary_from_section' || section.action === '删除摘要项') {
-      // 删除摘要项
-      try {
-        const tpl = getTemplate();
-        const targetSection = findSection(meta.sectionId, meta.targetSectionTitle, tpl);
-        if (!targetSection) throw new Error('未找到目标标题');
-        
-        const summaryIndex = meta.summaryIndex ?? 0;
+      // 删除摘要项（与后管端逻辑一致：找不到时跳过而非失败）
+      const tpl = getTemplate();
+      const sectionTitle = meta.targetSectionTitle || llmScript?.targetSectionTitle || '';
+      
+      // LLM 模式：语义匹配
+      let targetSection = null;
+      if (mode === 'llm' && sectionTitle) {
+        try {
+          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+          const matchRes = await callQwenSemanticMatch({
+            taskType: 'find_outline_section',
+            recordedInfo: { targetTitle: sectionTitle, description: '删除摘要' },
+            candidates
+          });
+          if (matchRes.matchedId) {
+            targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '语义匹配失败，回退到精确匹配', { error: e.message });
+        }
+      }
+      
+      if (!targetSection) {
+        targetSection = findSection(meta.sectionId, sectionTitle, tpl);
+      }
+      
+      const sumIdx = meta.summaryIndex;
+      
+      // 【重要】找不到目标或索引时跳过（与后管端逻辑一致）
+      if (!targetSection || typeof sumIdx !== 'number') {
+        if (mode === 'llm') {
+          status = 'pass';
+          reason = `⏭️ 跳过执行：当前大纲中未找到与「${sectionTitle || '(空)'}」相似的目标章节${typeof sumIdx !== 'number' ? '或摘要索引' : ''}`;
+          replayMode = 'skipped';
+        } else {
+          status = 'fail';
+          reason = '未找到目标标题或摘要索引';
+        }
+      } else {
         const summaries = Array.isArray(targetSection.summaries) ? [...targetSection.summaries] : [];
-        if (summaryIndex >= 0 && summaryIndex < summaries.length) {
-          summaries.splice(summaryIndex, 1);
+        if (sumIdx >= 0 && sumIdx < summaries.length) {
+          summaries.splice(sumIdx, 1);
         }
         
         const nextTpl = {
@@ -2265,19 +2328,50 @@ app.post("/api/replay/execute-section", async (req, res) => {
         };
         applyTemplate(nextTpl);
         status = 'done';
-        reason = `📜 脚本 Replay Done（已删除摘要项）`;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '删除摘要项失败';
+        reason = mode === 'llm'
+          ? `🤖 大模型匹配删除摘要：${targetSection.title}`
+          : `📜 脚本 Replay Done（已删除摘要项）`;
+        replayMode = mode;
       }
       
     } else if (metaType === 'merge_summaries_in_section' || section.action === '合并摘要') {
-      // 合并摘要
-      try {
-        const tpl = getTemplate();
-        const targetSection = findSection(meta.sectionId, meta.targetSectionTitle, tpl);
-        if (!targetSection) throw new Error('未找到目标标题');
-        
+      // 合并摘要（与后管端逻辑一致：找不到时跳过而非失败）
+      const tpl = getTemplate();
+      const sectionTitle = meta.targetSectionTitle || llmScript?.targetSectionTitle || '';
+      
+      // LLM 模式：语义匹配
+      let targetSection = null;
+      if (mode === 'llm' && sectionTitle) {
+        try {
+          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+          const matchRes = await callQwenSemanticMatch({
+            taskType: 'find_outline_section',
+            recordedInfo: { targetTitle: sectionTitle, description: '合并摘要' },
+            candidates
+          });
+          if (matchRes.matchedId) {
+            targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '语义匹配失败，回退到精确匹配', { error: e.message });
+        }
+      }
+      
+      if (!targetSection) {
+        targetSection = findSection(meta.sectionId, sectionTitle, tpl);
+      }
+      
+      // 【重要】找不到目标时跳过（与后管端逻辑一致）
+      if (!targetSection) {
+        if (mode === 'llm') {
+          status = 'pass';
+          reason = `⏭️ 跳过执行：当前大纲中未找到与「${sectionTitle || '(空)'}」相似的目标章节`;
+          replayMode = 'skipped';
+        } else {
+          status = 'fail';
+          reason = '未找到目标标题';
+        }
+      } else {
         const summaries = Array.isArray(targetSection.summaries) ? targetSection.summaries : [];
         const mergedContent = summaries.map(s => (s.content || '').trim()).filter(Boolean).join('\n\n');
         
@@ -2287,10 +2381,10 @@ app.post("/api/replay/execute-section", async (req, res) => {
         };
         applyTemplate(nextTpl);
         status = 'done';
-        reason = `📜 脚本 Replay Done（已合并 ${summaries.length} 个摘要）`;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '合并摘要失败';
+        reason = mode === 'llm'
+          ? `🤖 大模型匹配合并摘要：${targetSection.title}`
+          : `📜 脚本 Replay Done（已合并 ${summaries.length} 个摘要）`;
+        replayMode = mode;
       }
       
     } else if (metaType === 'add_doc' || metaType.startsWith('add_doc')) {
@@ -2503,12 +2597,44 @@ app.post("/api/replay/execute-section", async (req, res) => {
       
     } else if (metaType === 'outline_unlink_doc' || section.action === '取消关联') {
       // 取消关联
-      try {
-        const tpl = getTemplate();
-        const targetSection = findSection(meta.sectionId, meta.targetSectionTitle, tpl);
-        if (!targetSection) throw new Error('未找到目标标题');
-        
-        const docName = meta.docName || '';
+      // 取消关联（与后管端逻辑一致：找不到时跳过而非失败）
+      const tpl = getTemplate();
+      const targetTitle = meta.targetSectionTitle || llmScript?.targetSectionTitle || '';
+      
+      // LLM 模式：语义匹配
+      let targetSection = null;
+      if (mode === 'llm' && targetTitle) {
+        try {
+          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+          const matchRes = await callQwenSemanticMatch({
+            taskType: 'find_outline_section',
+            recordedInfo: { targetTitle, description: '取消关联' },
+            candidates
+          });
+          if (matchRes.matchedId) {
+            targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '语义匹配失败，回退到精确匹配', { error: e.message });
+        }
+      }
+      
+      if (!targetSection) {
+        targetSection = findSection(meta.sectionId, targetTitle, tpl);
+      }
+      
+      // 【重要】找不到目标时跳过（与后管端逻辑一致）
+      if (!targetSection) {
+        if (mode === 'llm') {
+          status = 'pass';
+          reason = `⏭️ 跳过执行：当前大纲中未找到与「${targetTitle || '(空)'}」相似的目标标题`;
+          replayMode = 'skipped';
+        } else {
+          status = 'fail';
+          reason = '未找到目标标题';
+        }
+      } else {
+        const docName = meta.docName || llmScript?.docName || '';
         const doc = findDoc(docName, meta.docId);
         
         if (doc) {
@@ -2523,22 +2649,32 @@ app.post("/api/replay/execute-section", async (req, res) => {
         }
         
         status = 'done';
-        reason = `📜 脚本 Replay Done（已取消关联）`;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '取消关联失败';
+        reason = mode === 'llm'
+          ? `🤖 大模型 Replay Done（已取消关联）`
+          : `📜 脚本 Replay Done（已取消关联）`;
+        replayMode = mode;
       }
       
     } else if (metaType === 'insert_to_summary' || metaType === 'insert_to_summary_multi' || 
                section.action === '填入摘要' || section.action === '添入摘要') {
-      // 填入摘要 - 完整复制后管端逻辑
-      try {
-        const tpl = getTemplate();
-        let ids = Array.isArray(meta.targetSectionIds) ? meta.targetSectionIds : 
-                  (meta.sectionId ? [meta.sectionId] : []);
-        const targetTitles = Array.isArray(meta.selectedSectionTitles) ? meta.selectedSectionTitles : 
-                            (Array.isArray(meta.destinations) ? meta.destinations.map(d => d?.sectionTitle).filter(Boolean) : []);
-        
+      // 填入摘要 - 与后管端逻辑完全一致（找不到时跳过而非失败）
+      const tpl = getTemplate();
+      let ids = Array.isArray(meta.targetSectionIds) ? meta.targetSectionIds : 
+                (meta.sectionId ? [meta.sectionId] : []);
+      const targetTitles = Array.isArray(meta.selectedSectionTitles) ? meta.selectedSectionTitles : 
+                          (Array.isArray(meta.destinations) ? meta.destinations.map(d => d?.sectionTitle).filter(Boolean) : []);
+      
+      // 【重要】大模型模式：缺少目标章节ID时跳过（与后管端逻辑一致）
+      if (ids.length === 0 && targetTitles.length === 0) {
+        if (mode === 'llm') {
+          status = 'pass';
+          reason = '⏭️ 跳过执行：未记录目标章节ID';
+          replayMode = 'skipped';
+        } else {
+          status = 'fail';
+          reason = '未记录 targetSectionIds';
+        }
+      } else {
         // 获取要填入的内容
         let inputText = '';
         if (Array.isArray(meta.inputs)) {
@@ -2549,39 +2685,63 @@ app.post("/api/replay/execute-section", async (req, res) => {
           inputText = (meta?.outputs?.insertedExcerpt || meta?.outputs?.summary || '').toString().trim();
         }
         
-        if (!inputText) throw new Error('无填入内容');
-        
-        // 获取 AI 指导
-        const aiGuidance = llmScript?.aiGuidance || meta?.aiGuidance || '';
-        const specialRequirements = llmScript?.specialRequirements || '';
-        
-        // LLM 模式：语义匹配目标位置
-        let matchedIds = [];
-        if (mode === 'llm' && targetTitles.length > 0) {
-          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
-          for (const title of targetTitles) {
-            const matchRes = await callQwenSemanticMatch({
-              taskType: 'find_outline_section',
-              recordedInfo: { targetTitle: title, description: '填入摘要', aiGuidance },
-              candidates
-            });
-            if (matchRes.matchedId) {
-              matchedIds.push(matchRes.matchedId);
+        // 【重要】大模型模式：缺少内容时跳过（与后管端逻辑一致）
+        if (!inputText) {
+          if (mode === 'llm') {
+            status = 'pass';
+            reason = '⏭️ 跳过执行：未记录选中文本';
+            replayMode = 'skipped';
+          } else {
+            status = 'fail';
+            reason = '无填入内容';
+          }
+        } else {
+          // 获取 AI 指导
+          const aiGuidance = llmScript?.aiGuidance || meta?.aiGuidance || '';
+          const specialRequirements = llmScript?.specialRequirements || '';
+          
+          // LLM 模式：语义匹配目标位置
+          let matchedIds = [];
+          if (mode === 'llm' && targetTitles.length > 0) {
+            const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+            for (const title of targetTitles) {
+              try {
+                const matchRes = await callQwenSemanticMatch({
+                  taskType: 'find_outline_section',
+                  recordedInfo: { targetTitle: title, description: '填入摘要', aiGuidance },
+                  candidates
+                });
+                if (matchRes.matchedId) {
+                  matchedIds.push(matchRes.matchedId);
+                }
+              } catch (e) {
+                logger.warn('REPLAY', '语义匹配失败', { error: e.message });
+              }
             }
           }
-        }
-        
-        // 合并匹配结果
-        const finalIds = [...new Set([...matchedIds, ...ids])];
-        if (finalIds.length === 0) throw new Error('未找到目标标题');
-        
-        // ========== AI 处理逻辑（与后管端完全一致）==========
-        let processedText = inputText;
-        let usedLLM = false;
-        
-        if (mode === 'llm' && QWEN_API_KEY) {
-          // 检查是否包含计算公式
-          const hasCalculation = aiGuidance && (
+          
+          // 合并匹配结果
+          const finalIds = [...new Set([...matchedIds, ...ids])];
+          
+          // 【重要】大模型模式：找不到目标章节时跳过（与后管端逻辑一致）
+          if (finalIds.length === 0) {
+            if (mode === 'llm') {
+              const targetTitleStr = targetTitles.join('、') || '(未知)';
+              status = 'pass';
+              reason = `⏭️ 跳过执行：当前大纲中未找到与「${targetTitleStr}」相似的目标章节`;
+              replayMode = 'skipped';
+            } else {
+              status = 'fail';
+              reason = '未找到目标标题';
+            }
+          } else {
+            // ========== AI 处理逻辑（与后管端完全一致）==========
+            let processedText = inputText;
+            let usedLLM = false;
+            
+            if (mode === 'llm' && QWEN_API_KEY) {
+              // 检查是否包含计算公式
+              const hasCalculation = aiGuidance && (
             aiGuidance.includes('计算') ||
             aiGuidance.includes('公式') ||
             aiGuidance.includes('{{') ||
@@ -2688,25 +2848,53 @@ ${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
         };
         applyTemplate(nextTpl);
         
-        status = 'done';
-        reason = usedLLM
-          ? `🤖 大模型 Replay Done（已写入摘要：${finalIds.length} 项）`
-          : `📜 脚本 Replay Done（已写入摘要：${finalIds.length} 项）`;
-        replayMode = usedLLM ? 'llm' : 'script';
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '填入摘要失败';
+            status = 'done';
+            reason = usedLLM
+              ? `🤖 大模型 Replay Done（已写入摘要：${finalIds.length} 项）`
+              : `📜 脚本 Replay Done（已写入摘要：${finalIds.length} 项）`;
+            replayMode = usedLLM ? 'llm' : 'script';
+          }
+        }
       }
       
     } else if (metaType === 'delete_outline_section' || section.action === '删除标题') {
-      // 删除标题
-      try {
-        const tpl = getTemplate();
-        const targetTitle = meta.targetSection?.title || meta.targetSectionTitle || '';
-        const targetSection = findSection(meta.sectionId, targetTitle, tpl);
-        
-        if (!targetSection) throw new Error(targetTitle ? `未找到标题「${targetTitle}」` : '未指定目标标题');
-        
+      // 删除标题（与后管端逻辑一致：找不到时跳过而非失败）
+      const tpl = getTemplate();
+      const targetTitle = meta.targetSection?.title || meta.targetSectionTitle || llmScript?.targetSectionTitle || '';
+      
+      // LLM 模式：语义匹配
+      let targetSection = null;
+      if (mode === 'llm' && targetTitle) {
+        try {
+          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+          const matchRes = await callQwenSemanticMatch({
+            taskType: 'find_outline_section',
+            recordedInfo: { targetTitle, description: '删除标题' },
+            candidates
+          });
+          if (matchRes.matchedId) {
+            targetSection = tpl.sections.find(s => s.id === matchRes.matchedId);
+          }
+        } catch (e) {
+          logger.warn('REPLAY', '语义匹配失败，回退到精确匹配', { error: e.message });
+        }
+      }
+      
+      if (!targetSection) {
+        targetSection = findSection(meta.sectionId, targetTitle, tpl);
+      }
+      
+      // 【重要】找不到目标时跳过（与后管端逻辑一致）
+      if (!targetSection) {
+        if (mode === 'llm') {
+          status = 'pass';
+          reason = `⏭️ 跳过执行：当前大纲中未找到与「${targetTitle || '(空)'}」相似的目标标题`;
+          replayMode = 'skipped';
+        } else {
+          status = 'fail';
+          reason = targetTitle ? `未找到标题「${targetTitle}」` : '未指定目标标题';
+        }
+      } else {
         const baseLevel = targetSection.level || 1;
         const targetIdx = tpl.sections.findIndex(s => s.id === targetSection.id);
         const idsToRemove = [targetSection.id];
@@ -2725,53 +2913,49 @@ ${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
         applyTemplate(nextTpl);
         
         status = 'done';
-        reason = `📜 脚本 Replay Done（已删除标题「${targetSection.title}」，共 ${idsToRemove.length} 条）`;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '删除标题失败';
+        reason = mode === 'llm'
+          ? `🤖 大模型 Replay Done（已删除标题「${targetSection.title}」，共 ${idsToRemove.length} 条）`
+          : `📜 脚本 Replay Done（已删除标题「${targetSection.title}」，共 ${idsToRemove.length} 条）`;
+        replayMode = mode;
       }
       
     } else if (metaType === 'add_outline_section' || section.action === '新增标题') {
       // 新增标题
-      try {
-        const tpl = getTemplate();
-        const newTitle = meta.newSection?.title || meta.newTitle || '新标题';
-        const newLevel = meta.newSection?.level || meta.level || 1;
-        
-        const newSection = {
-          id: `sec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          title: newTitle,
-          level: newLevel,
-          summary: '',
-          hint: ''
-        };
-        
-        const nextTpl = {
-          ...tpl,
-          sections: [...tpl.sections, newSection]
-        };
-        applyTemplate(nextTpl);
-        
-        status = 'done';
-        reason = `📜 脚本 Replay Done（已新增标题「${newTitle}」）`;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '新增标题失败';
-      }
+      const tpl = getTemplate();
+      const newTitle = meta.newSection?.title || meta.newTitle || llmScript?.newTitle || '新标题';
+      const newLevel = meta.newSection?.level || meta.level || llmScript?.level || 1;
+      
+      const newSection = {
+        id: `sec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: newTitle,
+        level: newLevel,
+        summary: '',
+        hint: ''
+      };
+      
+      const nextTpl = {
+        ...tpl,
+        sections: [...tpl.sections, newSection]
+      };
+      applyTemplate(nextTpl);
+      
+      status = 'done';
+      reason = mode === 'llm'
+        ? `🤖 大模型 Replay Done（已新增标题「${newTitle}」）`
+        : `📜 脚本 Replay Done（已新增标题「${newTitle}」）`;
+      replayMode = mode;
       
     } else if (metaType === 'outline_clear' || section.action === '清除大纲') {
       // 清除大纲
-      try {
-        const emptyTpl = { id: 'template_empty', name: '空模板', sections: [] };
-        applyTemplate(emptyTpl);
-        scene.sectionDocLinks = {};
-        
-        status = 'done';
-        reason = `📜 脚本 Replay Done（已清除大纲）`;
-      } catch (err) {
-        status = 'fail';
-        reason = err.message || '清除大纲失败';
-      }
+      const emptyTpl = { id: 'template_empty', name: '空模板', sections: [] };
+      applyTemplate(emptyTpl);
+      scene.sectionDocLinks = {};
+      
+      status = 'done';
+      reason = mode === 'llm'
+        ? `🤖 大模型 Replay Done（已清除大纲）`
+        : `📜 脚本 Replay Done（已清除大纲）`;
+      replayMode = mode;
       
     } else if (metaType === 'restore_history_outline' || section.action === '历史大纲选取') {
       // 恢复历史大纲：需要前端处理
@@ -2780,14 +2964,45 @@ ${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
       
     } else if (metaType === 'dispatch' || metaType === 'dispatch_multi_summary' || 
                metaType === 'execute_instruction' || section.action === '执行指令') {
-      // 执行指令
-      try {
-        const instructions = meta.instructions || meta.promptContent || '';
-        if (!instructions) throw new Error('无指令内容');
-        
+      // 执行指令（与后管端逻辑一致：缺少数据时跳过而非失败）
+      const instructions = meta.instructions || meta.promptContent || llmScript?.instructions || '';
+      
+      // 【重要】大模型模式：缺少指令内容时跳过（与后管端逻辑一致）
+      if (!instructions) {
+        if (mode === 'llm') {
+          status = 'pass';
+          reason = '⏭️ 跳过执行：未记录指令内容';
+          replayMode = 'skipped';
+        } else {
+          status = 'fail';
+          reason = '无指令内容';
+        }
+      } else {
         const tpl = getTemplate();
-        const targetIds = Array.isArray(meta.targetSectionIds) ? meta.targetSectionIds :
-                         Array.isArray(meta.selectedSectionIds) ? meta.selectedSectionIds : [];
+        let targetIds = Array.isArray(meta.targetSectionIds) ? meta.targetSectionIds :
+                       Array.isArray(meta.selectedSectionIds) ? meta.selectedSectionIds : [];
+        
+        // LLM 模式：语义匹配目标章节
+        const targetTitles = Array.isArray(meta.selectedSectionTitles) ? meta.selectedSectionTitles :
+                            Array.isArray(meta.destinations) ? meta.destinations.map(d => d?.sectionTitle).filter(Boolean) : [];
+        
+        if (mode === 'llm' && targetTitles.length > 0 && targetIds.length === 0) {
+          const candidates = tpl.sections.map(s => ({ id: s.id, level: s.level, title: s.title }));
+          for (const title of targetTitles) {
+            try {
+              const matchRes = await callQwenSemanticMatch({
+                taskType: 'find_outline_section',
+                recordedInfo: { targetTitle: title, description: '执行指令' },
+                candidates
+              });
+              if (matchRes.matchedId) {
+                targetIds.push(matchRes.matchedId);
+              }
+            } catch (e) {
+              logger.warn('REPLAY', '语义匹配失败', { error: e.message });
+            }
+          }
+        }
         
         // 获取目标内容
         let docContent = '';
@@ -2802,25 +3017,38 @@ ${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
           return sec ? { id: sec.id, title: sec.title, summary: sec.summary || '' } : null;
         }).filter(Boolean);
         
-        // 调用 dispatch API
-        const dispatchResult = await callQwenDispatch({
-          instructions,
-          scene,
-          docContent,
-          outlineSegments
-        });
-        
-        // 应用结果
-        if (dispatchResult.detail && targetIds.length > 0) {
-          const nextTpl = {
-            ...tpl,
-            sections: tpl.sections.map(s => targetIds.includes(s.id) ? { ...s, summary: dispatchResult.detail } : s)
-          };
-          applyTemplate(nextTpl);
+        try {
+          // 调用 dispatch API
+          const dispatchResult = await callQwenDispatch({
+            instructions,
+            scene,
+            docContent,
+            outlineSegments
+          });
+          
+          // 应用结果
+          if (dispatchResult.detail && targetIds.length > 0) {
+            const nextTpl = {
+              ...tpl,
+              sections: tpl.sections.map(s => targetIds.includes(s.id) ? { ...s, summary: dispatchResult.detail } : s)
+            };
+            applyTemplate(nextTpl);
+          }
+          
+          status = 'done';
+          reason = `🤖 大模型 Replay Done（已执行指令）`;
+          replayMode = 'llm';
+        } catch (dispatchErr) {
+          if (mode === 'llm') {
+            status = 'pass';
+            reason = `⏭️ 跳过执行：指令执行失败 - ${dispatchErr.message}`;
+            replayMode = 'skipped';
+          } else {
+            status = 'fail';
+            reason = dispatchErr.message || '执行指令失败';
+          }
         }
-        
-        status = 'done';
-        reason = `🤖 大模型 Replay Done（已执行指令）`;
+      }
         replayMode = 'llm';
       } catch (err) {
         status = 'fail';
