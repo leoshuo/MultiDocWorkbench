@@ -531,8 +531,15 @@ function MultiDocWorkbench({ onSwitch }) {
       console.error('Replay: 获取 scene 失败', e);
     }
 
-    // 获取 replayDirPath
-    const replayDirPath = replayDirConfig?.dirPath || '';
+    // 获取 replayDirPath（从服务端配置获取）
+    let replayDirPath = '';
+    try {
+      const configRes = await fetch('/api/multi/replay/config');
+      const configData = await configRes.json().catch(() => ({}));
+      replayDirPath = configData.dirPath || '';
+    } catch (e) {
+      console.warn('[Replay] 获取 replayDirPath 失败:', e);
+    }
 
     for (let i = 0; i < sections.length; i++) {
       const section = sections[i];
