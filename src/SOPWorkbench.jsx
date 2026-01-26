@@ -3060,8 +3060,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
       const tplRes = await api('/api/template');
       // 如果有缓存的大纲，优先使用缓存
-      setTemplate(cachedTemplate || tplRes.template);
-
       const docRes = await api('/api/docs');
 
       const sharedScene = await loadSharedScene();
@@ -3073,6 +3071,17 @@ export default function SOPWorkbench({ onSwitch }) {
         setSectionDocLinks(sharedScene.sectionDocLinks || {});
 
       }
+
+      // 【重要】确定最终使用的大纲：优先缓存 > scene.customTemplate > 默认模板
+      let finalTemplate = cachedTemplate;
+      if (!finalTemplate || !finalTemplate.sections?.length) {
+        finalTemplate = sharedScene?.customTemplate;
+      }
+      if (!finalTemplate || !finalTemplate.sections?.length) {
+        finalTemplate = tplRes.template;
+      }
+      setTemplate(finalTemplate);
+      console.log('[SOPWorkbench] 初始化大纲，共', finalTemplate?.sections?.length || 0, '个标题');
 
       setDocs(docRes.docs || []);
 
@@ -13273,6 +13282,61 @@ ${combinedRequirements}
     // ========== 确定 Replay 模式：优先使用 section 级别的设置 ==========
     const sectionMode = section?.sectionReplayMode || deposit?.precipitationMode || 'llm';
     const mode = normalizePrecipitationMode(sectionMode);
+    
+    // ========== 【重要】统一使用服务端 API 执行 Replay ==========
+    // 确保与应用端 (MultiDocWorkbench) 使用完全相同的逻辑
+    const USE_SERVER_API = true;  // 开启服务端 API 模式
+    
+    if (USE_SERVER_API) {
+      try {
+        // 获取 replayDirPath
+        let replayDirPath = '';
+        try {
+          const configRes = await api('/api/multi/replay/config');
+          replayDirPath = configRes?.dirPath || '';
+        } catch (e) {
+          console.log('[Replay] 获取 replayDir 配置失败', e);
+        }
+        
+        // 调用服务端统一 API
+        const res = await api('/api/replay/execute-section', {
+          method: 'POST',
+          body: {
+            sceneId: scene?.id || 'main',
+            section,
+            mode: mode,
+            replayDirPath
+          }
+        });
+        
+        // 如果服务端返回了更新的模板，同步到本地
+        if (res?.template) {
+          setTemplate(res.template);
+          // 同步更新大纲缓存
+          try {
+            await api('/api/outline/cache', { method: 'POST', body: { template: res.template } });
+          } catch (e) {
+            console.log('[Replay] 同步大纲缓存失败', e);
+          }
+        }
+        
+        // 返回结果
+        return {
+          status: res?.status || 'done',
+          message: res?.reason || '执行完成',
+          replayMode: res?.replayMode || mode
+        };
+      } catch (err) {
+        console.error('[Replay] 服务端 API 执行失败', err);
+        return {
+          status: 'fail',
+          message: err?.message || '服务端执行失败',
+          replayMode: mode
+        };
+      }
+    }
+    
+    // ========== 以下是原有本地逻辑（USE_SERVER_API = false 时使用）==========
     
     // ========== 根据模式选择数据源 ==========
     // 大模型模式：使用 llmScript 中的数据

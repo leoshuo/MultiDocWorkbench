@@ -2743,9 +2743,43 @@ app.post("/api/replay/execute-section", async (req, res) => {
           replayMode = 'skipped';
         } else {
           const content = (doc.content || '').toString().trim();
+          
+          // 获取目标摘要索引
+          let targetSumIdx = 0;
+          if (Array.isArray(meta.destinations)) {
+            const dest = meta.destinations.find(d => d?.sectionId === targetSection.id);
+            if (dest && typeof dest.summaryIndex === 'number') targetSumIdx = dest.summaryIndex;
+            if (dest && typeof dest.sumIdx === 'number') targetSumIdx = dest.sumIdx;
+          }
+          if (Array.isArray(meta.targetSectionsDetail)) {
+            const detail = meta.targetSectionsDetail.find(d => d?.id === targetSection.id);
+            if (detail && typeof detail.summaryIndex === 'number') targetSumIdx = detail.summaryIndex;
+          }
+          
+          logger.info('REPLAY', `copy_full_to_summary 写入摘要位置`, { sectionId: targetSection.id, targetSumIdx });
+          
           const nextTpl = {
             ...tpl,
-            sections: tpl.sections.map(s => s.id === targetSection.id ? { ...s, summary: content } : s)
+            sections: tpl.sections.map(s => {
+              if (s.id !== targetSection.id) return s;
+              
+              // 确保 summaries 数组存在且足够长
+              let summaries = Array.isArray(s.summaries) ? [...s.summaries] : [];
+              while (summaries.length <= targetSumIdx) {
+                summaries.push({ id: `${s.id}_sum_${summaries.length}`, content: '' });
+              }
+              
+              // 更新目标摘要位置
+              summaries[targetSumIdx] = { ...summaries[targetSumIdx], content: content };
+              
+              // 如果写入第一个摘要，同时更新 summary 字段
+              const updatedSection = { ...s, summaries };
+              if (targetSumIdx === 0) {
+                updatedSection.summary = content;
+              }
+              
+              return updatedSection;
+            })
           };
           applyTemplate(nextTpl);
           
@@ -3135,10 +3169,61 @@ ${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
           }
         }
         
-        // 更新摘要（替换模式）
+        // 获取目标摘要索引（从 destinations 或 targetSectionsDetail 中获取）
+        const getSummaryIndexForSection = (sectionId) => {
+          // 来源1: meta.destinations
+          if (Array.isArray(meta.destinations)) {
+            const dest = meta.destinations.find(d => d?.sectionId === sectionId);
+            if (dest && typeof dest.summaryIndex === 'number') return dest.summaryIndex;
+            if (dest && typeof dest.sumIdx === 'number') return dest.sumIdx;
+          }
+          // 来源2: meta.targetSectionsDetail
+          if (Array.isArray(meta.targetSectionsDetail)) {
+            const detail = meta.targetSectionsDetail.find(d => d?.id === sectionId);
+            if (detail && typeof detail.summaryIndex === 'number') return detail.summaryIndex;
+          }
+          // 来源3: meta.targetSummaries
+          if (Array.isArray(meta.targetSummaries)) {
+            const ts = meta.targetSummaries.find(t => t?.sectionId === sectionId);
+            if (ts && typeof ts.summaryIndex === 'number') return ts.summaryIndex;
+          }
+          // 来源4: llmScript.targetSectionsDetail
+          if (Array.isArray(llmScript?.targetSectionsDetail)) {
+            const detail = llmScript.targetSectionsDetail.find(d => d?.id === sectionId);
+            if (detail && typeof detail.summaryIndex === 'number') return detail.summaryIndex;
+          }
+          return 0; // 默认第一个摘要
+        };
+        
+        // 更新摘要（替换模式）- 写入正确的摘要位置
         const nextTpl = {
           ...tpl,
-          sections: tpl.sections.map(s => finalIds.includes(s.id) ? { ...s, summary: processedText } : s)
+          sections: tpl.sections.map(s => {
+            if (!finalIds.includes(s.id)) return s;
+            
+            const targetSumIdx = getSummaryIndexForSection(s.id);
+            logger.info('REPLAY', `写入摘要位置`, { sectionId: s.id, targetSumIdx });
+            
+            // 同时更新 summary 字段和 summaries 数组
+            const updatedSection = { ...s };
+            
+            // 确保 summaries 数组存在且足够长
+            let summaries = Array.isArray(s.summaries) ? [...s.summaries] : [];
+            while (summaries.length <= targetSumIdx) {
+              summaries.push({ id: `${s.id}_sum_${summaries.length}`, content: '' });
+            }
+            
+            // 更新目标摘要位置
+            summaries[targetSumIdx] = { ...summaries[targetSumIdx], content: processedText };
+            updatedSection.summaries = summaries;
+            
+            // 如果写入的是第一个摘要，同时更新 summary 字段
+            if (targetSumIdx === 0) {
+              updatedSection.summary = processedText;
+            }
+            
+            return updatedSection;
+          })
         };
         applyTemplate(nextTpl);
         

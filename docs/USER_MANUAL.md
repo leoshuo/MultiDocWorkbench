@@ -1,9 +1,42 @@
 # 经验沉淀工作台（后端管理界面）使用与操作手册
 
-版本：1.6.4  
-更新日期：2026-01-26
+版本：1.6.5  
+更新日期：2026-01-24
 
 > 本手册面向后端管理人员与交付运维人员。前台用户端请参考 `docs/quickstart/QUICK_REFERENCE.md`。
+
+## 1.6.5 版本更新
+
+### 核心功能增强
+
+#### 应用端与后管端完全一致
+- **统一 Replay 执行器**：应用端按钮点击直接调用服务端 `/api/replay/execute-section` API
+- **无前端独立处理**：移除应用端所有独立的 Replay 处理逻辑
+- **结果同步**：两端执行结果完全相同（日志、状态、原因说明）
+
+#### 摘要位置精准写入
+- **支持指定摘要索引**：`insert_to_summary` 和 `copy_full_to_summary` 支持写入指定位置的摘要
+- **summaryIndex 字段**：从 `meta.destinations`、`meta.targetSectionsDetail`、`meta.targetSummaries` 读取
+- **自动扩展数组**：目标索引超出现有数组长度时，自动补充空摘要项
+
+#### 场景与大纲持久化
+- **场景缓存持久化**：`scenes` 持久化到 `data/scenes-cache.json`
+- **大纲缓存持久化**：`cachedOutlineTemplate` 持久化到 `data/outline-cache.json`
+- **自动恢复**：服务启动时从 main 场景自动恢复大纲缓存
+- **切换工作台保持**：应用端和后管端之间切换，数据完全保持
+
+#### 大模型语义文档匹配
+- **语义匹配能力**：LLM 模式使用 `callQwenSemanticMatch` 进行语义匹配
+- **灵活上传支持**：从 replayDir 目录通过关键词或语义找到相似文件
+- **中文关键词优化**：`无人机111111.txt` 可匹配 `无人机--最新.txt`
+
+### Bug 修复
+- **摘要位置错误**：修复始终写入第一个摘要而忽略 `summaryIndex` 的问题
+- **首次执行失败**：修复首次 Replay 失败、二次成功的状态/闭包问题
+- **summaries 数组同步**：修复只更新 `section.summary` 而未更新 `section.summaries` 数组的问题
+- **大纲缓存丢失**：修复切换工作台后大纲消失的问题
+
+---
 
 ## 1.6.4 版本更新
 

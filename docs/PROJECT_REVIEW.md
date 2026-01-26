@@ -1,10 +1,48 @@
-# Document Workspace 1.6.4 项目总结与评审文档
+# Document Workspace 1.6.5 项目总结与评审文档
 
-> 版本: 1.6.4  
-> 更新日期: 2026-01-26  
+> 版本: 1.6.5  
+> 更新日期: 2026-01-24  
 > 文档类型: 项目Review文档
 
-## v1.6.4 更新摘要（最新）
+## v1.6.5 更新摘要（最新）
+
+### 核心功能增强
+
+#### 应用端与后管端完全一致
+- **统一 Replay 执行器**：应用端按钮点击直接调用服务端 `/api/replay/execute-section` API，与后管端使用完全相同的 Replay 逻辑
+- **无前端独立处理**：移除应用端所有独立的 Replay 处理逻辑，确保行为100%一致
+- **结果同步**：两端执行结果完全相同，包括日志、状态、原因说明
+
+#### 摘要位置精准写入
+- **支持指定摘要索引**：`insert_to_summary` 和 `copy_full_to_summary` 现在支持写入指定位置的摘要（如第2个、第3个摘要）
+- **summaryIndex 字段支持**：从 `meta.destinations`、`meta.targetSectionsDetail`、`meta.targetSummaries` 中读取目标摘要索引
+- **自动扩展数组**：如果目标索引超出现有 summaries 数组长度，自动补充空摘要项
+
+#### 场景与大纲持久化
+- **场景缓存持久化**：`scenes` Map 持久化到 `data/scenes-cache.json`，服务重启不丢失
+- **大纲缓存持久化**：`cachedOutlineTemplate` 持久化到 `data/outline-cache.json`
+- **自动恢复机制**：服务启动时从 main 场景自动恢复大纲缓存（如果缓存为空但场景有模板）
+- **切换工作台保持**：在应用端和后管端之间切换，大纲、场景数据完全保持
+
+#### 大模型语义文档匹配
+- **语义匹配能力**：LLM 模式下使用 `callQwenSemanticMatch` 进行文档名和标题的语义匹配
+- **灵活上传支持**：支持从 replayDir 目录通过关键词或语义匹配找到相似文件
+- **中文关键词优化**：改进中文关键词提取算法，`无人机111111.txt` 可匹配 `无人机--最新.txt`
+
+#### 日志与调试增强
+- **详细 Replay 日志**：每步 Replay 记录 `tplSectionsCount`、`docsCount`、匹配结果
+- **跳过原因可见**：`pass` / `skipped` 状态包含人类可读的原因说明
+- **摘要写入位置日志**：记录写入的 `sectionId` 和 `targetSumIdx`
+
+### Bug 修复
+- **摘要位置错误**：修复始终写入第一个摘要而忽略 `summaryIndex` 的问题
+- **首次执行失败**：修复首次 Replay 失败、二次成功的状态/闭包问题
+- **summaries 数组同步**：修复只更新 `section.summary` 而未更新 `section.summaries` 数组的问题
+- **大纲缓存丢失**：修复切换工作台后大纲消失的问题
+
+---
+
+## v1.6.4 更新摘要
 
 ### 核心功能增强
 
