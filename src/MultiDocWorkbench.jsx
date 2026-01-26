@@ -2292,16 +2292,19 @@ ${specialRequirements || '无'}`;
             executionDetails.completedSteps += replayResult.done;
             const executionMode = replayResult.replayMode || 'script';
             
-            // 统计结果
+            // 统计结果（注意：服务端返回 'pass' 或 'skipped' 都表示跳过）
             const doneCount = replayResult.results.filter(r => r.status === 'done').length;
             const failCount = replayResult.results.filter(r => r.status === 'fail').length;
-            const skipCount = replayResult.results.filter(r => r.status === 'skipped').length;
+            const skipCount = replayResult.results.filter(r => r.status === 'pass' || r.status === 'skipped').length;
             
             // 生成状态摘要
             if (failCount === 0 && skipCount === 0) {
               recordReport += `     ✅ 全部完成（${doneCount}/${sections.length} 步骤）\n`;
             } else if (doneCount > 0) {
               recordReport += `     ⚠️ 部分完成（✅${doneCount} ❌${failCount} ⏭️${skipCount}）\n`;
+            } else if (skipCount > 0 && failCount === 0) {
+              // 全部跳过（通常是因为找不到文档或目标）
+              recordReport += `     ⏭️ 全部跳过（${skipCount}/${sections.length} 步骤跳过，可能缺少所需文档）\n`;
             } else {
               recordReport += `     ❌ 执行失败（${failCount + skipCount}/${sections.length} 步骤失败）\n`;
             }
@@ -2320,15 +2323,15 @@ ${specialRequirements || '无'}`;
               recordDetail.results.push({ action: r.action, status: 'done', reason: r.reason });
             });
             
-            // 记录失败或跳过的步骤，并添加到报告
-            replayResult.results.filter(r => r.status === 'fail' || r.status === 'skipped').forEach(r => {
-              const statusIcon = r.status === 'skipped' ? '⏭️' : '❌';
+            // 记录失败或跳过的步骤，并添加到报告（包含详细原因）
+            replayResult.results.filter(r => r.status === 'fail' || r.status === 'pass' || r.status === 'skipped').forEach(r => {
+              const statusIcon = (r.status === 'pass' || r.status === 'skipped') ? '⏭️' : '❌';
               recordReport += `     ${statusIcon} ${r.action}: ${r.reason}\n`;
               executionDetails.failedSteps.push({
                 type: r.action,
                 record: recordName,
                 group: groupName,
-                status: r.status === 'skipped' ? 'skipped' : (precipitationMode === 'llm' ? 'partial_fail' : 'fail'),
+                status: (r.status === 'pass' || r.status === 'skipped') ? 'skipped' : (precipitationMode === 'llm' ? 'partial_fail' : 'fail'),
                 reason: r.reason,
                 replayMode: r.replayMode || executionMode,
                 replayStatus: r.replayStatus || r.status
