@@ -1393,6 +1393,166 @@ ${specialRequirements || '无'}`;
           reason = err?.message || '删除标题失败';
         }
 
+      } else if (metaType === 'copy_full_to_summary' || metaType.startsWith('copy_full_to_summary')) {
+        // ========== 复制全文到摘要 Replay ==========
+        try {
+          const scene = await loadSharedScene();
+          if (!scene?.id) throw new Error('scene 未初始化');
+
+          // 1. 找到目标文档
+          const docName = resolveDocName();
+          let doc = resolveDoc(docName);
+          
+          // 如果没找到文档，尝试从 replayDir 加载
+          if (!doc && replayDirPath) {
+            try {
+              const uploadRes = await fetchJson('/api/upload-from-dir', {
+                method: 'POST',
+                body: { dirPath: replayDirPath, fileName: docName }
+              });
+              if (uploadRes?.doc) {
+                await syncDocs();
+                doc = uploadRes.doc;
+              }
+            } catch (e) {
+              console.warn('[Replay copy_full_to_summary] 从目录加载文档失败:', e);
+            }
+          }
+          
+          if (!doc) {
+            throw new Error(docName ? `未找到文档：${docName}` : '未指定文档');
+          }
+
+          // 2. 获取当前大纲
+          const sceneRes = await fetchJson(`/api/scene/${scene.id}`);
+          const tpl = sceneRes?.scene?.customTemplate || sceneRes?.scene?.template;
+          if (!tpl?.sections || tpl.sections.length === 0) {
+            throw new Error('当前无大纲');
+          }
+
+          // 3. 找到目标标题
+          const targetTitle = meta?.targetSectionTitle || meta?.targetSection?.title || '';
+          let targetSection = null;
+          
+          if (meta?.sectionId) {
+            targetSection = tpl.sections.find(s => s.id === meta.sectionId);
+          }
+          
+          if (!targetSection && targetTitle) {
+            // 按标题名称匹配
+            targetSection = tpl.sections.find(s => s.title === targetTitle) ||
+                           tpl.sections.find(s => s.title?.includes(targetTitle)) ||
+                           tpl.sections.find(s => targetTitle.includes(s.title || ''));
+          }
+          
+          if (!targetSection) {
+            throw new Error(targetTitle ? `未找到标题「${targetTitle}」` : '未指定目标标题');
+          }
+
+          // 4. 获取文档内容
+          const content = (doc.content || '').toString().trim();
+          if (!content) {
+            throw new Error(`文档「${doc.name}」内容为空`);
+          }
+
+          // 5. 更新大纲摘要
+          const nextSections = tpl.sections.map(s => 
+            s.id === targetSection.id ? { ...s, summary: content } : s
+          );
+          const nextTemplate = { ...tpl, sections: nextSections };
+          
+          await fetchJson(`/api/scene/${scene.id}/apply-template`, {
+            method: 'POST',
+            body: { template: nextTemplate }
+          });
+
+          status = 'done';
+          reason = `📜 脚本 Replay Done（已将「${doc.name}」全文复制到「${targetSection.title}」）`;
+          replayMode = 'script';
+        } catch (err) {
+          status = 'fail';
+          reason = err?.message || '复制全文到摘要失败';
+        }
+
+      } else if (metaType === 'outline_link_doc' || metaType.startsWith('outline_link_doc')) {
+        // ========== 关联文档 Replay ==========
+        try {
+          const scene = await loadSharedScene();
+          if (!scene?.id) throw new Error('scene 未初始化');
+
+          // 1. 找到目标文档
+          const docName = resolveDocName();
+          let doc = resolveDoc(docName);
+          
+          // 如果没找到文档，尝试从 replayDir 加载
+          if (!doc && replayDirPath) {
+            try {
+              const uploadRes = await fetchJson('/api/upload-from-dir', {
+                method: 'POST',
+                body: { dirPath: replayDirPath, fileName: docName }
+              });
+              if (uploadRes?.doc) {
+                await syncDocs();
+                doc = uploadRes.doc;
+              }
+            } catch (e) {
+              console.warn('[Replay outline_link_doc] 从目录加载文档失败:', e);
+            }
+          }
+          
+          if (!doc) {
+            throw new Error(docName ? `未找到文档：${docName}` : '未指定文档');
+          }
+
+          // 2. 获取当前大纲
+          const sceneRes = await fetchJson(`/api/scene/${scene.id}`);
+          const tpl = sceneRes?.scene?.customTemplate || sceneRes?.scene?.template;
+          if (!tpl?.sections || tpl.sections.length === 0) {
+            throw new Error('当前无大纲');
+          }
+
+          // 3. 找到目标标题
+          const targetTitle = meta?.targetSectionTitle || meta?.targetSection?.title || '';
+          let targetSection = null;
+          
+          if (meta?.sectionId) {
+            targetSection = tpl.sections.find(s => s.id === meta.sectionId);
+          }
+          
+          if (!targetSection && targetTitle) {
+            targetSection = tpl.sections.find(s => s.title === targetTitle) ||
+                           tpl.sections.find(s => s.title?.includes(targetTitle)) ||
+                           tpl.sections.find(s => targetTitle.includes(s.title || ''));
+          }
+          
+          if (!targetSection) {
+            throw new Error(targetTitle ? `未找到标题「${targetTitle}」` : '未指定目标标题');
+          }
+
+          // 4. 更新关联
+          const currentLinks = sceneRes?.scene?.sectionDocLinks || {};
+          const sectionLinks = currentLinks[targetSection.id] || [];
+          
+          if (!sectionLinks.includes(doc.id)) {
+            const nextLinks = {
+              ...currentLinks,
+              [targetSection.id]: [...sectionLinks, doc.id]
+            };
+            
+            await fetchJson(`/api/scene/${scene.id}`, {
+              method: 'PATCH',
+              body: { sectionDocLinks: nextLinks }
+            });
+          }
+
+          status = 'done';
+          reason = `📜 脚本 Replay Done（已将「${doc.name}」关联到「${targetSection.title}」）`;
+          replayMode = 'script';
+        } catch (err) {
+          status = 'fail';
+          reason = err?.message || '关联文档失败';
+        }
+
       } else if (!metaType) {
         status = 'fail';
         reason = '未记录可执行的回放元信息';
