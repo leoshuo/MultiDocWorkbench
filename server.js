@@ -589,6 +589,17 @@ const persistDocs = () => writeJsonFile(DOCS_STATE_PATH, docs);
 
 // ========== 大纲缓存持久化 ==========
 const OUTLINE_CACHE_PATH = path.join(DATA_DIR, 'outline-cache.json');
+const OUTLINE_HISTORY_PATH = path.join(DATA_DIR, 'outline-history.json');
+
+// 读取历史大纲
+const loadOutlineHistory = () => {
+  try {
+    const data = readJsonFile(OUTLINE_HISTORY_PATH);
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    return [];
+  }
+};
 
 // 持久化大纲缓存
 const persistOutlineCache = () => {
@@ -2958,9 +2969,57 @@ ${specialRequirements ? `【特殊要求】\n${specialRequirements}` : ''}
       replayMode = mode;
       
     } else if (metaType === 'restore_history_outline' || section.action === '历史大纲选取') {
-      // 恢复历史大纲：需要前端处理
-      status = 'pass';
-      reason = '⏭️ 历史大纲恢复需要前端处理';
+      // 恢复历史大纲（与后管端逻辑一致）
+      const outlineId = meta.outlineId || llmScript?.outlineId || '';
+      const outlineTitle = meta.outlineTitle || llmScript?.outlineTitle || '';
+      
+      // 从文件读取历史大纲
+      const outlineHistory = loadOutlineHistory();
+      
+      // 查找匹配的历史大纲
+      let historyItem = null;
+      if (outlineId) {
+        historyItem = outlineHistory.find(h => h.id === outlineId);
+      }
+      if (!historyItem && outlineTitle) {
+        historyItem = outlineHistory.find(h => (h.title || h.docName) === outlineTitle);
+      }
+      // 如果都没找到，尝试模糊匹配
+      if (!historyItem && outlineTitle) {
+        historyItem = outlineHistory.find(h => 
+          (h.title || h.docName || '').includes(outlineTitle) || 
+          outlineTitle.includes(h.title || h.docName || '')
+        );
+      }
+      // 如果还是没找到，使用最新的历史大纲
+      if (!historyItem && outlineHistory.length > 0) {
+        historyItem = outlineHistory[0];
+        logger.info('REPLAY', `未找到指定历史大纲，使用最新的：${historyItem.title || historyItem.docName}`);
+      }
+      
+      if (!historyItem) {
+        if (mode === 'llm') {
+          status = 'pass';
+          reason = `⏭️ 跳过执行：未找到匹配的历史大纲存档「${outlineTitle || outlineId || '(空)'}」`;
+          replayMode = 'skipped';
+        } else {
+          status = 'fail';
+          reason = `未找到匹配的历史大纲存档: ${outlineTitle || outlineId}`;
+        }
+      } else if (historyItem.template && Array.isArray(historyItem.template.sections)) {
+        // 应用历史大纲
+        applyTemplate(historyItem.template);
+        
+        status = 'done';
+        reason = mode === 'llm'
+          ? `🤖 大模型 Replay Done（已恢复历史大纲：${historyItem.title || historyItem.docName}）`
+          : `📜 脚本 Replay Done（已恢复历史大纲：${historyItem.title || historyItem.docName}）`;
+        replayMode = mode;
+      } else {
+        status = 'pass';
+        reason = `⏭️ 跳过执行：历史大纲数据无效`;
+        replayMode = 'skipped';
+      }
       
     } else if (metaType === 'dispatch' || metaType === 'dispatch_multi_summary' || 
                metaType === 'execute_instruction' || section.action === '执行指令') {
