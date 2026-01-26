@@ -666,6 +666,20 @@ let cachedOutlineTemplate = null;
 loadOutlineCache();
 loadScenesCache();
 
+// 【重要】启动时检查：如果大纲缓存为空但 scene 有数据，使用 scene 的数据
+(() => {
+  const mainScene = scenes.get('main');
+  const sceneTemplate = mainScene?.customTemplate;
+  const cacheIsEmpty = !cachedOutlineTemplate || !cachedOutlineTemplate.sections?.length;
+  const sceneHasTemplate = sceneTemplate?.sections?.length > 0;
+  
+  if (cacheIsEmpty && sceneHasTemplate) {
+    cachedOutlineTemplate = sceneTemplate;
+    persistOutlineCache();
+    logger.info('OUTLINE_CACHE', `从 main 场景恢复大纲缓存，共 ${sceneTemplate.sections.length} 个标题`);
+  }
+})();
+
 // 对话消息缓存（应用端）
 let cachedChatMessages = [];
 
@@ -1652,9 +1666,19 @@ app.get("/", (_req, res) => {
 
 
 app.get("/api/template", (_req, res) => {
-
-  res.json({ template: defaultTemplate });
-
+  // 优先返回缓存的大纲、其次 main scene 的大纲、最后默认模板
+  let template = cachedOutlineTemplate;
+  
+  if (!template || !template.sections?.length) {
+    const mainScene = scenes.get('main');
+    template = mainScene?.customTemplate;
+  }
+  
+  if (!template || !template.sections?.length) {
+    template = defaultTemplate;
+  }
+  
+  res.json({ template });
 });
 
 
@@ -4372,6 +4396,16 @@ app.post('/api/config/api-key', (req, res) => {
 // ========== 大纲缓存 API ==========
 // GET /api/outline/cache - 获取缓存的大纲
 app.get('/api/outline/cache', (req, res) => {
+  // 如果缓存为空，尝试从 main scene 恢复
+  if (!cachedOutlineTemplate || !cachedOutlineTemplate.sections?.length) {
+    const mainScene = scenes.get('main');
+    const sceneTemplate = mainScene?.customTemplate;
+    if (sceneTemplate?.sections?.length > 0) {
+      cachedOutlineTemplate = sceneTemplate;
+      persistOutlineCache();
+      logger.info('OUTLINE_CACHE', `从 main 场景恢复大纲缓存，共 ${sceneTemplate.sections.length} 个标题`);
+    }
+  }
   res.json({ template: cachedOutlineTemplate });
 });
 
