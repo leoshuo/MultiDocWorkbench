@@ -1657,11 +1657,8 @@ async function callQwenPromptOptimize(prompt) {
 
 
 
-app.get("/", (_req, res) => {
-
-  res.type("text/plain").send("API 服务运行中。请使用 /api/* 端点。");
-
-});
+// 根路由由静态文件服务处理（见文件末尾 SERVE_DIST 逻辑）
+// 不再需要单独的根路由返回 API 消息
 
 
 
