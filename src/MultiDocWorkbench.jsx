@@ -562,9 +562,13 @@ function MultiDocWorkbench({ onSwitch }) {
 
         const result = await res.json();
         
+        // 获取动作名称
+        const actionName = section.action || section.meta?.type || `步骤 ${i + 1}`;
+        
         if (res.ok) {
           results.push({
             sectionIndex: i,
+            action: actionName,
             status: result.status || 'done',
             reason: result.reason || '',
             replayMode: result.replayMode || precipitationMode
@@ -582,6 +586,7 @@ function MultiDocWorkbench({ onSwitch }) {
         } else {
           results.push({
             sectionIndex: i,
+            action: actionName,
             status: 'fail',
             reason: result.error || '服务端执行失败',
             replayMode: 'script'
@@ -591,6 +596,7 @@ function MultiDocWorkbench({ onSwitch }) {
         console.error(`Replay section ${i} 失败:`, err);
         results.push({
           sectionIndex: i,
+          action: section.action || section.meta?.type || `步骤 ${i + 1}`,
           status: 'fail',
           reason: err.message || '网络错误',
           replayMode: 'script'
