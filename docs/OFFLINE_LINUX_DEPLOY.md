@@ -1,6 +1,6 @@
-# Document Workspace 1.6.5 Linux 离线部署指南
+# Document Workspace 1.6.6 Linux 离线部署指南
 
-> 版本: 1.6.5  
+> 版本: 1.6.6  
 > 更新日期: 2026-01-24  
 > 适用场景: 内网环境、无互联网访问的 Linux 服务器
 
@@ -121,7 +121,7 @@ cd C:\Users\leosh\Desktop\Cursor-WorkSpace
 2. 构建 Docker 镜像
 3. 导出镜像到 tar 文件
 4. 打包所有必要文件
-5. 生成 `document-workspace-1.6.5-offline.tar.gz`
+5. 生成 `document-workspace-1.6.6-offline.tar.gz`
 
 ### 3.2 方式二：手动打包
 
@@ -132,24 +132,24 @@ cd C:\Users\leosh\Desktop\Cursor-WorkSpace
 npm run build
 
 # 2. 构建 Docker 镜像
-docker build -t document-workspace:1.6.5 .
+docker build -t document-workspace:1.6.6 .
 
 # 3. 导出镜像
-docker save document-workspace:1.6.5 -o document-workspace-1.6.5.tar
+docker save document-workspace:1.6.6 -o document-workspace-1.6.6.tar
 
 # 4. 创建离线包目录
-mkdir document-workspace-1.6.5-offline
-copy document-workspace-1.6.5.tar document-workspace-1.6.5-offline\
-copy docker-compose.yml document-workspace-1.6.5-offline\
-copy README.md document-workspace-1.6.5-offline\
-xcopy /E /I data document-workspace-1.6.5-offline\data
-xcopy /E /I docs document-workspace-1.6.5-offline\docs
-xcopy /E /I test document-workspace-1.6.5-offline\test
-xcopy /E /I dist document-workspace-1.6.5-offline\dist
-copy scripts\install.sh document-workspace-1.6.5-offline\
+mkdir document-workspace-1.6.6-offline
+copy document-workspace-1.6.6.tar document-workspace-1.6.6-offline\
+copy docker-compose.yml document-workspace-1.6.6-offline\
+copy README.md document-workspace-1.6.6-offline\
+xcopy /E /I data document-workspace-1.6.6-offline\data
+xcopy /E /I docs document-workspace-1.6.6-offline\docs
+xcopy /E /I test document-workspace-1.6.6-offline\test
+xcopy /E /I dist document-workspace-1.6.6-offline\dist
+copy scripts\install.sh document-workspace-1.6.6-offline\
 
 # 5. 压缩
-tar -czvf document-workspace-1.6.5-offline.tar.gz document-workspace-1.6.5-offline
+tar -czvf document-workspace-1.6.6-offline.tar.gz document-workspace-1.6.6-offline
 ```
 
 ### 3.3 打包输出
@@ -157,7 +157,7 @@ tar -czvf document-workspace-1.6.5-offline.tar.gz document-workspace-1.6.5-offli
 打包完成后，你会得到一个文件：
 
 ```
-document-workspace-1.6.5-offline.tar.gz  （约 200-300 MB）
+document-workspace-1.6.6-offline.tar.gz  （约 200-300 MB）
 ```
 
 ---
@@ -166,7 +166,7 @@ document-workspace-1.6.5-offline.tar.gz  （约 200-300 MB）
 
 ### 4.1 方式一：U盘/移动硬盘
 
-1. 将 `document-workspace-1.6.5-offline.tar.gz` 复制到 U 盘
+1. 将 `document-workspace-1.6.6-offline.tar.gz` 复制到 U 盘
 2. 在目标服务器上挂载 U 盘
 3. 复制文件到服务器目录
 
@@ -175,7 +175,7 @@ document-workspace-1.6.5-offline.tar.gz  （约 200-300 MB）
 sudo mount /dev/sdb1 /mnt/usb
 
 # 复制文件
-cp /mnt/usb/document-workspace-1.6.5-offline.tar.gz /home/user/
+cp /mnt/usb/document-workspace-1.6.6-offline.tar.gz /home/user/
 
 # 卸载 U 盘
 sudo umount /mnt/usb
@@ -185,7 +185,7 @@ sudo umount /mnt/usb
 
 ```bash
 # 从开发机执行
-scp document-workspace-1.6.5-offline.tar.gz user@192.168.1.100:/home/user/
+scp document-workspace-1.6.6-offline.tar.gz user@192.168.1.100:/home/user/
 ```
 
 ### 4.3 方式三：光盘刻录
@@ -200,10 +200,10 @@ scp document-workspace-1.6.5-offline.tar.gz user@192.168.1.100:/home/user/
 
 ```bash
 # 1. 解压离线包
-tar -xzvf document-workspace-1.6.5-offline.tar.gz
+tar -xzvf document-workspace-1.6.6-offline.tar.gz
 
 # 2. 进入目录
-cd document-workspace-1.6.5-offline
+cd document-workspace-1.6.6-offline
 
 # 3. 添加执行权限
 chmod +x install.sh
@@ -224,11 +224,11 @@ chmod +x install.sh
 
 ```bash
 # 1. 解压
-tar -xzvf document-workspace-1.6.5-offline.tar.gz
-cd document-workspace-1.6.5-offline
+tar -xzvf document-workspace-1.6.6-offline.tar.gz
+cd document-workspace-1.6.6-offline
 
 # 2. 导入 Docker 镜像
-docker load -i document-workspace-1.6.5.tar
+docker load -i document-workspace-1.6.6.tar
 
 # 3. 验证镜像已导入
 docker images | grep document-workspace
@@ -485,8 +485,8 @@ du -sh data/
 离线包内容：
 
 ```
-document-workspace-1.6.5-offline/
-├── document-workspace-1.6.5.tar    # Docker 镜像文件
+document-workspace-1.6.6-offline/
+├── document-workspace-1.6.6.tar    # Docker 镜像文件
 ├── docker-compose.yml              # Docker 编排配置
 ├── install.sh                      # 一键安装脚本
 ├── .env.example                    # 环境变量模板
@@ -513,5 +513,5 @@ document-workspace-1.6.5-offline/
 
 **技术支持联系方式：** [请填写]
 
-**文档版本：** 1.6.5  
+**文档版本：** 1.6.6  
 **最后更新：** 2026-01-24

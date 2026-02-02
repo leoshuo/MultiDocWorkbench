@@ -1,6 +1,6 @@
-# Document Workspace v1.6.5 离线部署完全指南
+# Document Workspace v1.6.6 离线部署完全指南
 
-> 版本: 1.6.5  
+> 版本: 1.6.6  
 > 更新日期: 2026-01-24  
 > 适用环境: 离线 Linux 服务器（CentOS/Ubuntu/麒麟/统信）
 
@@ -26,7 +26,7 @@
 
 ```
 部署包/
-├── document-workspace-1.6.5.tar    # Docker 镜像（~60MB）
+├── document-workspace-1.6.6.tar    # Docker 镜像（~60MB）
 ├── docker-compose.yml               # 容器编排配置
 ├── data/                            # 预配置数据目录
 └── deploy.sh                        # 一键部署脚本（可选）
@@ -46,7 +46,7 @@ Docker 镜像已包含：
 ```
 位置：C:\Users\leosh\Desktop\Cursor-WorkSpace\
 文件：
-  - document-workspace-1.6.5.tar
+  - document-workspace-1.6.6.tar
   - docker-compose.yml
   - data/ (整个目录)
   - deploy.sh
@@ -56,8 +56,8 @@ Docker 镜像已包含：
 ```bash
 git clone https://github.com/leoshuo/MultiDocWorkbench.git
 cd MultiDocWorkbench
-docker build -t document-workspace:1.6.5 .
-docker save -o document-workspace-1.6.5.tar document-workspace:1.6.5
+docker build -t document-workspace:1.6.6 .
+docker save -o document-workspace-1.6.6.tar document-workspace:1.6.6
 ```
 
 ---
@@ -105,12 +105,12 @@ sudo systemctl enable docker
 ```bash
 # 方式一：U盘
 mount /dev/sdb1 /mnt/usb
-cp /mnt/usb/document-workspace-1.6.5.tar /tmp/
+cp /mnt/usb/document-workspace-1.6.6.tar /tmp/
 cp /mnt/usb/docker-compose.yml /tmp/
 cp -r /mnt/usb/data /tmp/
 
 # 方式二：SCP（如果有跳板机）
-scp document-workspace-1.6.5.tar user@server:/tmp/
+scp document-workspace-1.6.6.tar user@server:/tmp/
 scp docker-compose.yml user@server:/tmp/
 scp -r data user@server:/tmp/
 ```
@@ -122,12 +122,12 @@ scp -r data user@server:/tmp/
 cd /tmp
 
 # 加载镜像（约需 30 秒）
-docker load -i document-workspace-1.6.5.tar
+docker load -i document-workspace-1.6.6.tar
 
 # 验证镜像已加载
 docker images | grep document-workspace
 # 预期输出:
-# document-workspace   1.6.5   xxxx   ~70MB
+# document-workspace   1.6.6   xxxx   ~70MB
 ```
 
 ### 2.5 创建部署目录
@@ -288,10 +288,10 @@ cd /opt/document-workspace
 tar -czvf backup-before-update.tar.gz data/
 
 # 2. 加载新版本镜像
-docker load -i document-workspace-1.6.5.tar
+docker load -i document-workspace-1.6.6.tar
 
 # 3. 修改 docker-compose.yml 中的版本号
-#    image: document-workspace:1.6.5
+#    image: document-workspace:1.6.6
 
 # 4. 重新启动
 docker-compose down
@@ -392,7 +392,7 @@ version: "3.8"
 
 services:
   app:
-    image: document-workspace:1.6.5
+    image: document-workspace:1.6.6
     container_name: document-workspace
     restart: unless-stopped
     ports:
@@ -530,9 +530,9 @@ sudo systemctl enable docker
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         Document Workspace v1.6.5 部署快速参考            │
+│         Document Workspace v1.6.6 部署快速参考            │
 ├──────────────────────────────────────────────────────────┤
-│ 加载镜像:  docker load -i document-workspace-1.6.5.tar   │
+│ 加载镜像:  docker load -i document-workspace-1.6.6.tar   │
 │ 启动服务:  docker-compose up -d                          │
 │ 查看状态:  docker-compose ps                             │
 │ 查看日志:  docker-compose logs -f                        │
@@ -547,7 +547,7 @@ sudo systemctl enable docker
 
 ---
 
-*Document Workspace v1.6.5 - 智能文档处理与经验沉淀平台*
+*Document Workspace v1.6.6 - 智能文档处理与经验沉淀平台*
 
 
 
