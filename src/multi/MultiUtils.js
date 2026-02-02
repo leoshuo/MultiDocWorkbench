@@ -149,11 +149,12 @@ export const readFileText = (file) =>
   });
 
 /**
- * 将HTML转换为结构化文本
+ * 将HTML转换为结构化文本（保留加粗格式）
  * @param {string} html - HTML字符串
+ * @param {boolean} preserveBold - 是否保留加粗格式（用 **text** 标记）
  * @returns {string}
  */
-export const htmlToStructuredText = (html) => {
+export const htmlToStructuredText = (html, preserveBold = false) => {
   const raw = (html || '').toString();
   if (!raw.trim()) return '';
 
@@ -174,6 +175,35 @@ export const htmlToStructuredText = (html) => {
     if (!lines.length) return;
     if (lines[lines.length - 1] !== '') lines.push('');
   };
+  
+  // 【新增】提取节点文本，保留加粗标记
+  const extractTextWithBold = (node) => {
+    if (!node) return '';
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || '';
+    }
+    
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    
+    const el = node;
+    const tag = (el.tagName || '').toUpperCase();
+    
+    // 检查是否是加粗元素
+    const isBold = tag === 'STRONG' || tag === 'B' || 
+      (el.style && (el.style.fontWeight === 'bold' || parseInt(el.style.fontWeight) >= 700));
+    
+    let content = '';
+    Array.from(el.childNodes || []).forEach((child) => {
+      content += extractTextWithBold(child);
+    });
+    
+    if (isBold && content.trim() && preserveBold) {
+      return `**${content.trim()}**`;
+    }
+    
+    return content;
+  };
 
   const walk = (node, listDepth = 0) => {
     if (!node) return;
@@ -189,21 +219,24 @@ export const htmlToStructuredText = (html) => {
 
     if (/^H[1-6]$/.test(tag)) {
       const lvl = Math.max(1, Math.min(6, Number(tag.slice(1)) || 1));
-      const text = (el.textContent || '').toString().trim();
+      // 【修改】使用 extractTextWithBold 保留加粗
+      const text = preserveBold ? extractTextWithBold(el).trim() : (el.textContent || '').toString().trim();
       if (text) push(`${'#'.repeat(lvl)} ${text}`);
       pushBlank();
       return;
     }
 
     if (tag === 'P') {
-      const text = (el.textContent || '').toString().trim();
+      // 【修改】使用 extractTextWithBold 保留加粗
+      const text = preserveBold ? extractTextWithBold(el).trim() : (el.textContent || '').toString().trim();
       if (text) push(text);
       pushBlank();
       return;
     }
 
     if (tag === 'LI') {
-      const text = (el.textContent || '').toString().trim();
+      // 【修改】使用 extractTextWithBold 保留加粗
+      const text = preserveBold ? extractTextWithBold(el).trim() : (el.textContent || '').toString().trim();
       if (text) push(`${'  '.repeat(Math.max(0, listDepth))}- ${text}`);
       return;
     }
@@ -229,14 +262,16 @@ export const htmlToStructuredText = (html) => {
 /**
  * 解析docx文件为结构化文本
  * @param {File} file - docx文件
+ * @param {boolean} preserveBold - 是否保留加粗格式（用 **text** 标记），默认 true
  * @returns {Promise<string>}
  */
-export const parseDocxFileToStructuredText = async (file) => {
+export const parseDocxFileToStructuredText = async (file, preserveBold = true) => {
   const buf = await file.arrayBuffer();
   const mammoth = await loadMammoth();
   const res = await mammoth.convertToHtml({ arrayBuffer: buf });
   const html = (res?.value || '').toString();
-  const structured = htmlToStructuredText(html);
+  // 【修改】传入 preserveBold 参数以保留加粗格式
+  const structured = htmlToStructuredText(html, preserveBold);
   return structured.trim() ? structured : '';
 };
 

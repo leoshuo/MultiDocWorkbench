@@ -168,7 +168,16 @@ export const UI_TEXT = {
   t161: "已恢复缺失的默认按钮",
   t162: "上传文档",
   t163: "按钮",
-  t164: "请输入沉淀集名称"
+  t164: "请输入沉淀集名称",
+  t165: "新建归类",
+  t166: "更新沉淀归类",
+  t167: "一级归类",
+  t168: "二级归类",
+  t169: "三级归类",
+  t170: "请输入归类名称",
+  t171: "选择归类级别",
+  t172: "选择目标归类",
+  t173: "未分类"
 };
 
 // ========== 存储键常量 ==========
@@ -176,6 +185,7 @@ export const LLM_BUTTONS_STORAGE_KEY = 'llm_buttons_v1';
 export const LLM_BUTTONS_MIGRATION_KEY = 'llm_buttons_migrated_v2';
 export const DEPOSITS_STORAGE_KEY = 'deposits_v1';
 export const DEPOSITS_SEQ_STORAGE_KEY = 'deposits_seq_v1';
+export const DEPOSIT_CATEGORIES_STORAGE_KEY = 'deposit_categories_v1';
 export const REPLAY_META_MARKER = '__REPLAY_META__';
 export const REPLAY_DIR_HANDLE_KEY = 'replay_dir_handle_v1';
 export const SHARED_SCENE_KEY = 'shared_scene_id';

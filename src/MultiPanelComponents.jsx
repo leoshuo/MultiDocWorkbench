@@ -13,7 +13,9 @@ import {
   FileText,
   Search,
   Bot,
-  User } from
+  User,
+  ArrowDownToLine,
+  Move } from
 'lucide-react';
 import './style.css';
 
@@ -30,8 +32,19 @@ export function SourcesPanel({
   const fileInputRef = useRef(null);
 
   return (
-    <div className="panel-content" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="panel-header" style={{ padding: '20px 24px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="panel-content" style={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden'  // 【修复】确保父容器不溢出
+    }}>
+            <div className="panel-header" style={{ 
+              padding: '20px 24px 12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              flexShrink: 0  // 【修复】确保头部不被压缩
+            }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Library className="text-primary" size={20} />
                     <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{UI_TEXT.t1}</h2>
@@ -64,19 +77,28 @@ export function SourcesPanel({
 
             </div>
 
-            <div className="scroll-y" style={{ flex: 1, padding: '0 16px 20px' }}>
+            {/* 【修复】添加滚动容器，确保文档列表可滚动 */}
+            <div style={{ 
+              flex: 1, 
+              padding: '0 16px 20px', 
+              overflowY: 'auto', 
+              overflowX: 'hidden',
+              minHeight: 0,
+              maxHeight: 'calc(100% - 60px)'  // 减去头部高度
+            }}>
                 {sources.length === 0 ?
         <div className="empty-state">
                         <Library size={48} opacity={0.1} />
                         <p>{UI_TEXT.t4}<br /><span className="sub">{UI_TEXT.t5}</span></p>
                     </div> :
 
-        <div className="list">
+        <div className="list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {sources.map((source) =>
           <div
             key={source.id}
             className={`list-item ${source.selected ? 'active' : ''}`}
-            onClick={() => onSelect(source.id)}>
+            onClick={() => onSelect(source.id)}
+            style={{ flexShrink: 0 }}>
             
                                 <div className="icon-box">
                                     <FileText size={16} />
@@ -112,13 +134,15 @@ export function ChatPanel({
   onClearMessages
 }) {
   const [input, setInput] = useState('');
+  const [autoScroll, setAutoScroll] = useState(true); // 跟随模式
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
+    // 只有在跟随模式下才自动滚动
+    if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, thinking]);
+  }, [messages, thinking, autoScroll]);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -126,96 +150,104 @@ export function ChatPanel({
     setInput('');
   };
 
+  // 手动滚动到底部
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  };
+
   return (
-    <div className="panel-content" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="panel-header" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-light)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                    <MessageSquare size={20} className="text-primary" />
-                    <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{UI_TEXT.t6}</h2>
-                </div>
-            </div>
-
-            {appButtons.length > 0 &&
-      <div className="chat-app-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {appButtons.map((btn) =>
-        <button
-          key={btn.id}
-          type="button"
-          className="ghost chat-app-btn"
-          onClick={() => onAppButtonClick?.(btn)}>
-                            {btn.label}
-            </button>
-          )}
+    <div className="panel-content" style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* 顶部固定区域 */}
+      <div style={{ flexShrink: 0 }}>
+        <div className="panel-header" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <MessageSquare size={20} className="text-primary" />
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{UI_TEXT.t6}</h2>
+          </div>
         </div>
-        {onClearMessages && (
-          <button
-            type="button"
-            className="ghost"
-            onClick={onClearMessages}
-            title="清除对话"
-            style={{ padding: '6px 12px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Trash2 size={14} />
-            清除
-                        </button>
-        )}
-                </div>
-      }
 
-            <div className="chat-area scroll-y" ref={scrollRef} style={{ flex: 1, padding: '20px' }}>
-                {messages.length === 0 &&
-        <div className="empty-state">
-                        <Sparkles size={48} opacity={0.1} />
-                        <p>{UI_TEXT.t7}<br /><span className="sub">{UI_TEXT.t8}</span></p>
-                        <div className="suggestions">
-                            <button className="suggestion-pill" onClick={() => onSendMessage(UI_TEXT.t19)}>{UI_TEXT.t9}
-
-            </button>
-                            <button className="suggestion-pill" onClick={() => onSendMessage(UI_TEXT.t20)}>{UI_TEXT.t10}
-
-            </button>
-                        </div>
-                    </div>
-        }
-
-                {messages.map((msg, idx) =>
-        <div key={`${msg.id || 'msg'}_${idx}`} className={`message ${msg.role}`}>
-                        <div className="avatar">
-                            {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
-                        </div>
-                        <div className="bubble">
-                            {msg.content}
-                            {msg.citations && msg.citations.length > 0 &&
-            <div className="citations">
-                                    {msg.citations.map((cit, idx) =>
-              <span key={idx} className="citation-chip">{cit}</span>
+        {appButtons.length > 0 &&
+          <div className="chat-app-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {appButtons.map((btn) =>
+                <button
+                  key={btn.id}
+                  type="button"
+                  className="ghost chat-app-btn"
+                  onClick={() => onAppButtonClick?.(btn)}>
+                  {btn.label}
+                </button>
               )}
-                                </div>
+            </div>
+            {onClearMessages && (
+              <button
+                type="button"
+                className="ghost"
+                onClick={onClearMessages}
+                title="清除对话记录"
+                style={{ padding: '6px 12px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Trash2 size={14} />
+                清除对话记录
+              </button>
+            )}
+          </div>
+        }
+      </div>
+
+      {/* 中间滚动区域 */}
+      <div className="chat-area scroll-y" ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+        {messages.length === 0 &&
+          <div className="empty-state">
+            <Sparkles size={48} opacity={0.1} />
+            <p>{UI_TEXT.t7}<br /><span className="sub">{UI_TEXT.t8}</span></p>
+            <div className="suggestions">
+              <button className="suggestion-pill" onClick={() => onSendMessage(UI_TEXT.t19)}>{UI_TEXT.t9}</button>
+              <button className="suggestion-pill" onClick={() => onSendMessage(UI_TEXT.t20)}>{UI_TEXT.t10}</button>
+            </div>
+          </div>
+        }
+
+        {messages.map((msg, idx) =>
+          <div key={`${msg.id || 'msg'}_${idx}`} className={`message ${msg.role}`}>
+            <div className="avatar">
+              {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+            </div>
+            <div className="bubble">
+              {msg.content}
+              {msg.citations && msg.citations.length > 0 &&
+                <div className="citations">
+                  {msg.citations.map((cit, cidx) =>
+                    <span key={cidx} className="citation-chip">{cit}</span>
+                  )}
+                </div>
+              }
+            </div>
+            {msg.role === 'assistant' &&
+              <div className="msg-actions">
+                <button className="ghost icon-btn xsmall" title={UI_TEXT.t11}>
+                  <Pin size={14} />
+                </button>
+              </div>
             }
-                        </div>
-                        {msg.role === 'assistant' &&
-          <div className="msg-actions">
-                                <button className="ghost icon-btn xsmall" title={UI_TEXT.t11}>
-                                    <Pin size={14} />
-                                </button>
-                            </div>
-          }
-                    </div>
+          </div>
         )}
 
-                {thinking &&
-        <div className="message assistant thinking">
-                        <div className="avatar"><Bot size={16} /></div>
-                        <div className="bubble">
-                            <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
-                        </div>
-                    </div>
-        }
+        {thinking &&
+          <div className="message assistant thinking">
+            <div className="avatar"><Bot size={16} /></div>
+            <div className="bubble">
+              <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
             </div>
+          </div>
+        }
+      </div>
 
-            <div className="input-area" style={{ padding: '20px', borderTop: '1px solid var(--border-light)' }}>
-                <div className="input-box">
-                    <textarea
+      {/* 底部固定输入区域 */}
+      <div className="input-area" style={{ flexShrink: 0, padding: '20px', borderTop: '1px solid var(--border-light)', background: 'var(--bg-panel, #fff)' }}>
+        <div className="input-box" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+          <textarea
             className="chat-input"
             rows={1}
             placeholder={UI_TEXT.t12}
@@ -226,21 +258,43 @@ export function ChatPanel({
                 e.preventDefault();
                 handleSend();
               }
-            }} />
-          
-                    <button
+            }}
+            style={{ flex: 1 }}
+          />
+          <button
             className={`send-btn ${input.trim() ? 'active' : ''}`}
             onClick={handleSend}
             disabled={!input.trim()}>
-            
-                        <Send size={18} />
-                    </button>
-                </div>
-                <div className="input-hint">{UI_TEXT.t13}
-
+            <Send size={18} />
+          </button>
+          {/* 跟随/自由切换按钮 */}
+          <button
+            type="button"
+            className={`ghost icon-btn ${autoScroll ? 'active' : ''}`}
+            onClick={() => {
+              setAutoScroll(!autoScroll);
+              if (!autoScroll) scrollToBottom(); // 切换到跟随时滚动到底部
+            }}
+            title={autoScroll ? '跟随模式（点击切换为自由）' : '自由模式（点击切换为跟随）'}
+            style={{ 
+              padding: '8px',
+              borderRadius: '8px',
+              background: autoScroll ? 'var(--primary, #3b82f6)' : 'transparent',
+              color: autoScroll ? '#fff' : 'var(--text-secondary)',
+              border: autoScroll ? 'none' : '1px solid var(--border-light)'
+            }}>
+            {autoScroll ? <ArrowDownToLine size={18} /> : <Move size={18} />}
+          </button>
         </div>
-            </div>
-        </div>);
+        <div className="input-hint" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{UI_TEXT.t13}</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.7 }}>
+            {autoScroll ? '📍 跟随' : '🔓 自由'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 
 }
 

@@ -77,11 +77,12 @@ export const loadMammoth = async () => {
 };
 
 /**
- * 将HTML转换为结构化文本
+ * 将HTML转换为结构化文本（支持保留加粗格式）
  * @param {string} html - HTML字符串
+ * @param {boolean} preserveBold - 是否保留加粗格式（用 **text** 标记），默认 true
  * @returns {string} - 结构化文本
  */
-export const htmlToStructuredText = (html) => {
+export const htmlToStructuredText = (html, preserveBold = true) => {
   const raw = (html || '').toString();
   if (!raw.trim()) return '';
 
@@ -102,6 +103,35 @@ export const htmlToStructuredText = (html) => {
     if (!lines.length) return;
     if (lines[lines.length - 1] !== '') lines.push('');
   };
+  
+  // 【新增】提取节点文本，保留加粗标记
+  const extractTextWithBold = (node) => {
+    if (!node) return '';
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || '';
+    }
+    
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    
+    const el = node;
+    const tag = (el.tagName || '').toUpperCase();
+    
+    // 检查是否是加粗元素
+    const isBold = tag === 'STRONG' || tag === 'B' || 
+      (el.style && (el.style.fontWeight === 'bold' || parseInt(el.style.fontWeight) >= 700));
+    
+    let content = '';
+    Array.from(el.childNodes || []).forEach((child) => {
+      content += extractTextWithBold(child);
+    });
+    
+    if (isBold && content.trim() && preserveBold) {
+      return `**${content.trim()}**`;
+    }
+    
+    return content;
+  };
 
   const walk = (node, listDepth = 0) => {
     if (!node) return;
@@ -117,21 +147,24 @@ export const htmlToStructuredText = (html) => {
 
     if (/^H[1-6]$/.test(tag)) {
       const lvl = Math.max(1, Math.min(6, Number(tag.slice(1)) || 1));
-      const text = (el.textContent || '').toString().trim();
+      // 【修改】使用 extractTextWithBold 保留加粗
+      const text = preserveBold ? extractTextWithBold(el).trim() : (el.textContent || '').toString().trim();
       if (text) push(`${'#'.repeat(lvl)} ${text}`);
       pushBlank();
       return;
     }
 
     if (tag === 'P') {
-      const text = (el.textContent || '').toString().trim();
+      // 【修改】使用 extractTextWithBold 保留加粗
+      const text = preserveBold ? extractTextWithBold(el).trim() : (el.textContent || '').toString().trim();
       if (text) push(text);
       pushBlank();
       return;
     }
 
     if (tag === 'LI') {
-      const text = (el.textContent || '').toString().trim();
+      // 【修改】使用 extractTextWithBold 保留加粗
+      const text = preserveBold ? extractTextWithBold(el).trim() : (el.textContent || '').toString().trim();
       if (text) push(`${'  '.repeat(Math.max(0, listDepth))}- ${text}`);
       return;
     }
@@ -157,14 +190,16 @@ export const htmlToStructuredText = (html) => {
 /**
  * 解析docx文件为结构化文本
  * @param {File} file - docx文件
+ * @param {boolean} preserveBold - 是否保留加粗格式（用 **text** 标记），默认 true
  * @returns {Promise<string>} - 结构化文本
  */
-export const parseDocxFileToStructuredText = async (file) => {
+export const parseDocxFileToStructuredText = async (file, preserveBold = true) => {
   const buf = await file.arrayBuffer();
   const mammoth = await loadMammoth();
   const res = await mammoth.convertToHtml({ arrayBuffer: buf });
   const html = (res?.value || '').toString();
-  const structured = htmlToStructuredText(html);
+  // 【修改】传入 preserveBold 参数以保留加粗格式
+  const structured = htmlToStructuredText(html, preserveBold);
   return structured.trim() ? structured : '';
 };
 
@@ -575,4 +610,202 @@ export function loadDepositsSeqFromStorage() {
   } catch (_) {
     return 0;
   }
+}
+
+// ========== 富文本渲染函数 ==========
+
+/**
+ * 将包含 **加粗** 标记的文本转换为 HTML
+ * @param {string} text - 包含 **text** 格式的文本
+ * @returns {string} - HTML 字符串
+ */
+export function renderBoldMarkdown(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  // 转义 HTML 特殊字符（防止 XSS）
+  const escapeHtml = (str) => {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+  
+  // 先转义 HTML，再处理加粗标记
+  const escaped = escapeHtml(text);
+  
+  // 将 **text** 转换为 <strong>text</strong>
+  // 使用非贪婪匹配，避免跨行匹配
+  const withBold = escaped.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  
+  // 将换行符转换为 <br> 标签
+  const withBreaks = withBold.replace(/\n/g, '<br/>');
+  
+  return withBreaks;
+}
+
+/**
+ * 检查文本是否包含加粗标记
+ * @param {string} text - 文本内容
+ * @returns {boolean} - 是否包含加粗
+ */
+export function hasBoldMarkers(text) {
+  if (!text || typeof text !== 'string') return false;
+  return /\*\*[^*\n]+\*\*/.test(text);
+}
+
+/**
+ * 移除 Markdown 加粗标记，返回纯文本
+ * @param {string} text - 包含 **text** 格式的文本
+ * @returns {string} - 纯文本（不含 ** 标记）
+ */
+export function stripBoldMarkers(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text.replace(/\*\*([^*\n]+)\*\*/g, '$1');
+}
+
+/**
+ * 在带 ** 标记的原始文本中查找纯文本的位置
+ * @param {string} markdownText - 包含 **text** 格式的原始文本
+ * @param {string} plainText - 要查找的纯文本片段
+ * @param {number} plainStartIndex - 纯文本在显示文本中的起始位置（可选）
+ * @returns {{ start: number, end: number } | null} - 在原始文本中的位置
+ */
+export function findTextPositionInMarkdown(markdownText, plainText, plainStartIndex = -1) {
+  if (!markdownText || !plainText) return null;
+  
+  // 如果原始文本不包含 ** 标记，直接查找
+  if (!hasBoldMarkers(markdownText)) {
+    const start = markdownText.indexOf(plainText);
+    if (start >= 0) {
+      return { start, end: start + plainText.length };
+    }
+    return null;
+  }
+  
+  // 构建位置映射：显示位置 -> 原始位置
+  const plainVersion = stripBoldMarkers(markdownText);
+  
+  // 如果提供了显示文本中的位置，使用它来更精确地定位
+  let searchStartInPlain = 0;
+  if (plainStartIndex >= 0) {
+    searchStartInPlain = plainStartIndex;
+  }
+  
+  // 在纯文本版本中查找
+  const plainStart = plainVersion.indexOf(plainText, searchStartInPlain);
+  if (plainStart < 0) return null;
+  
+  // 将纯文本位置转换为原始文本位置
+  let originalPos = 0;
+  let plainPos = 0;
+  let i = 0;
+  
+  // 找到 plainStart 对应的原始位置
+  while (i < markdownText.length && plainPos < plainStart) {
+    if (markdownText.slice(i, i + 2) === '**') {
+      // 跳过开始标记
+      i += 2;
+      // 找到对应的结束标记
+      const endMarker = markdownText.indexOf('**', i);
+      if (endMarker > i) {
+        const boldContent = markdownText.slice(i, endMarker);
+        plainPos += boldContent.length;
+        i = endMarker + 2;
+      } else {
+        plainPos++;
+        i++;
+      }
+    } else {
+      plainPos++;
+      i++;
+    }
+  }
+  const originalStart = i;
+  
+  // 继续找到 plainEnd 对应的原始位置
+  const plainEnd = plainStart + plainText.length;
+  while (i < markdownText.length && plainPos < plainEnd) {
+    if (markdownText.slice(i, i + 2) === '**') {
+      i += 2;
+      const endMarker = markdownText.indexOf('**', i);
+      if (endMarker > i) {
+        const boldContent = markdownText.slice(i, endMarker);
+        plainPos += boldContent.length;
+        i = endMarker + 2;
+      } else {
+        plainPos++;
+        i++;
+      }
+    } else {
+      plainPos++;
+      i++;
+    }
+  }
+  const originalEnd = i;
+  
+  return { start: originalStart, end: originalEnd };
+}
+
+/**
+ * 将 HTML 内容转换回带 **加粗** 标记的纯文本
+ * @param {string} html - HTML 字符串
+ * @returns {string} - 带 **text** 格式的纯文本
+ */
+export function htmlToMarkdownText(html) {
+  if (!html || typeof html !== 'string') return '';
+  
+  // 创建临时 DOM 元素解析 HTML
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  
+  // 递归提取文本，保留加粗标记
+  const extractText = (node) => {
+    if (!node) return '';
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || '';
+    }
+    
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    
+    const el = node;
+    const tag = (el.tagName || '').toUpperCase();
+    
+    // 处理换行
+    if (tag === 'BR') {
+      return '\n';
+    }
+    
+    // 处理 div 和 p 标签（添加换行）
+    if (tag === 'DIV' || tag === 'P') {
+      let content = '';
+      Array.from(el.childNodes || []).forEach((child) => {
+        content += extractText(child);
+      });
+      // 避免重复换行
+      return content + (content.endsWith('\n') ? '' : '\n');
+    }
+    
+    // 处理加粗
+    if (tag === 'STRONG' || tag === 'B') {
+      let content = '';
+      Array.from(el.childNodes || []).forEach((child) => {
+        content += extractText(child);
+      });
+      return content.trim() ? `**${content.trim()}**` : '';
+    }
+    
+    // 其他元素递归处理
+    let content = '';
+    Array.from(el.childNodes || []).forEach((child) => {
+      content += extractText(child);
+    });
+    return content;
+  };
+  
+  const result = extractText(div);
+  // 清理多余的换行
+  return result.replace(/\n{3,}/g, '\n\n').trim();
 }

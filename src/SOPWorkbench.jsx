@@ -1,47 +1,32 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-
 import './style.css';
-
 
 import './fonts.css';
 
-
 import { loadLayoutConfig, saveLayoutConfig, resetLayoutConfig } from './layoutEditor';
-
 
 import { loadButtonConfig, saveButtonConfig, resetButtonConfig, DEFAULT_BUTTON_CONFIG, validateButtonConfig } from './buttonManager';
 
-
 import { migrateButtonConfig, backupConfig, cleanOldBackups } from './utils/buttonMigration';
-
 
 import { StyleEditor } from './StyleEditor';
 
-
 import { EditableButton, EditableButtonsContainer } from './EditableButton';
-
 
 import { EditableLayoutPanel, LayoutEditContainer } from './EditablePanel';
 
-
 import { GlobalButtonsContainer } from './GlobalButton';
-
 
 import { EditConsole } from './RecycleBin';
 
-
 import { InputPanelContent, InputFormPanelContent, DocumentListPanelContent, ContentPreviewPanelContent, ProcessingPanelContent, OperationsPanelContent } from './PanelComponents';
-
 
 import { EditableContentBlock } from './EditableContentBlock';
 
-
 import { API_BASE_URL } from './config';
 
-
 import { DocumentPreviewModal } from './DocumentPreviewModal';
-
 
 import { Pencil, Layout as LayoutIcon, Settings, Check, X, FileText, List, History, Sparkles, FolderOpen, Trash2, Plus, GripVertical, Type, AlignLeft, AlignCenter, AlignRight, Play, GalleryVerticalEnd, Save, RotateCcw, LogOut, Layout, ChevronLeft, Upload, Copy, Edit3 } from 'lucide-react';
 
@@ -90,7 +75,12 @@ import {
   defaultLlmButtons,
   loadLlmButtonsFromStorage,
   loadDepositsFromStorage,
-  loadDepositsSeqFromStorage
+  loadDepositsSeqFromStorage,
+  renderBoldMarkdown,
+  hasBoldMarkers,
+  htmlToMarkdownText,
+  stripBoldMarkers,
+  findTextPositionInMarkdown
 } from './sop/SOPUtils';
 
 // ========== 从拆分模块导入组件 ==========
@@ -105,8 +95,13 @@ import {
   SelectedDepositGroupPanel,
 } from './sop/panels/DepositPanels';
 import { createOutlineNodeRenderer } from './sop/panels/OutlineNode';
+import { DepositListPanel } from './sop/panels/DepositListPanel';
 import { DepositConfirmModal } from './sop/modals/DepositConfirmModal';
 import { UpdateGroupModal } from './sop/modals/UpdateGroupModal';
+
+// ========== 从拆分模块导入 Hooks ==========
+import { useModals, useDispatch, useOutline, useDocuments, useScene, useDeposits, useReplay, useLlmButtons } from './sop/hooks';
+// 注：useHistory 和 useDepositGroups 已创建但暂不集成，因为状态已在 useOutline/useDeposits 中管理
 
 // ========== 安全工具函数 ==========
 import {
@@ -122,756 +117,471 @@ import {
 import { debounce, throttle } from './sop/utils/throttle';
 import { useToast } from './sop/hooks/useToast';
 
-// UI_TEXT 已迁移
-
-
-// api 已迁移
-
-
-// readFileText 已迁移
-
-
-// isDocxName 已迁移
-
-
-// PROCESSING_TAB_SEQUENCE 已迁移
-
-// PROCESSING_TAB_LABELS 已迁移
-// INPUT_SOURCE_PREFIX_RE 已迁移
-// fixMojibake 已迁移
-// isGarbledText 已迁移
-// sanitizeText 已迁移
-// normalizeButtonText 已迁移
-
-// LEGACY_PROCESSING_TAB_LABELS 已迁移
-
-// DEFAULT_SECTION_REQUIREMENTS 已迁移
-
-
-// DEFAULT_APP_BUTTONS 已迁移
-
-
-// loadMammoth 已迁移
-
-
-// htmlToStructuredText 已迁移
-
-
-// parseDocxFileToStructuredText 已迁移
-
-
-// uniqueDocsByIdKeepLast 已迁移
-
-
-// upsertDocsToFront 已迁移
-
-
-// buildSectionTree 已迁移
-
-
-// LLM_BUTTONS_STORAGE_KEY 已迁移
-
-
-// LLM_BUTTONS_MIGRATION_KEY 已迁移
-
-
-// DEPOSITS_STORAGE_KEY 已迁移
-
-
-// DEPOSITS_SEQ_STORAGE_KEY 已迁移
-
-
-// REPLAY_META_MARKER 已迁移
-
-
-// REPLAY_DIR_HANDLE_KEY 已迁移
-
-// SHARED_SCENE_KEY 已迁移
-
-
-// openHandleDb 已迁移
-
-
-// idbGet 已迁移
-
-
-// idbSet 已迁移
-
-
-// idbDel 已迁移
-
-
-// DEFAULT_OUTLINE_BUTTON_PROMPT 已迁移
-
-
-// DEFAULT_DISPATCH_SYSTEM_PROMPT 已迁移
-
-
-// DEFAULT_FINAL_SYSTEM_PROMPT 已迁移
-
-
-// normalizeIoRows 已迁移
-
-
-// DEFAULT_PRECIPITATION_MODE 已迁移
-
-
-// normalizePrecipitationMode 已迁移
-
-
-// defaultLlmButtons 已迁移至 ./sop/SOPUtils.js
-
-
-// loadLlmButtonsFromStorage 已迁移至 ./sop/SOPUtils.js
-
-
-// loadDepositsFromStorage 已迁移至 ./sop/SOPUtils.js
-
-
-// loadDepositsSeqFromStorage 已迁移至 ./sop/SOPUtils.js
-
+// ========== 沉淀操作函数 ==========
+import {
+  clipText,
+  appendReplayMeta,
+  extractReplayMeta,
+  describeInput,
+  describeDestination,
+  formatOpContent,
+  parseDepositSectionContent,
+  normalizeRequirement,
+  getSectionRequirements,
+  OP_META_VERSION,
+  generateInitialScript,
+  getScriptForSection,
+  updateScriptForSection,
+  extractFromScript,
+  parseLLMStepsFromScript,
+  parseAiGuidanceDirectly,
+  generateReplayMeta,
+  extractFullStepContent,
+} from './sop/logic/depositOps';
+
+// ========== 文档操作函数 ==========
+import {
+  deepClone,
+  normalizeDocSelector,
+  matchFileNameBySelector,
+  normalizeDepositGroup,
+  reorderDepositList,
+  moveDepositToIndex,
+  findDocIdByNameInList,
+  strictReplayRequired,
+  waitUiTick,
+} from './sop/logic/documentOps';
 
 export default function SOPWorkbench({ onSwitch }) {
 
-
   const [template, setTemplate] = useState(null);
-
-
-  const [docs, setDocs] = useState([]);
-
-
-  const [scene, setScene] = useState(null);
-
-
-  const [selectedDocId, setSelectedDocId] = useState(null);
-
 
   const [loading, setLoading] = useState(false);
 
-
-  const [dispatching, setDispatching] = useState(false);
-
-
   const [finalizing, setFinalizing] = useState(false);
 
-
-  // 使用 useToast hook 管理提示消息
+  // 使用 useToast hook 管理提示消息 - 必须在其他依赖它的 Hooks 之前
   const { toast, showToast } = useToast({ duration: 1800 });
 
-  const [showOutlineMode, setShowOutlineMode] = useState(true);
+  // ========== 文档状态 (使用 useDocuments Hook) ==========
+  const {
+    docs, setDocs,
+    selectedDocId, setSelectedDocId,
+    docDraft, setDocDraft,
+  } = useDocuments({ showToast, api });
 
+  // ========== 场景状态 (使用 useScene Hook) ==========
+  const {
+    scene, setScene,
+  } = useScene({ showToast, api });
+
+  // ========== 调度状态 (使用 useDispatch Hook) ==========
+  const {
+    dispatching, setDispatching,
+    dispatchLogs, setDispatchLogs,
+    dispatchMode, setDispatchMode,
+    dispatchInputHeight, updateDispatchInputHeight,
+    addDispatchLog, clearDispatchLogs,
+  } = useDispatch({ showToast });
+
+  const [showOutlineMode, setShowOutlineMode] = useState(true);
 
   const [processingTab, setProcessingTab] = useState('outline'); // 'outline' | 'records' | 'config'
 
   // 沉淀配置的显示模式: 'deposits' | 'groups' - 互斥切换
   const [depositViewMode, setDepositViewMode] = useState('deposits');
 
-  const [dispatchLogs, setDispatchLogs] = useState([]);
-
-
   const [expandedLogs, setExpandedLogs] = useState({});
-
 
   const [finalSlots, setFinalSlots] = useState({});
 
+  // 最终文档预览内容（Replay 时使用）
+  const [finalDocumentPreview, setFinalDocumentPreview] = useState(null);
 
   const [processedContent, setProcessedContent] = useState('');
 
-
-  const [dispatchMode, setDispatchMode] = useState('doc'); // 'doc' | 'result'
-
-  // 操作调度输入框高度（可拖拽调整并持久化）
-  const [dispatchInputHeight, setDispatchInputHeight] = useState(() => {
-    try {
-      const saved = localStorage.getItem('dispatch_input_height');
-      if (saved) return Number(saved) || 60;
-    } catch (e) {}
-    return 60; // 默认高度
-  });
-
-  // 保存 dispatchInputHeight 到 localStorage
-  useEffect(() => {
-    if (dispatchInputHeight && dispatchInputHeight !== 60) {
-      localStorage.setItem('dispatch_input_height', String(dispatchInputHeight));
-    }
-  }, [dispatchInputHeight]);
-
+  // dispatchInputHeight 现在由 useDispatch Hook 管理并自动持久化
 
   const [selectedLogTexts, setSelectedLogTexts] = useState({});
 
-
-  const [outlineEditing, setOutlineEditing] = useState({});
-
-
-  const [sectionDocLinks, setSectionDocLinks] = useState({}); // sectionId -> docId[]
-
-
-  const [sectionDocPick, setSectionDocPick] = useState({}); // sectionId -> docId
-
-
-  const [docDraft, setDocDraft] = useState('');
-
-
-  const [selectedOutlineExec, setSelectedOutlineExec] = useState({}); // sectionId -> bool
-
-
-  const [sectionDocDone, setSectionDocDone] = useState({}); // sectionId -> {docId: true}
-
-
-  const [summaryExpanded, setSummaryExpanded] = useState({}); // sectionId -> bool
-  
-  // 多摘要选中状态：sectionId_sumIdx -> bool（支持选中特定摘要进行填入）
-  const [selectedSummaries, setSelectedSummaries] = useState({}); // `${sectionId}_${sumIdx}` -> bool
-  
-  // 标题折叠状态：当某个标题被折叠时，其下级标题将被隐藏
-  const [sectionCollapsed, setSectionCollapsed] = useState({}); // sectionId -> bool
-  
-  // 多摘要合并方式选择状态：sectionId -> 'paragraph' | 'sentence' | null
-  // 只保存用户选择的合并方式，实际合并在最终文档生成时执行
-  const [sectionMergeType, setSectionMergeType] = useState({});
-
+  // ========== 大纲状态 (使用 useOutline Hook) ==========
+  const {
+    outlineEditing, setOutlineEditing,
+    sectionDocLinks, setSectionDocLinks,
+    sectionDocPick, setSectionDocPick,
+    selectedOutlineExec, setSelectedOutlineExec,
+    sectionDocDone, setSectionDocDone,
+    summaryExpanded, setSummaryExpanded,
+    selectedSummaries, setSelectedSummaries,
+    sectionCollapsed, setSectionCollapsed,
+    sectionMergeType, setSectionMergeType,
+    outlineHistory, setOutlineHistory,
+  } = useOutline({ showToast, api });
 
   const [isDepositing, setIsDepositing] = useState(false);
-
+  // 【新增】跟踪正在执行的沉淀相关操作数量
+  // 只有当所有操作完成后，才能打开沉淀确认弹窗
+  const [pendingDepositOperations, setPendingDepositOperations] = useState(0);
 
   const [isEditingLayout, setIsEditingLayout] = useState(false); // 编辑界面模式
 
-
   // 左列：内容预览（上）、输入素材（中）、文档列表（下）
-
 
   // 右列：文档处理（上）、操作调度（下）
 
-
   const DEFAULT_LAYOUT = {
-
 
     'preview-panel': { left: 20, top: 20, width: 600, height: 360 },
 
-
     // 'input-form-panel' removed
-
 
     'document-list-panel': { left: 20, top: 396, width: 600, height: 376 }, // Expanded to fill gap
 
-
     'processing-panel': { left: 636, top: 20, width: 550, height: 376 },
-
 
     'operations-panel': { left: 636, top: 412, width: 550, height: 360 }
 
-
   };
-
 
   const [panelPositions, setPanelPositions] = useState(() => {
 
-
     let saved = null;
 
-
     try {
-
 
       const stored = localStorage.getItem('layout_panel_positions');
 
-
       if (stored) saved = JSON.parse(stored);
-
 
     } catch (e) {
 
-
       console.warn('Failed to load layout', e);
 
-
     }
-
 
     // 验证单个面板位置是否有效
 
-
     const isValid = (pos) => pos && pos.width > 100 && pos.height > 100;
-
 
     if (saved) {
 
-
       if (saved['input-panel'] && !saved['input-form-panel']) {
-
 
         console.log('[Layout Migration] 检测到旧版4面板配置，正在迁移到5面板配置...');
 
-
         const oldInput = saved['input-panel'];
-
 
         const splitHeight = Math.floor(oldInput.height / 2) - 10;
 
-
         saved['input-form-panel'] = {
 
-
           left: oldInput.left,
-
 
           top: oldInput.top,
 
-
           width: oldInput.width,
-
 
           height: splitHeight
 
-
         };
-
 
         saved['document-list-panel'] = {
 
-
           left: oldInput.left,
-
 
           top: oldInput.top + splitHeight + 20,
 
-
           width: oldInput.width,
-
 
           height: splitHeight
 
-
         };
-
 
         delete saved['input-panel'];
 
-
         try {
 
-
           localStorage.setItem('layout_panel_positions', JSON.stringify(saved));
-
 
           console.log('[Layout Migration] 迁移完成并已保存');
 
-
         } catch (e) {
-
 
           console.warn('[Layout Migration] 保存失败:', e);
 
-
         }
 
-
       }
-
 
       // Config Migration 2: Remove input-form-panel and expand document-list-panel
 
-
       if (saved['input-form-panel']) {
-
 
         console.log('[Layout Migration] Removing input-form-panel and expanding document-list-panel...');
 
-
         const inputPanel = saved['input-form-panel'];
-
 
         const listPanel = saved['document-list-panel'];
 
-
         if (inputPanel && listPanel) {
-
 
           // Expand list panel to cover input panel area (assuming vertical stack)
 
-
           // Or just use default for list panel if it seems messy?
-
 
           // Let's just set list panel to new default-ish position if it matches old default
 
-
           // New Default: top 396, height 376. 
-
 
           // Old List: top 592, height 180. Old Input: top 396, height 180.
 
-
           // So simply setting List.top = Input.top, and List.height = Input.height + Gap + List.height
-
 
           saved['document-list-panel'] = {
 
-
             left: listPanel.left,
-
 
             top: inputPanel.top,
 
-
             width: listPanel.width, // Keep width
-
 
             height: listPanel.top - inputPanel.top + listPanel.height // Covers gap + old input height
 
-
           };
 
-
         }
-
 
         delete saved['input-form-panel'];
 
-
         // Save
-
 
         try {
 
-
           localStorage.setItem('layout_panel_positions', JSON.stringify(saved));
-
 
           console.log('[Layout Migration 2] Completed');
 
-
         } catch (e) {
-
 
           console.warn('[Layout Migration 2] Save failed:', e);
 
-
         }
 
-
       }
-
 
       const result = { ...DEFAULT_LAYOUT };
 
-
       Object.keys(DEFAULT_LAYOUT).forEach((panelId) => {
-
 
         if (saved[panelId] && isValid(saved[panelId])) {
 
-
           result[panelId] = saved[panelId];
 
-
         }
-
 
       });
 
-
       return result;
-
 
     }
 
-
     // 没有保存的配置，使用默认布局
-
 
     console.log('[Panel Init] 使用默认布局，DEFAULT_LAYOUT:', DEFAULT_LAYOUT);
 
-
     const defaultCopy = { ...DEFAULT_LAYOUT };
-
 
     console.log('[Panel Init] 返回的配?', defaultCopy);
 
-
     return defaultCopy;
-
 
   }); // 面板位置和大?
 
-
   const [layoutSize, setLayoutSize] = useState(() => {
-
 
     try {
 
-
       const stored = localStorage.getItem('layout_size');
-
 
       if (stored) {
 
-
         const parsed = JSON.parse(stored);
-
 
         if (parsed && Number(parsed.width) > 0 && Number(parsed.height) > 0) {
 
-
           return { width: Number(parsed.width), height: Number(parsed.height) };
-
 
         }
 
-
       }
 
-
     } catch (_) {
-
 
       /* ignore */
     }
 
-
     return { width: 1800, height: 1200 };
 
-
   });
-
 
   // 内容块位置（编辑模式下可调整?
 
-
   const DEFAULT_CONTENT_BLOCKS = {
-
 
     'input-form-panel': { left: 10, top: 10, width: 560, height: 400 },
 
-
     'document-list-panel': { left: 10, top: 10, width: 560, height: 300 },
-
 
     'document-replay-ui': { left: 10, top: 320, width: 560, height: 46 }, // New default position
 
-
     // 'preview-panel' content split into textarea and toolbar
-
 
     'preview-textarea': { left: 10, top: 10, width: 420, height: 250 },
 
-
     'preview-toolbar': { left: 10, top: 270, width: 420, height: 50 },
-
 
     'processing-panel': { left: 10, top: 60, width: 1060, height: 720 },
 
-
     'processing-tabs': { left: 10, top: 10, width: 560, height: 44 },
-
 
     'processing-records-toolbar': { left: 10, top: 60, width: 560, height: 80 },
 
-
     'processing-records-list': { left: 10, top: 150, width: 1060, height: 610 },
-
 
     'operations-panel': { left: 10, top: 10, width: 1100, height: 300 }
 
-
   };
-
 
   const [contentBlockPositions, setContentBlockPositions] = useState(() => {
 
-
     try {
-
 
       const stored = localStorage.getItem('layout_content_blocks');
 
-
       if (stored) {
-
 
         const parsed = JSON.parse(stored);
 
-
         // Merge with defaults to ensure all panels have entries
-
 
         const merged = { ...DEFAULT_CONTENT_BLOCKS, ...parsed };
 
-
         // 不再强制限制工具栏高度，允许用户自定义调整
-
 
         return merged;
 
-
       }
-
 
     } catch (e) {
 
-
       console.warn('Failed to load content block positions', e);
 
-
     }
-
 
     return DEFAULT_CONTENT_BLOCKS;
 
-
   });
-
 
   const mergeButtonConfigWithDefaults = (incoming) => {
 
-
     if (!incoming || typeof incoming !== 'object') {
-
 
       return { ...DEFAULT_BUTTON_CONFIG };
 
-
     }
-
 
     const source = { ...incoming };
 
-
     if (source['input-panel'] && !source['input-form-panel']) {
-
 
       source['input-form-panel'] = source['input-panel'] || [];
 
-
       delete source['input-panel'];
 
-
     }
-
 
     const merged = { ...DEFAULT_BUTTON_CONFIG };
 
-
     Object.keys(DEFAULT_BUTTON_CONFIG).forEach((panelId) => {
-
 
       if (Array.isArray(source[panelId])) {
 
-
         merged[panelId] = source[panelId];
-
 
       }
 
-
     });
-
 
     if (merged['input-form-panel']) {
 
-
       merged['input-form-panel'] = merged['input-form-panel'].filter(
-
 
         (b) => b.id !== 'btn_input_import_text'
 
-
       );
-
 
     }
 
-
     if (Array.isArray(merged['processing-tabs'])) {
-
 
       const defaults = DEFAULT_BUTTON_CONFIG['processing-tabs'] || [];
 
-
       const byKind = new Map(merged['processing-tabs'].map((btn) => [btn.kind, btn]));
-
 
       const defaultsByKind = new Map(defaults.map((btn) => [btn.kind, btn]));
 
-
       let legacyDetected = false;
-
 
       let normalized = defaults.map((def) => {
 
-
         const existing = byKind.get(def.kind);
 
-
         if (!existing) return def;
-
 
         const existingLabel = typeof existing?.label === 'string' ? sanitizeText(existing.label, '') : '';
         if (LEGACY_PROCESSING_TAB_LABELS[def.kind]?.includes(existingLabel)) {
 
-
           legacyDetected = true;
-
 
         }
 
-
         return { ...existing, label: PROCESSING_TAB_LABELS[def.kind] || def.label };
-
 
       });
 
-
       if (legacyDetected) {
-
 
         normalized = normalized.map((btn) => {
 
-
           const def = defaultsByKind.get(btn.kind);
-
 
           if (!def) return btn;
 
-
           return {
-
 
             ...btn,
 
-
             left: def.left,
-
 
             top: def.top,
 
-
             width: def.width,
-
 
             height: def.height
 
-
           };
-
 
         });
 
-
       }
-
 
       merged['processing-tabs'] = normalized.concat(
 
-
         merged['processing-tabs'].filter((btn) => !defaults.some((def) => def.kind === btn.kind))
-
 
       );
 
-
     }
-
 
     Object.keys(merged).forEach((panelId) => {
       if (!Array.isArray(merged[panelId])) return;
@@ -893,747 +603,521 @@ export default function SOPWorkbench({ onSwitch }) {
 
     if (Array.isArray(merged['processing-records-toolbar'])) {
 
-
       // 旧版配置检测：如果 group_new 和 group_update 在第二行（top: 44），需要迁移到第一行
       const legacyGroupPositions = {
         group_new: { left: 12, top: 44 },
         group_update: { left: 122, top: 44 },
       };
 
-
       const toolbarDefaults = DEFAULT_BUTTON_CONFIG['processing-records-toolbar'] || [];
-
 
       const byKind = new Map(merged['processing-records-toolbar'].map((btn) => [btn.kind, btn]));
 
-
       const isLegacy = Object.entries(legacyGroupPositions).every(([kind, pos]) => {
-
 
         const btn = byKind.get(kind);
 
-
         return btn && Number(btn.left) === pos.left && Number(btn.top) === pos.top;
-
 
       });
 
-
       if (isLegacy) {
-
 
         merged['processing-records-toolbar'] = merged['processing-records-toolbar'].map((btn) => {
 
-
           const def = toolbarDefaults.find((item) => item.kind === btn.kind);
-
 
           if (!def) return btn;
 
-
           return {
-
 
             ...btn,
 
-
             left: def.left,
-
 
             top: def.top,
 
-
             width: def.width,
-
 
             height: def.height
 
-
           };
-
 
         });
 
-
       }
 
+      // 自动补充缺失的默认按钮（如 category_new, category_assign 等）
+      const existingKinds = new Set(merged['processing-records-toolbar'].map(btn => btn.kind));
+      const missingButtons = toolbarDefaults.filter(def => !existingKinds.has(def.kind));
+      if (missingButtons.length > 0) {
+        console.log('[Button Config] 自动补充缺失的沉淀工具栏按钮:', missingButtons.map(b => b.kind).join(', '));
+        merged['processing-records-toolbar'] = [...merged['processing-records-toolbar'], ...missingButtons];
+      }
 
     }
-
 
     return merged;
 
-
   };
-
 
   const [buttonPositions, setButtonPositions] = useState(() => {
 
-
     let cached = loadButtonConfig();
-
 
     if (!cached) {
 
-
       return DEFAULT_BUTTON_CONFIG;
 
-
     }
-
 
     if (cached['input-panel'] && !cached['input-form-panel']) {
 
-
       console.log('[Button Migration] 检测到旧版4面板按钮配置，正在迁移到5面板配置...');
-
 
       cached['input-form-panel'] = cached['input-panel'] || [];
 
-
       // document-list-panel 使用默认配置
-
 
       cached['document-list-panel'] = DEFAULT_BUTTON_CONFIG['document-list-panel'] || [];
 
-
       delete cached['input-panel'];
-
 
       console.log('[Button Migration] 迁移完成');
 
-
     }
-
 
     return mergeButtonConfigWithDefaults(cached);
 
-
   }); // 按钮配置状态（全局化）
-
 
   const [globalButtons, setGlobalButtons] = useState(() => {
 
-
     try {
-
 
       // 先尝试加载新格式配置
 
-
       const newConfig = localStorage.getItem('global-buttons-config');
-
 
       if (newConfig) {
 
-
         const parsed = JSON.parse(newConfig);
-
 
         if (parsed.activeButtons) {
 
-
           console.log('[GlobalButtons] Loaded from new format:', parsed.activeButtons.length, 'buttons');
 
-
           // Auto-fix: Ensure '全文大纲抽取' has the correct kind
-
 
           const fixedButtons = parsed.activeButtons.map((btn) => {
             const normalizedBtn = normalizeButtonText(btn);
 
-
             if (normalizedBtn.label === '全文大纲抽取' && !normalizedBtn.kind) {
-
 
               console.log('[GlobalButtons] Auto-fixing missing kind for outline_extract button');
 
-
               return { ...normalizedBtn, kind: 'outline_extract' };
-
 
             }
 
-
             return normalizedBtn;
-
 
           });
 
-
           return fixedButtons;
-
 
         }
 
-
       }
-
 
       const oldConfig = loadButtonConfig();
 
-
       if (oldConfig && Object.keys(oldConfig).length > 0) {
-
 
         console.log('[GlobalButtons] Migrating from old format...');
 
-
         backupConfig(oldConfig, 'app-button-config');
-
 
         cleanOldBackups('app-button-config', 3);
 
-
         // 迁移到新格式
-
 
         const migrated = migrateButtonConfig(oldConfig, panelPositions);
         migrated.activeButtons = (migrated.activeButtons || []).map((btn) => normalizeButtonText(btn));
 
-
         localStorage.setItem('global-buttons-config', JSON.stringify(migrated));
-
 
         console.log('[GlobalButtons] Migration complete:', migrated.activeButtons.length, 'buttons');
 
-
         return migrated.activeButtons;
-
 
       }
 
-
     } catch (e) {
-
 
       console.warn('[GlobalButtons] Failed to load config:', e);
 
-
     }
-
 
     return [];
 
-
   });
-
 
   const [backupGlobalButtons, setBackupGlobalButtons] = useState(() => {
 
-
     try {
-
 
       const stored = localStorage.getItem('global_buttons_backup');
 
-
       return stored ? JSON.parse(stored) : [];
-
 
     } catch (e) {
 
-
       return [];
 
-
     }
-
 
   }); // 备份状态，用于恢复
 
-
   const [deletedButtons, setDeletedButtons] = useState(() => {
 
-
     try {
-
 
       const stored = localStorage.getItem('deleted_buttons_config');
 
-
       return stored ? JSON.parse(stored) : [];
-
 
     } catch (e) {
 
-
       return [];
-
 
     }
 
-
   });
-
 
   const [deletedBlocks, setDeletedBlocks] = useState(() => {
 
-
     try {
-
 
       const stored = localStorage.getItem('layout_deleted_blocks');
 
-
       return stored ? JSON.parse(stored) : [];
-
 
     } catch (e) {
 
-
       return [];
-
 
     }
 
-
   });
-
 
   const [showRecycleBin, setShowRecycleBin] = useState(false);
 
-
   // Ensure recyle bin is hidden on edit mode toggle
 
-
   useEffect(() => {
-
 
     setShowRecycleBin(false);
 
-
   }, [isEditingLayout]);
-
 
   // Load config from backend
 
-
   useEffect(() => {
-
 
     api('/api/config/all').
 
-
       then((data) => {
-
 
         let hasServerData = false;
 
-
         if (data.layout && Object.keys(data.layout).length > 0) {
-
 
           setPanelPositions((prev) => ({ ...prev, ...data.layout }));
 
-
           hasServerData = true;
 
-
         }
-
 
         if (data.globalButtons && data.globalButtons.activeButtons) {
 
-
           const fixedButtons = data.globalButtons.activeButtons.map((btn) => {
-
 
             if (btn.label === '全文大纲抽取' && !btn.kind) {
 
-
               console.log('[GlobalButtons] Auto-fixing missing kind for outline_extract button (backend)');
-
 
               return { ...btn, kind: 'outline_extract' };
 
-
             }
-
 
             return btn;
 
-
           });
-
 
           if (!fixedButtons.some((b) => b.id === 'btn_input_upload_file')) {
 
-
             console.log('[GlobalButtons] Restoring missing upload_file button');
-
 
             fixedButtons.push({
 
-
               id: 'btn_input_upload_file',
-
 
               kind: 'upload_file',
 
-
               label: '上传文件',
-
 
               x: 136,
 
-
               y: 408,
-
 
               width: 100,
 
-
               height: 36,
-
 
               enabled: true
 
-
             });
-
 
           }
 
-
           setGlobalButtons(fixedButtons);
 
-
           hasServerData = true;
-
 
         } else if (data.buttons && data.buttons.activeButtons) {
 
-
           // Auto-fix: Ensure '全文大纲抽取' has the correct kind
-
 
           const fixedButtons = data.buttons.activeButtons.map((btn) => {
 
-
             if (btn.label === '全文大纲抽取' && !btn.kind) {
-
 
               console.log('[GlobalButtons] Auto-fixing missing kind for outline_extract button (backend)');
 
-
               return { ...btn, kind: 'outline_extract' };
-
 
             }
 
-
             return btn;
-
 
           });
 
-
           // Auto-restore 'upload_file' button if missing
-
 
           if (!fixedButtons.some((b) => b.id === 'btn_input_upload_file')) {
 
-
             console.log('[GlobalButtons] Restoring missing upload_file button');
-
 
             fixedButtons.push({
 
-
               id: 'btn_input_upload_file',
-
 
               kind: 'upload_file',
 
-
               label: '上传文件',
-
 
               x: 136,
 
-
               y: 408,
-
 
               width: 100,
 
-
               height: 36,
-
 
               enabled: true
 
-
             });
-
 
           }
 
-
           setGlobalButtons(fixedButtons);
-
 
           hasServerData = true;
 
-
         }
-
 
         if (data.contentBlocks && Object.keys(data.contentBlocks).length > 0) {
 
-
           setContentBlockPositions((prev) => ({ ...prev, ...data.contentBlocks }));
-
 
           hasServerData = true;
 
-
         }
-
 
         if (data.deletedBlocks && Array.isArray(data.deletedBlocks)) {
 
-
           setDeletedBlocks(data.deletedBlocks);
-
 
           hasServerData = true;
 
-
         }
-
 
         if (Array.isArray(data.llmButtons) && data.llmButtons.length > 0) {
 
-
           try {
-
 
             localStorage.setItem(LLM_BUTTONS_STORAGE_KEY, JSON.stringify(data.llmButtons));
 
-
             setLlmButtons(loadLlmButtonsFromStorage());
-
 
             hasServerData = true;
 
-
           } catch (_) {
-
 
             /* ignore */
           }
 
-
         }
-
 
         if (data.headerTitles && typeof data.headerTitles === 'object') {
 
-
           setHeaderTitles((prev) => ({ ...prev, ...data.headerTitles }));
-
 
           hasServerData = true;
 
-
         }
-
 
         if (data.layoutSize && Number(data.layoutSize.width) > 0 && Number(data.layoutSize.height) > 0) {
 
-
           setLayoutSize({ width: Number(data.layoutSize.width), height: Number(data.layoutSize.height) });
-
 
           hasServerData = true;
 
-
         }
-
 
         console.log('Loaded config from backend, hasServerData:', hasServerData);
 
-
         // If server has no data, but we have local data (which is already loaded into state via useState initializers),
-
 
         // we should sync it UP to the server to persist "previous adjustments".
 
-
         if (!hasServerData) {
-
 
           console.log('Server config empty, syncing local config to server...');
 
-
           // We can use the current state values, but since this runs on mount, the state *is* the local storage value.
-
 
           // However, we need to be careful about closure staleness.
 
-
           // Inside useEffect [] dependency, state variables might be initial values.
-
 
           // But since we use functional updates for setters, we need the actual values to save.
 
-
           // Actually, we can read from localStorage directly for the integrity of the data stream.
-
 
           const localLayout = localStorage.getItem('layout_panel_positions');
 
-
           const localButtons = localStorage.getItem('global-buttons-config'); // New format
-
 
           const localBlocks = localStorage.getItem('layout_content_blocks');
 
-
           const localDeleted = localStorage.getItem('layout_deleted_blocks');
-
 
           const localHeaderTitles = localStorage.getItem('workbench_header_titles');
 
-
           const localLayoutSize = localStorage.getItem('layout_size');
-
 
           const localLlmButtons = localStorage.getItem(LLM_BUTTONS_STORAGE_KEY);
 
-
           if (localLayout || localButtons || localBlocks || localHeaderTitles || localLayoutSize || localLlmButtons) {
-
 
             const payload = {
 
-
               layout: localLayout ? JSON.parse(localLayout) : panelPositions,
-
 
               globalButtons: localButtons ? JSON.parse(localButtons) : { activeButtons: globalButtons },
 
-
               contentBlocks: localBlocks ? JSON.parse(localBlocks) : contentBlockPositions,
-
 
               deletedBlocks: localDeleted ? JSON.parse(localDeleted) : deletedBlocks,
 
-
               headerTitles: localHeaderTitles ? JSON.parse(localHeaderTitles) : headerTitles,
-
 
               layoutSize: localLayoutSize ? JSON.parse(localLayoutSize) : layoutSize,
 
-
               llmButtons: localLlmButtons ? JSON.parse(localLlmButtons) : llmButtons
-
 
             };
 
-
             api('/api/config/save', {
-
 
               method: 'POST',
 
-
               body: payload
-
 
             }).then(() => console.log('Synced local config to server'));
 
-
           }
-
 
         }
 
-
       }).
-
 
       catch((e) => console.warn('Failed to load backend config, using local storage', e));
 
-
   }, []);
-
 
   const [savedLayout, setSavedLayout] = useState(null);
 
-
   const [savedButtons, setSavedButtons] = useState(null);
-
 
   const [savedContentBlocks, setSavedContentBlocks] = useState(null);
 
-
   const [editingButtonId, setEditingButtonId] = useState(null);
-
 
   const [editingTitleId, setEditingTitleId] = useState(null);
 
-
   const [draggingButton, setDraggingButton] = useState(null);
-
 
   const [depositSections, setDepositSections] = useState([]);
 
-
-  const [deposits, setDeposits] = useState(() => loadDepositsFromStorage());
-
-
-  const [depositSeq, setDepositSeq] = useState(() => loadDepositsSeqFromStorage());
-
-
-  const [selectedDepositIds, setSelectedDepositIds] = useState({}); // depositId -> bool
-
-
-  const [depositEditing, setDepositEditing] = useState({}); // key -> draft text
-
-
-  const [expandedDepositSections, setExpandedDepositSections] = useState({}); // depositId -> {sectionId: bool}
-
-
-  const [compilingDepositSections, setCompilingDepositSections] = useState({}); // depositId||sectionId -> bool
-
-
-  const [draggingDepositId, setDraggingDepositId] = useState('');
-
-
-  const [dragOverDepositId, setDragOverDepositId] = useState('');
-
-
-  const [depositGroups, setDepositGroups] = useState([]);
-
-
-  const [selectedDepositGroupId, setSelectedDepositGroupId] = useState('');
-
-
-  const [depositGroupReplay, setDepositGroupReplay] = useState({});
-
-
-  const [batchReplayRunning, setBatchReplayRunning] = useState(false);
-
+  // ========== 沉淀状态 (使用 useDeposits Hook) ==========
+  const {
+    deposits, setDeposits,
+    depositSeq, setDepositSeq,
+    depositGroups, setDepositGroups,
+    depositCategories, setDepositCategories,
+    selectedDepositIds, setSelectedDepositIds,
+    depositEditing, setDepositEditing,
+    expandedDepositSections, setExpandedDepositSections,
+    compilingDepositSections, setCompilingDepositSections,
+    draggingDepositId, setDraggingDepositId,
+    dragOverDepositId, setDragOverDepositId,
+    selectedDepositGroupId, setSelectedDepositGroupId,
+    depositGroupReplay, setDepositGroupReplay,
+    batchReplayRunning, setBatchReplayRunning,
+    persistDeposits,
+    // persistDepositOrder 保留本地定义，因为需要调用服务端 API
+    createCategory,
+    deleteCategory,
+    assignDepositsToCategory,
+    removeDepositsFromCategory,
+    renameCategory,
+    reorderCategories,
+    updateCategoryLevel,
+    setCategoryParent,  // 【新增】设置归类的父归类
+  } = useDeposits({ showToast, api });
 
   const [appButtonsConfig, setAppButtonsConfig] = useState(DEFAULT_APP_BUTTONS);
 
-
   const [appButtonsSaving, setAppButtonsSaving] = useState(false);
 
-  // Replay 目录配置状态
-  // 配置的目录路径用于服务端自动加载文件进行 Replay
-  const [replayDirConfig, setReplayDirConfig] = useState({ dirPath: '', autoLoadFiles: true });
-  const [replayDirConfigSaving, setReplayDirConfigSaving] = useState(false);
-
+  // ========== Replay 状态 (使用 useReplay Hook) ==========
+  const {
+    replayState, setReplayState,
+    replayDirConfig, setReplayDirConfig,
+    replayDirConfigSaving, setReplayDirConfigSaving,
+    // setReplaySectionStatus 保留本地定义，有定制逻辑
+    setDepositReplayRunning,
+    clearDepositReplayState,
+    loadReplayDirConfig,
+    saveReplayDirConfig: saveReplayDirConfigHook,
+  } = useReplay({ showToast, api });
 
   const [showBackofficeConfig, setShowBackofficeConfig] = useState(false);
 
-
   const [selectedAppButtonId, setSelectedAppButtonId] = useState('');
-
 
   const [headerTitles, setHeaderTitles] = useState(() => {
     const defaultHeaderTitles = {
@@ -1677,12 +1161,9 @@ export default function SOPWorkbench({ onSwitch }) {
   });
   const [editingHeaderTitle, setEditingHeaderTitle] = useState(null); // 'eyebrow' | 'title' | null
 
-
   const [draggingHeaderTitle, setDraggingHeaderTitle] = useState(null);
 
-
   const [resizingHeaderTitle, setResizingHeaderTitle] = useState(null);
-
 
   const getPanelTitle = (panelId) => {
     const defaultTitles = {
@@ -1699,486 +1180,131 @@ export default function SOPWorkbench({ onSwitch }) {
 
   const uploadInputRef = useRef(null);
 
-
   const inputFormRef = useRef(null);
-
 
   const dispatchInputRef = useRef(null);
 
-
   const previewTextRef = useRef(null);
-
 
   // Guardian: Ensure 'outline_extract' button exists and is enabled
 
-
   useEffect(() => {
-
 
     if (loading) return;
 
-
     const hasExtract = globalButtons.find((b) => b.kind === 'outline_extract');
-
 
     let shouldUpdate = false;
 
-
     let newButtons = [...globalButtons];
-
 
     if (!hasExtract) {
 
-
       console.log('Guardian: Restoring missing outline_extract button');
-
 
       const defaultExtract = defaultLlmButtons().find((b) => b.kind === 'outline_extract');
 
-
       if (defaultExtract) {
-
 
         const newBtn = {
 
-
           ...defaultExtract,
-
 
           id: `btn_guardian_${Date.now()}`,
 
-
           enabled: true
-
 
         };
 
-
         newButtons = [newBtn, ...newButtons];
-
 
         shouldUpdate = true;
 
-
       }
-
 
     } else if (hasExtract.enabled === false) {
 
-
       // Force enable
-
 
       newButtons = newButtons.map((b) => b.id === hasExtract.id ? { ...b, enabled: true } : b);
 
-
       shouldUpdate = true;
 
-
     }
-
 
     if (shouldUpdate) {
 
-
       setGlobalButtons(newButtons);
-
 
       localStorage.setItem('global-buttons-config', JSON.stringify({ activeButtons: newButtons }));
 
-
     }
-
 
   }, [globalButtons, loading]);
 
-
   const [previewSelection, setPreviewSelection] = useState({ text: '', start: 0, end: 0 });
 
-
-  const [replayState, setReplayState] = useState({}); // depositId -> {running, bySection:{[sectionId]:{status,message,replayMode}}}
+  // replayState 现在由 useReplay Hook 管理
 
   // section 详情展开/收起状态 - depositId_sectionId -> boolean
   const [sectionExpanded, setSectionExpanded] = useState({});
 
   // 已移除 replayDirHandle 和 replayDirName 状态 - 目录配置统一使用服务端 replayDirConfig
 
-
-  const [outlineHistory, setOutlineHistory] = useState([]);
-
-
   const [historyLoading, setHistoryLoading] = useState(false);
 
-
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-
-
-  const [showDocPreviewModal, setShowDocPreviewModal] = useState(false);
-
-  // 沉淀确认弹窗状态
-  const [showDepositConfirmModal, setShowDepositConfirmModal] = useState(false);
-  const [depositConfirmData, setDepositConfirmData] = useState(null); // { sections, userRequirements, aiOptimizedContent, isProcessing }
+  // ========== 弹窗状态 (使用 useModals Hook) ==========
+  const {
+    showHistoryModal, setShowHistoryModal,
+    showDocPreviewModal, setShowDocPreviewModal,
+    showDepositConfirmModal, setShowDepositConfirmModal,
+    depositConfirmData, setDepositConfirmData,
+    showUpdateGroupModal, setShowUpdateGroupModal,
+    updateGroupSelectedIds, setUpdateGroupSelectedIds,
+    showNewCategoryModal, setShowNewCategoryModal,
+    newCategoryData, setNewCategoryData,
+    showAssignCategoryModal, setShowAssignCategoryModal,
+    assignCategoryTargetId, setAssignCategoryTargetId,
+  } = useModals();
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(-1); // -1 表示显示全部，>=0 表示选中某个 section
   const [editingDepositId, setEditingDepositId] = useState(null); // 编辑现有沉淀时的沉淀 ID，null 表示新建模式
 
-  // 更新沉淀集弹窗状态
-  const [showUpdateGroupModal, setShowUpdateGroupModal] = useState(false);
-  const [updateGroupSelectedIds, setUpdateGroupSelectedIds] = useState([]); // 选中的沉淀集ID列表
-
-  const [buttonDraft, setButtonDraft] = useState(null);
-
-
-  const [llmButtons, setLlmButtons] = useState(() => loadLlmButtonsFromStorage());
-
+  // ========== LLM 按钮状态 (使用 useLlmButtons Hook) ==========
+  const {
+    llmButtons, setLlmButtons,
+    buttonDraft, setButtonDraft,
+    // IO 规则函数保留本地定义，有定制逻辑 (normalizeIoRows)
+  } = useLlmButtons({ showToast });
 
   const dispatchButtonCfg = llmButtons.find((b) => b.kind === 'dispatch');
 
-
   const finalGenerateCfg = llmButtons.find((b) => b.kind === 'final_generate');
-
 
   const outlineSlotButtons = llmButtons.filter((b) => b.kind === 'outline_action').slice(0, 3);
 
-
   const selectedOutlineIds = Object.keys(selectedOutlineExec || {}).filter((id) => selectedOutlineExec[id]);
-
 
   const hasPreviewSelection = (previewSelection.text || '').toString().trim().length > 0;
 
-
   const canFillSummary = showOutlineMode && processingTab === 'outline' && selectedOutlineIds.length > 0 && hasPreviewSelection;
-
-
-  const deepClone = (obj) => {
-
-
-    try {
-
-
-      return structuredClone(obj);
-
-
-    } catch (_) {
-
-
-      return JSON.parse(JSON.stringify(obj));
-
-
-    }
-
-
-  };
-
-
-  const appendReplayMeta = (text, meta) => {
-
-
-    try {
-
-
-      const payload = JSON.stringify(meta || {});
-
-
-      return `${(text || '').toString()}\n\n${REPLAY_META_MARKER}\n${payload}`;
-
-
-    } catch (_) {
-
-
-      return (text || '').toString();
-
-
-    }
-
-
-  };
-
-
-  const extractReplayMeta = (content) => {
-
-
-    const raw = (content || '').toString();
-
-
-    const idx = raw.indexOf(REPLAY_META_MARKER);
-
-
-    if (idx === -1) return null;
-
-
-    const json = raw.slice(idx + REPLAY_META_MARKER.length).trim();
-
-
-    try {
-
-
-      const parsed = JSON.parse(json);
-
-
-      return parsed && typeof parsed === 'object' ? parsed : null;
-
-
-    } catch (_) {
-
-
-      return null;
-
-
-    }
-
-
-  };
-
-
-  const OP_META_VERSION = 1;
-
-
-  const clipText = (text, max = 600) => {
-
-
-    const raw = (text ?? '').toString();
-
-
-    if (raw.length <= max) return raw;
-
-
-    return `${raw.slice(0, max)}...`;
-
-
-  };
-
-
-  const describeInput = (input) => {
-    if (!input) return '';
-    if (typeof input === 'string') return input;
-    if (typeof input !== 'object') return String(input);
-    const kind = (input.kind || '').toString();
-    if (kind === 'manual_text') return `文本输入：${input.length ?? 0}字`;
-    if (kind === 'upload_file') return `上传文件：${input.docName || UI_TEXT.t135}`;
-    if (kind === 'doc_preview') return `预览文档：${input.docName || ''}`;
-    if (kind === 'doc_resource') return `文档资源：${input.docName || ''}`;
-    if (kind === 'selection')
-      return `选区：${input.docName || ''} 区间：${input.start ?? 0}-${input.end ?? 0}`;
-    if (kind === 'outline_selected')
-      return `已选标题：${Array.isArray(input.sectionIds) ? input.sectionIds.length : input.count ?? 0}条`;
-    if (kind === 'doc_link_pick')
-      return `关联标题：${input.sectionId || ''} 文档：${input.docName || ''}`;
-    return kind ? `${kind}` : JSON.stringify(input);
-  };
-
-  const describeDestination = (dest) => {
-    if (!dest) return '';
-    if (typeof dest === 'string') return dest;
-    if (typeof dest !== 'object') return String(dest);
-    const kind = (dest.kind || dest || '').toString();
-    // 优先使用标题（sectionTitle）而非序号（sectionId）
-    const getSectionLabel = () => dest.sectionTitle || dest.sectionId || '';
-    if (kind === 'outline_apply') return `大纲应用：${dest.count ?? 0}条`;
-    if (kind === 'outline_section_summary') return `摘要写入：${getSectionLabel()}`;
-    if (kind === 'outline_section_summary_batch')
-      return `摘要写入：${dest.count ?? (Array.isArray(dest.sectionIds) ? dest.sectionIds.length : 0)}条`;
-    if (kind === 'outline_section_title') return `标题写入：${getSectionLabel()}`;
-    if (kind === 'outline_section_docs') return `文档关联：${getSectionLabel()}`;
-    if (kind === 'dispatch_result') return '指令结果';
-    if (kind === 'final_preview') return '最终预览';
-    return kind ? `${kind}` : JSON.stringify(dest);
-  };
-
-  const formatOpContent = (meta, extraLines = []) => {
-    const m = meta && typeof meta === 'object' ? meta : {};
-    const inputs = Array.isArray(m.inputs) ? m.inputs : [];
-    const destinations = Array.isArray(m.destinations) ? m.destinations : [];
-    const lines = [];
-
-    if (m.type === 'add_doc') {
-      const docName = inputs.find((i) => i.kind === 'upload_file')?.docName || UI_TEXT.t135;
-      lines.push('已上传文档：' + docName);
-    } else if (m.type === 'insert_to_summary_multi') {
-      // 多摘要填入：记录完整的来源和目标信息
-      const selectionInput = inputs.find(i => i.kind === 'selection');
-      const docName = selectionInput?.docName || m.docName || '未知文档';
-      const targetSummaries = Array.isArray(m.targetSummaries) ? m.targetSummaries : [];
-      
-      lines.push(`【操作类型】多摘要填入 (insert_to_summary_multi)`);
-      lines.push(`【来源文档】${docName}`);
-      
-      // 选中内容的详细信息
-      if (selectionInput) {
-        const textHead = selectionInput.textHead || selectionInput.textExcerpt?.slice(0, 30) || '';
-        const textTail = selectionInput.textTail || selectionInput.textExcerpt?.slice(-30) || '';
-        lines.push(`【选中内容】以「${textHead}...」开头，以「...${textTail}」结尾（共${selectionInput.textLength || 0}字）`);
-        if (selectionInput.contextBefore) {
-          lines.push(`【前文上下文】...${selectionInput.contextBefore}`);
-        }
-        if (selectionInput.contextAfter) {
-          lines.push(`【后文上下文】${selectionInput.contextAfter}...`);
-        }
-      }
-      
-      // 目标位置的详细信息
-      if (targetSummaries.length > 0) {
-        lines.push(`【目标位置】共 ${targetSummaries.length} 个摘要：`);
-        targetSummaries.forEach((t, idx) => {
-          const levelLabel = t.sectionLevel === 1 ? '一级标题' : t.sectionLevel === 2 ? '二级标题' : '三级标题';
-          lines.push(`  ${idx + 1}. ${levelLabel}「${t.sectionTitle}」的摘要[${t.summaryIndex}]${t.hadContentBefore ? '（替换）' : '（新建）'}`);
-        });
-      }
-      
-      // 输出结果
-      if (m.outputs?.summary) {
-        lines.push(`【执行结果】${m.outputs.summary}`);
-      }
-    } else if (m.type === 'dispatch_multi_summary') {
-      // 多摘要执行指令：记录完整的来源和目标信息
-      const targetSummaries = Array.isArray(m.targetSummaries) ? m.targetSummaries : [];
-      
-      lines.push(`【操作类型】多摘要执行指令 (dispatch_multi_summary)`);
-      lines.push(`【执行指令】${m.instructions || m.promptContent || ''}`);
-      
-      // 目标位置的详细信息
-      if (targetSummaries.length > 0) {
-        lines.push(`【目标位置】共 ${targetSummaries.length} 个摘要：`);
-        targetSummaries.forEach((t, idx) => {
-          const levelLabel = t.sectionLevel === 1 ? '一级标题' : t.sectionLevel === 2 ? '二级标题' : '三级标题';
-          const contentPreview = t.originalContentExcerpt ? `（原内容：${t.originalContentExcerpt.slice(0, 30)}...）` : '';
-          lines.push(`  ${idx + 1}. ${levelLabel}「${t.sectionTitle}」的摘要[${t.summaryIndex}]${contentPreview}`);
-        });
-      }
-      
-      // 输出结果
-      if (m.outputs?.summary) {
-        lines.push(`【执行结果】${m.outputs.summary}`);
-      }
-    } else {
-      const record = (m.record || m.process || UI_TEXT.t71).toString().slice(0, 50);
-      lines.push('操作记录：' + record);
-      
-      if (inputs.length) {
-        const inputDesc = inputs.map(describeInput).filter(Boolean).join('；');
-        lines.push('输入：' + inputDesc);
-      }
-
-      if (m.process) {
-        let actionDesc = (m.process || '').toString();
-        lines.push('动作：' + actionDesc);
-      }
-
-      if (m.outputs && m.outputs.summary) {
-        lines.push('输出摘要：' + (m.outputs.summary || '').toString());
-      }
-
-      if (destinations.length) {
-        const destDesc = destinations.map(describeDestination).filter(Boolean).join('；');
-        lines.push('记录位置：' + destDesc);
-      }
-    }
-
-    if (Array.isArray(extraLines) && extraLines.length) {
-      lines.push('');
-      lines.push(...extraLines.filter(Boolean));
-    }
-
-    return lines.join('\n').trim();
-  };
-
-  const parseDepositSectionContent = (content) => {
-    const raw = (content || '').toString();
-    const idx = raw.indexOf(REPLAY_META_MARKER);
-    const base = idx === -1 ? raw.trim() : raw.slice(0, idx).trim();
-    const lines = base.
-      split(/\r?\n/).
-      map((line) => line.trim()).
-      filter(Boolean);
-
-    const recordLine =
-      lines.find((line) => line.startsWith('\u64cd\u4f5c\u8bb0\u5f55\uff1a')) ||
-      lines.find((line) => line.startsWith('\u64cd\u4f5c\u8bb0\u5f55')) ||
-      lines.find((line) => line.startsWith('\u64cd\u4f5c\uff1a')) ||
-      '';
-
-    const operationRecord = recordLine ? recordLine.replace(/^\u64cd\u4f5c\u8bb0\u5f55\uff1a?/, '').trim() : '';
-    const actionExecution =
-      (lines.find((line) => line.startsWith('\u52a8\u4f5c\u6267\u884c\uff1a')) || '').
-        replace(/^\u52a8\u4f5c\u6267\u884c\uff1a?/, '').
-        trim();
-    const executionSummary =
-      (lines.find((line) => line.startsWith('\u6267\u884c\u6458\u8981\uff1a')) || '').
-        replace(/^\u6267\u884c\u6458\u8981\uff1a?/, '').
-        trim();
-    const recordLocation =
-      (lines.find((line) => line.startsWith('\u8bb0\u5f55\u4f4d\u7f6e\uff1a')) || '').
-        replace(/^\u8bb0\u5f55\u4f4d\u7f6e\uff1a?/, '').
-        trim();
-    const inputLine = lines.find((line) => line.startsWith('\u8f93\u5165\u6765\u6e90\uff1a')) || '';
-
-    return {
-      operationRecord,
-      actionExecution,
-      executionSummary,
-      recordLocation,
-      inputLine: inputLine.replace(/^\u8f93\u5165\u6765\u6e90\uff1a?/, '').trim()
-    };
-  };
-
-  const normalizeRequirement = (value) => value === 'required' ? 'required' : 'optional';
-
-
-  const getSectionRequirements = (section) => {
-
-
-    const meta = extractReplayMeta(section?.content || '') || {};
-
-
-    const raw = section?.requirements || meta?.requirements || {};
-
-
-    return {
-
-
-      inputSource: normalizeRequirement(raw.inputSource),
-
-
-      actionExecution: normalizeRequirement(raw.actionExecution),
-
-
-      executionSummary: normalizeRequirement(raw.executionSummary),
-
-
-      recordLocation: normalizeRequirement(raw.recordLocation)
-
-
-    };
-
-
-  };
-
 
   const resolvePrecipitationMode = (meta) => {
 
-
     if (meta?.precipitationMode) return normalizePrecipitationMode(meta.precipitationMode);
-
 
     const buttonId = meta?.buttonId;
 
-
     if (buttonId) {
-
 
       const btn = llmButtons.find((b) => b.id === buttonId);
 
-
       if (btn?.precipitationMode) return normalizePrecipitationMode(btn.precipitationMode);
-
 
     }
 
-
     return DEFAULT_PRECIPITATION_MODE;
 
-
   };
-
 
   const logSectionWithMeta = (action, meta, extraLines) => {
     // ===== 自动沉淀记录原则 =====
@@ -2329,7 +1455,12 @@ export default function SOPWorkbench({ onSwitch }) {
             // 记录输出的目标位置
             targetSections: meta.outputs.targetSections || [],
             // 大纲抽取专用：生成的完整大纲结构
-            generatedSections: meta.outputs.generatedSections || []
+            generatedSections: meta.outputs.generatedSections || [],
+            // 【新增】详细执行结果描述（如："成功在XXX标题下写入了XXX内容"）
+            executionResult: meta.outputs.executionResult || '',
+            // 【新增】写入的内容
+            writtenContent: meta.outputs.writtenContent || '',
+            writtenContentExcerpt: meta.outputs.writtenContentExcerpt || ''
           } :
           meta?.outputs,
       // 操作记录（简短描述）
@@ -2360,13 +1491,19 @@ export default function SOPWorkbench({ onSwitch }) {
       context: currentContext
     };
 
+    // 【调试】打印 safeMeta 中的 outputs
+    console.log('[logSectionWithMeta] safeMeta.outputs:', {
+      hasOutputs: !!safeMeta.outputs,
+      executionResult: safeMeta.outputs?.executionResult,
+      summary: safeMeta.outputs?.summary,
+      writtenContent: safeMeta.outputs?.writtenContent?.substring(0, 100)
+    });
+
     const content = formatOpContent(safeMeta, extraLines);
     logSection(action, appendReplayMeta(content, safeMeta));
   };
 
-
   // 浏览器端目录选择功能已移除，目录配置统一使用服务端 replayDirConfig
-
 
   // 从服务端配置的目录读取文件（应用端/后管端共用）
   const uploadDocFromReplayDirByNameDetailed = async (docName) => {
@@ -2420,108 +1557,13 @@ export default function SOPWorkbench({ onSwitch }) {
     return { doc, overwritten, text };
   };
 
-
   const uploadDocFromReplayDirByName = async (docName) => {
-
 
     const res = await uploadDocFromReplayDirByNameDetailed(docName);
 
-
     return res.doc;
 
-
   };
-
-
-  const normalizeDocSelector = (selector) => {
-
-
-    const s = selector && typeof selector === 'object' ? selector : {};
-
-
-    const kind = s.kind === 'regex' ? 'regex' : 'keywords';
-
-
-    const mode = s.mode === 'multi' ? 'multi' : 'single';
-
-
-    const pick = s.pick === 'first' ? 'first' : 'newest';
-
-
-    const extension = (s.extension || '').toString().trim();
-
-
-    const keywords = Array.isArray(s.keywords) ? s.keywords.map((k) => (k || '').toString()).filter(Boolean) : [];
-
-
-    const pattern = (s.pattern || '').toString();
-
-
-    const flags = (s.flags || 'i').toString() || 'i';
-
-
-    const description = (s.description || '').toString();
-
-
-    return { kind, mode, pick, extension, keywords, pattern, flags, description };
-
-
-  };
-
-
-  const matchFileNameBySelector = (name, selector) => {
-
-
-    const s = normalizeDocSelector(selector);
-
-
-    const rawName = (name || '').toString();
-
-
-    if (!rawName) return false;
-
-
-    const lowered = rawName.toLowerCase();
-
-
-    if (s.extension && !lowered.endsWith(s.extension.toLowerCase())) return false;
-
-
-    if (s.kind === 'regex') {
-
-
-      if (!s.pattern.trim()) return false;
-
-
-      try {
-
-
-        const re = new RegExp(s.pattern, s.flags || 'i');
-
-
-        return re.test(rawName);
-
-
-      } catch (_) {
-
-
-        return false;
-
-
-      }
-
-
-    }
-
-
-    if (!s.keywords.length) return true;
-
-
-    return s.keywords.every((k) => lowered.includes((k || '').toString().toLowerCase()));
-
-
-  };
-
 
   // 从服务端配置的目录获取文件列表（应用端/后管端共用）
   const listReplayDirFiles = async () => {
@@ -2542,12 +1584,20 @@ export default function SOPWorkbench({ onSwitch }) {
     return res.files.map(f => ({ name: f.name, kind: 'file', ext: f.ext }));
   };
 
-
   // 根据选择器从配置目录上传文档（应用端/后管端共用）
   const uploadDocsFromReplayDirBySelector = async (selector) => {
     const s = normalizeDocSelector(selector);
     const files = await listReplayDirFiles();
+    
+    // 【调试】记录匹配过程
+    console.log('[uploadDocsFromReplayDirBySelector] 开始匹配', {
+      selector: s,
+      filesCount: files.length,
+      fileNames: files.slice(0, 10).map(f => f.name)
+    });
+    
     let matched = files.filter((f) => matchFileNameBySelector(f?.name || '', s));
+    let matchMethod = matched.length > 0 ? '精确匹配' : '';
 
     // 备选方案1：直接文件名匹配
     if (!matched.length && s.description) {
@@ -2557,60 +1607,56 @@ export default function SOPWorkbench({ onSwitch }) {
         const nameWithoutExt = name.replace(/\.[^.]+$/, '');
         return name === desc || nameWithoutExt === desc || name === desc.replace(/\.[^.]+$/, '');
       });
+      if (matched.length > 0) matchMethod = '文件名完全匹配';
     }
-    // 备选方案2：宽松关键词匹配
-    // 单个关键词：文件名包含即匹配
-    // 多个关键词：满足60%即可
+    // 备选方案2：【修复】关键词必须全部匹配，不再使用宽松的60%阈值
     if (!matched.length && s.keywords?.length >= 1) {
-      const threshold = s.keywords.length === 1 ? 1 : Math.max(1, Math.ceil(s.keywords.length * 0.6));
       matched = files.filter((f) => {
         const lowered = (f?.name || '').toLowerCase();
-        const matchedCount = s.keywords.filter((k) => lowered.includes((k || '').toLowerCase())).length;
-        return matchedCount >= threshold;
+        // 所有关键词都必须在文件名中出现
+        return s.keywords.every((k) => lowered.includes((k || '').toLowerCase()));
       });
+      if (matched.length > 0) matchMethod = '关键词全匹配';
     }
-    // 备选方案3：模糊匹配主要部分（description 至少2个字符）
+    // 备选方案3：【修复】模糊匹配主要部分，提高阈值到3个字符避免误匹配
     if (!matched.length && s.description) {
       const mainPart = s.description.replace(/\.[^.]+$/, '').replace(/[（）()【】\[\]]/g, '').trim();
-      if (mainPart.length >= 2) {
+      if (mainPart.length >= 3) {
         matched = files.filter((f) => {
           const name = (f?.name || '').toLowerCase().replace(/[（）()【】\[\]]/g, '');
           return name.includes(mainPart.toLowerCase());
         });
+        if (matched.length > 0) matchMethod = '描述模糊匹配';
       }
     }
+    
+    // 【调试】记录匹配结果
+    console.log('[uploadDocsFromReplayDirBySelector] 匹配结果', {
+      matchMethod,
+      matchedCount: matched.length,
+      matchedNames: matched.map(f => f.name)
+    });
 
     if (!matched.length) {
 
-
       const desc = s.description ? '“' + s.description + '”' : '';
-
 
       const hint =
 
-
         s.kind === 'regex' ?
-
 
           'regex=' + (s.pattern || '(空)') :
 
-
           'keywords=' + ((s.keywords || []).join('、') || '(空)') + (s.extension ? ' ext=' + s.extension : '');
-
 
       const availableFiles = files.slice(0, 5).map(f => f.name).join(', ');
       throw new Error('回放目录未找到匹配文件' + desc + '，' + hint + '。目录文件示例：' + (availableFiles || '(空)'));
 
-
     }
-
 
     let chosen = matched;
 
-
     if (s.mode !== 'multi') {
-
-
       // 单文件模式：按文件名排序选第一个
       const sorted = matched.slice().sort((a, b) => (a?.name || '').localeCompare(b?.name || '', 'zh-CN'));
       chosen = sorted[0] ? [sorted[0]] : [matched[0]];
@@ -2618,6 +1664,11 @@ export default function SOPWorkbench({ onSwitch }) {
       // 多文件模式：按文件名排序
       chosen = matched.sort((a, b) => (a?.name || '').localeCompare(b?.name || '', 'zh-CN'));
     }
+
+    // 【调试】记录最终选择
+    console.log('[uploadDocsFromReplayDirBySelector] 最终上传', {
+      chosenNames: chosen.map(f => f.name)
+    });
 
     const results = [];
     for (const f of chosen) {
@@ -2631,300 +1682,203 @@ export default function SOPWorkbench({ onSwitch }) {
       overwrittenAny: results.some((r) => r.overwritten) 
     }
 
-
   };
-
 
   const runOutlineExtractButton = async ({ btn, preferDocName }) => {
 
-
     if (!scene?.id) throw new Error('scene 未初始化，无法获取大纲');
-
 
     const io = normalizeIoRows(btn?.io, { dataSource: btn?.dataSource, outputTarget: btn?.outputTarget });
 
-
     const enabledRows = io.filter((r) => r.enabled);
-
 
     if (!enabledRows.some((r) => r.output === 'titles')) {
 
-
       throw new Error('按钮配置缺少“输入标题”的规则');
-
 
     }
 
-
     let doc = null;
-
 
     if (preferDocName) {
 
-
       const id = findDocIdByName(preferDocName);
-
 
       if (id) doc = docs.find((d) => d.id === id); else
         if (replayDirConfig?.dirPath) doc = await uploadDocFromReplayDirByName(preferDocName);
 
-
     }
-
 
     if (!doc) doc = docs.find((d) => d.id === selectedDocId) || null;
 
-
     if (!doc) throw new Error('请先选择一个文档作为数据源');
-
 
     const previewText =
 
-
       doc?.id && doc.id === selectedDocId && (docDraft || '').toString().trim() ?
-
 
         docDraft :
 
-
         (doc.content || '').toString();
-
 
     const sources = Array.from(new Set(enabledRows.map((r) => r.dataSource)));
 
-
     const parts = sources.map((src) => {
-
 
       if (src === 'selected_doc') return `【资源列表选中文档】\n${doc.content || ''}`.trim();
 
-
       return `【内容预览】\n${previewText}`.trim();
-
 
     });
 
-
     const text = `${doc.name || '文档'}\n\n${parts.join('\n\n---\n\n')}`.trim();
-
 
     if (!text.trim()) throw new Error('当前数据源内容为空，无法抽取大纲');
 
-
     const tplRes = await api('/api/template/auto', { method: 'POST', body: { text, prompt: btn?.prompt || '' } });
-
 
     if (!tplRes?.template) throw new Error('提纲生成失败：缺少template');
 
-
     if (tplRes?.usedModel === false) {
-
 
       if (tplRes?.blocked) {
 
-
         showToast('内容安全拦截，已降级为规则提取。');
-
 
       } else {
 
-
         throw new Error('未配置 QWEN_API_KEY，未启用大模型，请在 server.js 中设置环境变量。');
-
 
       }
 
-
     }
-
 
     const hasSummaryToSummary = enabledRows.some((r) => r.output === 'summaries' && r.target === 'summary');
 
-
     const hasSummaryToTitle = enabledRows.some((r) => r.output === 'summaries' && r.target === 'title');
-
 
     const hasTitleToSummary = enabledRows.some((r) => r.output === 'titles' && r.target === 'summary');
 
-
     const transformedTemplate = {
-
 
       ...tplRes.template,
 
-
       sections: (tplRes.template?.sections || []).map((s) => {
-
 
         const modelTitle = (s?.title || '').toString();
 
-
         const modelSummary = (s?.summary || '').toString().trim();
-
 
         const title = hasSummaryToTitle && modelSummary ? `${modelTitle} - ${modelSummary}` : modelTitle;
 
-
         const summaryParts = [];
-
 
         if (hasTitleToSummary && modelTitle) summaryParts.push(modelTitle);
 
-
         if (hasSummaryToSummary && modelSummary) summaryParts.push(modelSummary);
-
 
         const summary = summaryParts.join('\n').trim();
 
-
         return { ...s, title, summary };
-
 
       })
 
-
     };
-
 
     const applyRes = await api(`/api/scene/${scene.id}/apply-template`, { method: 'POST', body: { template: transformedTemplate } });
 
-
     setTemplate(applyRes.template);
-
 
     setScene(applyRes.scene);
 
-
     setShowOutlineMode(true);
-
 
     try {
 
-
       const historyItem = {
-
 
         id: `outline_${Date.now()}`,
 
-
         template: applyRes.template,
-
 
         timestamp: Date.now(),
 
-
         docName: doc.name || '未命名文档',
-
 
         title: doc.name || '未命名文档',
         
         // 全文抽取时默认无合并方式选择
         sectionMergeType: undefined
 
-
       };
-
 
       await api('/api/multi/outlines', { method: 'POST', body: historyItem });
 
-
       setOutlineHistory((prev) => [historyItem, ...prev]);
-
 
     } catch (e) {
 
-
       console.error('自动保存历史大纲失败', e);
 
-
     }
-
 
     return applyRes?.template?.sections?.length || 0;
 
-
   };
-
 
   useEffect(() => {
 
-
     try {
-
 
       localStorage.setItem(LLM_BUTTONS_STORAGE_KEY, JSON.stringify(llmButtons));
 
-
     } catch (_) {
-
 
       /* ignore */
     }
-
 
     api('/api/config/save', { method: 'POST', body: { llmButtons } }).catch((e) => {
 
-
       console.warn('保存按钮配置失败', e);
-
 
     });
 
-
   }, [llmButtons]);
-
 
   // 已移除浏览器端目录句柄恢复逻辑 - 目录配置统一使用服务端
 
-
   useEffect(() => {
-
 
     try {
 
-
       localStorage.setItem(DEPOSITS_STORAGE_KEY, JSON.stringify(deposits));
-
 
       localStorage.setItem(DEPOSITS_SEQ_STORAGE_KEY, String(depositSeq || 0));
 
-
     } catch (_) {
-
 
       /* ignore */
     }
 
-
   }, [deposits, depositSeq]);
-
 
   useEffect(() => {
 
-
     if ((depositSeq || 0) > 0) return;
-
 
     if (!deposits.length) return;
 
-
     const max = deposits.reduce((acc, d) => {
-
 
       const m = /_(\d+)$/.exec(d?.id || '');
 
-
       const n = m ? Number(m[1]) : 0;
-
 
       return Number.isFinite(n) && n > acc ? n : acc;
 
-
     }, 0);
 
-
     if (max > 0) setDepositSeq(max);
-
 
   }, [depositSeq, deposits]);
 
@@ -2949,105 +1903,87 @@ export default function SOPWorkbench({ onSwitch }) {
   useEffect(() => {
     const init = async () => {
 
-
       try {
-
 
         // 加载后端的布局配置
 
-
         const layoutRes = await api('/api/layout');
-
 
         if (layoutRes?.layout) {
 
-
           setPanelPositions(layoutRes.layout);
-
 
           setSavedLayout(layoutRes.layout);
 
-
         }
 
-
       } catch (err) {
-
 
         console.error('加载布局失败:', err);
 
-
         // 降级到localStorage
-
 
         const cached = loadLayoutConfig();
 
-
         if (cached) {
-
 
           setPanelPositions(cached);
 
-
           setSavedLayout(cached);
-
 
         }
 
-
       }
-
 
       try {
 
-
         const buttonsRes = await api('/api/buttons');
-
 
         if (buttonsRes?.buttons && validateButtonConfig(buttonsRes.buttons)) {
 
-
           const mergedButtons = mergeButtonConfigWithDefaults(buttonsRes.buttons);
-
 
           setButtonPositions(mergedButtons);
 
-
           setSavedButtons(mergedButtons);
-
 
         }
 
-
       } catch (err) {
-
 
         console.error('加载按钮配置失败:', err);
 
-
         // 降级到localStorage
-
 
         const cached = loadButtonConfig();
 
-
         if (cached) {
-
 
           const mergedButtons = mergeButtonConfigWithDefaults(cached);
 
-
           setButtonPositions(mergedButtons);
 
-
           setSavedButtons(mergedButtons);
-
 
         }
 
       }
 
-      // 优先从服务端缓存加载大纲（工作台切换时保持）
+      // 【修改】优先从场景获取最新大纲（与应用端保持一致）
+      const sharedScene = await loadSharedScene();
+
+      if (sharedScene) {
+        setScene(sharedScene);
+        setSectionDocLinks(sharedScene.sectionDocLinks || {});
+        
+        // 【关键】同步 sectionMergeType（如果场景中有）
+        if (sharedScene.sectionMergeType) {
+          setSectionMergeType(prev => ({ ...prev, ...sharedScene.sectionMergeType }));
+          console.log('[SOPWorkbench] 从场景同步 sectionMergeType:', Object.keys(sharedScene.sectionMergeType).length, '个配置');
+        }
+      }
+
+      // 从缓存获取大纲作为备选
       let cachedTemplate = null;
       try {
         const cacheRes = await api('/api/outline/cache');
@@ -3059,64 +1995,52 @@ export default function SOPWorkbench({ onSwitch }) {
       }
 
       const tplRes = await api('/api/template');
-      // 如果有缓存的大纲，优先使用缓存
       const docRes = await api('/api/docs');
 
-      const sharedScene = await loadSharedScene();
-
-      if (sharedScene) {
-
-        setScene(sharedScene);
-
-        setSectionDocLinks(sharedScene.sectionDocLinks || {});
-
-      }
-
-      // 【重要】确定最终使用的大纲：优先缓存 > scene.customTemplate > 默认模板
-      let finalTemplate = cachedTemplate;
+      // 【重要】确定最终使用的大纲：优先场景 > 缓存 > 默认模板
+      // 场景中的 customTemplate 包含 replay 执行后的最新数据
+      let finalTemplate = sharedScene?.customTemplate;
       if (!finalTemplate || !finalTemplate.sections?.length) {
-        finalTemplate = sharedScene?.customTemplate;
+        finalTemplate = cachedTemplate;
       }
       if (!finalTemplate || !finalTemplate.sections?.length) {
         finalTemplate = tplRes.template;
       }
       setTemplate(finalTemplate);
       console.log('[SOPWorkbench] 初始化大纲，共', finalTemplate?.sections?.length || 0, '个标题');
+      
+      // 同步缓存，确保一致性
+      if (finalTemplate && finalTemplate.sections?.length) {
+        try {
+          await api('/api/outline/cache', { method: 'POST', body: { template: finalTemplate } });
+        } catch (e) {
+          console.log('[SOPWorkbench] 同步缓存失败', e);
+        }
+      }
 
       setDocs(docRes.docs || []);
 
       if ((docRes.docs || []).length) setSelectedDocId(docRes.docs[0].id);
 
-
       // 加载操作沉淀记录
-
 
       await reloadDeposits(true);
 
-
       await reloadDepositGroups(true);
-
 
       try {
 
-
         const appButtonsRes = await api(`/api/multi/app-buttons`);
-
 
         const normalized = normalizeAppButtons(appButtonsRes);
 
-
         if (normalized.length) setAppButtonsConfig(normalized);
-
 
       } catch (e) {
 
-
         console.error('加载应用端按钮配置失败', e);
 
-
       }
-
 
       // 加载 Replay 目录配置
       try {
@@ -3131,30 +2055,51 @@ export default function SOPWorkbench({ onSwitch }) {
         console.error('加载 Replay 目录配置失败', e);
       }
 
-
       // 加载历史大纲
-
 
       try {
 
-
         const outlines = await api('/api/multi/outlines');
-
 
         if (Array.isArray(outlines)) setOutlineHistory(outlines);
 
-
       } catch (e) { console.error('加载历史大纲失败', e); }
-
 
     };
 
-
     init().catch((err) => showToast(err.message));
-
 
   }, []);
 
+  // 【新增】页面可见性监听器：当用户从应用端切换回后管端时，自动同步最新数据
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        console.log('[SOPWorkbench] 页面可见，检查并同步最新数据...');
+        try {
+          // 从场景获取最新大纲数据
+          const sceneRes = await api('/api/scene/main');
+          if (sceneRes?.scene?.customTemplate) {
+            const serverTemplate = sceneRes.scene.customTemplate;
+            // 只在服务端数据有内容时更新
+            if (serverTemplate.sections?.length > 0) {
+              setTemplate(serverTemplate);
+              console.log('[SOPWorkbench] 已同步场景大纲，共', serverTemplate.sections.length, '个章节');
+            }
+          }
+          // 同步 sectionMergeType
+          if (sceneRes?.scene?.sectionMergeType) {
+            setSectionMergeType(prev => ({ ...prev, ...sceneRes.scene.sectionMergeType }));
+          }
+        } catch (e) {
+          console.log('[SOPWorkbench] 同步数据失败', e);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   useEffect(() => {
 
@@ -3166,7 +2111,6 @@ export default function SOPWorkbench({ onSwitch }) {
 
   }, [scene]);
 
-
   useEffect(() => {
 
     if (scene?.id) {
@@ -3177,420 +2121,312 @@ export default function SOPWorkbench({ onSwitch }) {
 
   }, [scene?.id]);
 
-
+  // 【关键新增】监听 template 变化，自动同步到服务端缓存
+  // 使用防抖机制避免频繁调用
+  const templateSyncTimeoutRef = useRef(null);
   useEffect(() => {
+    if (!template || !template.sections?.length) return;
+    
+    // 清除之前的定时器
+    if (templateSyncTimeoutRef.current) {
+      clearTimeout(templateSyncTimeoutRef.current);
+    }
+    
+    // 延迟 500ms 后同步，避免频繁调用
+    templateSyncTimeoutRef.current = setTimeout(async () => {
+      try {
+        // 同步到缓存（会自动同步到 main 场景）
+        await api('/api/outline/cache', { method: 'POST', body: { template } });
+        console.log('[SOPWorkbench] template 已自动同步到服务端缓存');
+      } catch (e) {
+        console.error('[SOPWorkbench] template 自动同步失败', e);
+      }
+    }, 500);
+    
+    return () => {
+      if (templateSyncTimeoutRef.current) {
+        clearTimeout(templateSyncTimeoutRef.current);
+      }
+    };
+  }, [template]);
 
-
-    const doc = docs.find((d) => d.id === selectedDocId);
-
-
-    setDocDraft(doc?.content || '');
-
-
-    setPreviewSelection({ text: '', start: 0, end: 0 });
-
-
+  // 【修改】只在 selectedDocId 变化时重置 docDraft，避免保存时触发重载
+  const prevSelectedDocIdRef = useRef(null);
+  useEffect(() => {
+    // 只有当 selectedDocId 真正变化时才重置 docDraft
+    if (prevSelectedDocIdRef.current !== selectedDocId) {
+      const doc = docs.find((d) => d.id === selectedDocId);
+      setDocDraft(doc?.content || '');
+      setPreviewSelection({ text: '', start: 0, end: 0 });
+      prevSelectedDocIdRef.current = selectedDocId;
+    }
   }, [selectedDocId, docs]);
-
 
   // showToast 已通过 useToast hook 提供
 
-
   const startEditLlmButton = (btn) => {
-
 
     setEditingButtonId(btn.id);
 
-
     setButtonDraft({
-
 
       ...btn,
 
-
       precipitationMode: normalizePrecipitationMode(btn?.precipitationMode),
-
 
       io: normalizeIoRows(btn?.io, { dataSource: btn?.dataSource, outputTarget: btn?.outputTarget })
 
-
     });
 
-
   };
-
 
   const cancelEditLlmButton = () => {
 
-
     setEditingButtonId(null);
-
 
     setButtonDraft(null);
 
-
   };
-
 
   const addIoRuleToDraft = () => {
 
-
     setButtonDraft((prev) => {
-
 
       if (!prev) return prev;
 
-
       const io = normalizeIoRows(prev?.io, { dataSource: prev?.dataSource, outputTarget: prev?.outputTarget });
-
 
       const nextRule = {
 
-
         id: `io_${Date.now()}_${io.length + 1}`,
-
 
         enabled: true,
 
-
         dataSource: 'preview',
-
 
         output: 'summaries',
 
-
         target: 'summary'
 
-
       };
-
 
       return { ...prev, io: [...io, nextRule] };
 
-
     });
 
-
   };
-
 
   const updateIoRuleInDraft = (ruleId, patch) => {
 
-
     setButtonDraft((prev) => {
-
 
       if (!prev) return prev;
 
-
       const io = normalizeIoRows(prev?.io, { dataSource: prev?.dataSource, outputTarget: prev?.outputTarget });
-
 
       return {
 
-
         ...prev,
-
 
         io: io.map((r) => r.id === ruleId ? { ...r, ...patch } : r)
 
-
       };
-
 
     });
 
-
   };
-
 
   const deleteIoRuleFromDraft = (ruleId) => {
 
-
     setButtonDraft((prev) => {
-
 
       if (!prev) return prev;
 
-
       const io = normalizeIoRows(prev?.io, { dataSource: prev?.dataSource, outputTarget: prev?.outputTarget });
-
 
       const nextIo = io.filter((r) => r.id !== ruleId);
 
-
       return { ...prev, io: nextIo.length ? nextIo : io };
-
 
     });
 
-
   };
-
 
   const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
 
-
   const optimizePromptDraft = async () => {
-
 
     if (!buttonDraft) return;
 
-
     const prompt = (buttonDraft.prompt || '').toString();
-
 
     if (!prompt.trim()) {
 
-
       showToast('提示词为空，无需优化');
-
 
       return;
 
-
     }
-
 
     setIsOptimizingPrompt(true);
 
-
     try {
-
 
       const res = await api('/api/prompt/optimize', { method: 'POST', body: { prompt } });
 
-
       const nextPrompt = (res?.prompt || '').toString();
-
 
       if (!nextPrompt.trim()) {
 
-
         showToast('优化返回为空');
-
 
         return;
 
-
       }
-
 
       setButtonDraft((prev) => prev ? { ...prev, prompt: nextPrompt } : prev);
 
-
       showToast('提示词已自动优化');
-
 
     } catch (err) {
 
-
       console.error(err);
-
 
       showToast(err?.message || '提示词优化失败');
 
-
     } finally {
-
 
       setIsOptimizingPrompt(false);
 
-
     }
 
-
   };
-
 
   const saveLlmButtonDraft = () => {
 
-
     if (!buttonDraft?.id) return;
-
 
     const io = normalizeIoRows(buttonDraft?.io, {
 
-
       dataSource: buttonDraft?.dataSource,
-
 
       outputTarget: buttonDraft?.outputTarget
 
-
     });
-
 
     const enabledRows = io.filter((r) => r.enabled);
 
-
     if (buttonDraft?.kind === 'outline_extract' && !enabledRows.some((r) => r.output === 'titles')) {
-
 
       showToast('请至少保留一条“输入标题”的规则');
 
-
       return;
-
 
     }
 
-
     const next = {
-
 
       ...buttonDraft,
 
-
       label: (buttonDraft.label || '').toString().trim(),
-
 
       enabled: !!buttonDraft.enabled,
 
-
       prompt: (buttonDraft.prompt || '').toString(),
-
 
       precipitationMode: normalizePrecipitationMode(buttonDraft?.precipitationMode),
 
-
       io
 
-
     };
-
 
     setLlmButtons((prev) => prev.map((b) => b.id === next.id ? next : b));
 
-
     cancelEditLlmButton();
-
 
     showToast('按钮配置已保存');
 
-
   };
-
 
   const addLlmButton = () => {
 
-
     const id = `btn_${Date.now()}`;
-
 
     const next = {
 
-
       id,
-
 
       kind: 'outline_extract',
 
-
       label: '新按钮',
-
 
       enabled: true,
 
-
       precipitationMode: DEFAULT_PRECIPITATION_MODE,
-
 
       prompt: DEFAULT_OUTLINE_BUTTON_PROMPT,
 
-
       io: [
-
 
         { id: `io_${Date.now()}_1`, enabled: true, dataSource: 'preview', output: 'titles', target: 'title' },
 
-
         { id: `io_${Date.now()}_2`, enabled: true, dataSource: 'preview', output: 'summaries', target: 'summary' }]
-
 
     };
 
-
     setLlmButtons((prev) => [...prev, next]);
-
 
     startEditLlmButton(next);
 
-
   };
-
 
   const deleteLlmButton = (id) => {
 
-
     const btn = llmButtons.find((b) => b.id === id);
-
 
     if (!btn) return;
 
-
     if (btn.kind === 'outline_action') {
-
 
       showToast('预留按钮不可删除');
 
-
       return;
-
 
     }
 
-
     const ok = window.confirm(`确认删除按钮“${btn.label}”？`);
-
 
     if (!ok) return;
 
-
     setLlmButtons((prev) => prev.filter((b) => b.id !== id));
-
 
     if (editingButtonId === id) cancelEditLlmButton();
 
-
   };
-
 
   const handleDeleteBlock = (blockId) => {
 
-
     const newDeleted = [...deletedBlocks, blockId];
-
 
     // 去重
 
-
     const uniqueDeleted = [...new Set(newDeleted)];
-
 
     setDeletedBlocks(uniqueDeleted);
 
-
     localStorage.setItem('layout_deleted_blocks', JSON.stringify(uniqueDeleted));
 
-
   };
-
 
   const handleRestoreBlock = (blockId) => {
 
-
     const newDeleted = deletedBlocks.filter((id) => id !== blockId);
-
 
     setDeletedBlocks(newDeleted);
 
-
     localStorage.setItem('layout_deleted_blocks', JSON.stringify(newDeleted));
 
-
   };
-
 
   const handlePermanentDeleteBlock = (blockId) => {
     if (!confirm('确认要永久删除该组件吗？此操作不可撤销。')) return;
@@ -3599,66 +2435,50 @@ export default function SOPWorkbench({ onSwitch }) {
     localStorage.setItem('layout_deleted_blocks', JSON.stringify(newDeleted));
   };
 
-
   const toggleLlmButtonEnabled = (id, enabled) => {
-
 
     setLlmButtons((prev) => prev.map((b) => b.id === id ? { ...b, enabled: !!enabled } : b));
 
-
   };
 
-
   const logSection = (action, content) => {
+    console.log('[logSection] 被调用, action:', action, ', isDepositing:', isDepositing);
 
+    if (!isDepositing) {
+      console.log('[logSection] isDepositing 为 false，跳过记录');
+      return;
+    }
 
-    if (!isDepositing) return;
-
-
+    console.log('[logSection] 添加新的沉淀记录');
     setDepositSections((prev) => [
-
 
       ...prev,
 
-
       {
-
 
         id: `sec_${Date.now()}_${prev.length + 1}`,
 
-
         action,
-
 
         content,
 
-
         requirements: { ...DEFAULT_SECTION_REQUIREMENTS }
-
 
       }]
 
-
     );
 
-
   };
-
 
   const startDeposit = () => {
 
-
     setIsDepositing(true);
-
 
     setDepositSections([]);
 
-
     showToast('自动沉淀已开始');
 
-
   };
-
 
   const endDeposit = () => {
     if (!isDepositing) return;
@@ -3666,6 +2486,12 @@ export default function SOPWorkbench({ onSwitch }) {
     // 检查是否有正在执行的大模型操作
     if (dispatching || loading) {
       showToast('请等待当前操作完成后再结束沉淀');
+      return;
+    }
+    
+    // 【新增】检查是否有待处理的沉淀相关操作（如填入摘要）
+    if (pendingDepositOperations > 0) {
+      showToast(`请等待当前操作完成后再结束沉淀（还有 ${pendingDepositOperations} 个操作）`);
       return;
     }
 
@@ -3703,408 +2529,6 @@ export default function SOPWorkbench({ onSwitch }) {
     }, 100);
   };
 
-  // 生成初始结构化脚本（基于录制内容，包含详细上下文）
-  const generateInitialScript = (sections) => {
-    if (!sections || sections.length === 0) return '';
-    const lines = [];
-    lines.push('【沉淀脚本】');
-    lines.push('');
-    
-    sections.forEach((s, i) => {
-      lines.push(`=== 步骤 ${i + 1}: ${s.action || '操作'} ===`);
-      
-      // 提取关键信息
-      const content = s.content || '';
-      const metaMatch = content.match(/__REPLAY_META__\n(.+)/s);
-      
-      if (metaMatch) {
-        try {
-          const meta = JSON.parse(metaMatch[1]);
-          const type = meta.type || meta.buttonAction || '';
-          
-          // 基本信息
-          lines.push(`【操作类型】${type}`);
-          
-          // 根据不同操作类型展示详细信息
-          if (type === 'insert_to_summary' || type === 'fill_summary') {
-            // 填入摘要 - 展示完整上下文
-            const inputs = meta.inputs || [];
-            const selectionInput = inputs.find(inp => inp.kind === 'selection');
-            const outlineInput = inputs.find(inp => inp.kind === 'outline_selected');
-            
-            // 1. 来源文档
-            const docName = meta.docName || selectionInput?.docName || '未记录';
-            lines.push(`【来源文档】${docName}`);
-            
-            // 2. 选中的内容（作为内容描述）
-            const textExcerpt = selectionInput?.textExcerpt || selectionInput?.text || '';
-            if (textExcerpt) {
-              lines.push(`【选中内容】${textExcerpt.slice(0, 150)}${textExcerpt.length > 150 ? '...' : ''}`);
-              // 生成内容描述，供大模型 Replay 时查找
-              lines.push(`【内容描述】需要从文档中找到与以下内容相似或相同的段落："${textExcerpt.slice(0, 100)}${textExcerpt.length > 100 ? '...' : ''}"`);
-            }
-            
-            // 3. 上下文（前后文）- 用于定位
-            const contextBefore = selectionInput?.contextBefore || '';
-            const contextAfter = selectionInput?.contextAfter || '';
-            if (contextBefore || contextAfter) {
-              lines.push(`【内容上下文】`);
-              if (contextBefore) lines.push(`  前文特征: "${contextBefore}"`);
-              if (contextAfter) lines.push(`  后文特征: "${contextAfter}"`);
-            }
-            
-            // 4. 作用位置（目标标题）
-            const outputs = meta.outputs || {};
-            const targetSections = outputs.targetSections || [];
-            const destinations = meta.destinations || [];
-            if (targetSections.length > 0) {
-              const titles = targetSections.map(t => t.title || '未命名').join('、');
-              lines.push(`【目标标题】填入到以下标题的摘要中：${titles}`);
-            } else if (destinations.length > 0) {
-              const destTitles = destinations.map(d => d.sectionTitle || d.kind || '').filter(Boolean).join('、');
-              if (destTitles) lines.push(`【目标标题】${destTitles}`);
-            }
-            
-            // 5. 执行结果
-            if (outputs.summary) {
-              lines.push(`【执行结果】${outputs.summary}`);
-            }
-            lines.push(`【特殊要求】${meta.specialRequirements || '无'}`);
-            
-          } else if (type === 'add_doc' || type === 'upload_doc') {
-            // 添加文档
-            lines.push(`【文档名称】${meta.docName || '未记录'}`);
-            const outputs = meta.outputs || {};
-            if (outputs.summary) lines.push(`【执行结果】${outputs.summary}`);
-            lines.push(`【特殊要求】${meta.specialRequirements || '无'}`);
-            
-          } else if (type === 'outline_extract') {
-            // 大纲抽取 - 完整详细记录
-            
-            // 1. 动作描述
-            if (meta.actionDescription) {
-              lines.push(`【动作描述】${meta.actionDescription}`);
-            }
-            
-            // 2. 来源文档
-            lines.push(`【来源文档】${meta.selectedDocName || meta.docName || '未记录'}`);
-            
-            // 3. 输入内容摘要
-            const inputExcerpt = meta.inputContentExcerpt || '';
-            if (inputExcerpt) {
-              const excerpt = inputExcerpt.length > 200 ? inputExcerpt.substring(0, 200) + '...' : inputExcerpt;
-              lines.push(`【输入内容】${excerpt}`);
-            }
-            
-            // 4. 输出结果 - 完整大纲结构
-            const outputs = meta.outputs || {};
-            const generatedSections = outputs.generatedSections || [];
-            if (generatedSections.length > 0) {
-              lines.push(`【生成大纲】共 ${generatedSections.length} 个标题：`);
-              generatedSections.slice(0, 10).forEach((s, i) => {
-                const levelText = s.levelText || `${s.level}级`;
-                lines.push(`  ${i + 1}. [${levelText}] ${s.title}`);
-                if (s.summary) {
-                  const summaryExcerpt = s.summary.length > 80 ? s.summary.substring(0, 80) + '...' : s.summary;
-                  lines.push(`     摘要：${summaryExcerpt}`);
-                }
-              });
-              if (generatedSections.length > 10) {
-                lines.push(`  ... 还有 ${generatedSections.length - 10} 个标题`);
-              }
-            } else {
-              const context = meta.context || {};
-              if (context.outlineSectionsCount) {
-                lines.push(`【抽取结果】生成 ${context.outlineSectionsCount} 个标题`);
-              }
-              if (context.outlineSectionTitles?.length) {
-                lines.push(`【标题列表】${context.outlineSectionTitles.slice(0, 5).join('、')}${context.outlineSectionTitles.length > 5 ? '...' : ''}`);
-              }
-            }
-            
-            // 5. AI 指导
-            if (meta.aiGuidance) {
-              lines.push(`【AI指导】${meta.aiGuidance}`);
-            }
-            
-            lines.push(`【特殊要求】${meta.specialRequirements || '无'}`);
-            
-          } else if (type === 'add_outline_section') {
-            // 新增标题 - 完整详细记录
-            
-            // 1. 动作描述
-            if (meta.actionDescription) {
-              lines.push(`【动作描述】${meta.actionDescription}`);
-            }
-            
-            // 2. 参考标题（插入位置）
-            const afterSection = meta.afterSection;
-            if (afterSection) {
-              lines.push(`【参考标题】${afterSection.levelText || `${afterSection.level}级`}标题「${afterSection.title}」`);
-              if (afterSection.summary) {
-                const excerpt = afterSection.summary.length > 100 ? afterSection.summary.substring(0, 100) + '...' : afterSection.summary;
-                lines.push(`  摘要：${excerpt}`);
-              }
-            } else {
-              lines.push(`【参考标题】在大纲末尾新增`);
-            }
-            
-            // 3. 新增的标题信息
-            const newSection = meta.newSection;
-            if (newSection) {
-              lines.push(`【新增标题】${newSection.levelText || `${newSection.level}级`}标题「${newSection.title}」`);
-              if (newSection.summary) {
-                lines.push(`  摘要：${newSection.summary}`);
-              }
-            }
-            
-            // 4. AI 指导
-            if (meta.aiGuidance) {
-              lines.push(`【AI指导】${meta.aiGuidance}`);
-            }
-            
-            lines.push(`【特殊要求】${meta.specialRequirements || '无'}`);
-            
-          } else if (type === 'delete_outline_section') {
-            // 删除标题 - 完整详细记录
-            
-            // 1. 动作描述
-            if (meta.actionDescription) {
-              lines.push(`【动作描述】${meta.actionDescription}`);
-            }
-            
-            // 2. 被删除的目标标题
-            const targetSection = meta.targetSection;
-            if (targetSection) {
-              lines.push(`【目标标题】${targetSection.levelText || `${targetSection.level}级`}标题「${targetSection.title}」`);
-              if (targetSection.summary) {
-                const excerpt = targetSection.summary.length > 100 ? targetSection.summary.substring(0, 100) + '...' : targetSection.summary;
-                lines.push(`  摘要：${excerpt}`);
-              }
-            }
-            
-            // 3. 所有被删除的标题详情
-            const removedSections = meta.removedSections || [];
-            if (removedSections.length > 0) {
-              lines.push(`【删除详情】共删除 ${removedSections.length} 个标题：`);
-              removedSections.slice(0, 8).forEach((s, i) => {
-                lines.push(`  ${i + 1}. [${s.levelText || `${s.level}级`}] ${s.title}`);
-              });
-              if (removedSections.length > 8) {
-                lines.push(`  ... 还有 ${removedSections.length - 8} 个标题`);
-              }
-            }
-            
-            // 4. AI 指导
-            if (meta.aiGuidance) {
-              lines.push(`【AI指导】${meta.aiGuidance}`);
-            }
-            
-            lines.push(`【特殊要求】${meta.specialRequirements || '无'}`);
-            
-          } else if (type === 'restore_history_outline') {
-            // 恢复历史大纲
-            lines.push(`【大纲名称】${meta.outlineTitle || meta.outlineId || '未记录'}`);
-            const outputs = meta.outputs || {};
-            if (outputs.summary) lines.push(`【执行结果】${outputs.summary}`);
-            lines.push(`【特殊要求】${meta.specialRequirements || '无'}`);
-            
-          } else if (type === 'dispatch' || type === 'execute_instruction') {
-            // 执行指令 - 完整详细记录
-            
-            // 1. 动作描述
-            const actionDesc = meta.actionDescription || '';
-            if (actionDesc) {
-              lines.push(`【动作描述】${actionDesc}`);
-            }
-            
-            // 2. Prompt 内容（核心指令）
-            const promptContent = meta.promptContent || meta.instructions || meta.process || '';
-            if (promptContent) {
-              lines.push(`【指令内容】${promptContent}`);
-            }
-            
-            // 3. 输入来源和输入内容
-            const inputSourceDesc = meta.inputSourceDesc || '';
-            const inputKind = meta.inputKind || '';
-            if (inputSourceDesc) {
-              lines.push(`【输入来源】${inputSourceDesc}`);
-            } else if (inputKind) {
-              const kindMap = { 
-                'doc': '文档内容', 
-                'result': '上一次结果', 
-                'batch_outline': '大纲标题',
-                'outline_selected_batch': '已选大纲标题（批量）',
-                'outline_unprocessed_docs': '未处理文档'
-              };
-              lines.push(`【输入来源】${kindMap[inputKind] || inputKind}`);
-            }
-            
-            // 输入内容（显示实际输入的文本摘要）
-            const inputContent = meta.inputContent || meta.inputContentExcerpt || '';
-            if (inputContent) {
-              const excerpt = inputContent.length > 300 ? inputContent.substring(0, 300) + '...' : inputContent;
-              lines.push(`【输入内容】${excerpt}`);
-            }
-            
-            // 4. 目标位置详细信息
-            const targetSections = meta.targetSectionsDetail || [];
-            if (targetSections.length > 0) {
-              lines.push(`【目标位置】共 ${targetSections.length} 个标题：`);
-              targetSections.forEach((t, i) => {
-                const levelText = t.levelText || `${t.level || 1}级`;
-                lines.push(`  ${i + 1}. ${levelText}标题「${t.title}」`);
-                if (t.originalSummary) {
-                  const summaryExcerpt = t.originalSummary.length > 100 ? t.originalSummary.substring(0, 100) + '...' : t.originalSummary;
-                  lines.push(`     原内容：${summaryExcerpt}`);
-                }
-              });
-            } else {
-              // 兼容旧格式
-              const selectedTitles = meta.selectedSectionTitles || [];
-              if (selectedTitles.length > 0) {
-                lines.push(`【目标标题】${selectedTitles.join('、')}`);
-              }
-            }
-            
-            // 输出目标描述
-            const outputTargetDesc = meta.outputTargetDesc || '';
-            if (outputTargetDesc) {
-              lines.push(`【输出目标】${outputTargetDesc}`);
-            }
-            
-            // 5. 输出内容和编辑详情
-            const outputs = meta.outputs || {};
-            
-            // 显示 edits 详情（实际修改了什么）
-            const edits = outputs.edits || [];
-            if (edits.length > 0) {
-              lines.push(`【输出编辑】共 ${edits.length} 处修改：`);
-              edits.forEach((edit, i) => {
-                const newVal = edit.newValueExcerpt || edit.newValue || '';
-                const excerpt = newVal.length > 150 ? newVal.substring(0, 150) + '...' : newVal;
-                lines.push(`  ${i + 1}. 字段: ${edit.field || 'summary'}`);
-                lines.push(`     新值: ${excerpt}`);
-              });
-            } else if (outputs.outputContent) {
-              const excerpt = outputs.outputContent.length > 300 ? outputs.outputContent.substring(0, 300) + '...' : outputs.outputContent;
-              lines.push(`【输出内容】${excerpt}`);
-            } else if (outputs.summary) {
-              lines.push(`【执行结果】${outputs.summary}`);
-            }
-            
-            // 6. AI 指导信息
-            const aiGuidance = meta.aiGuidance || '';
-            if (aiGuidance) {
-              lines.push(`【AI指导】${aiGuidance}`);
-            }
-            
-            // 7. 特殊要求
-            const specialReqs = meta.specialRequirements || '';
-            if (specialReqs && specialReqs !== '无') {
-              lines.push(`【特殊要求】${specialReqs}`);
-            }
-            
-          } else {
-            // 其他类型 - 通用展示
-            if (meta.docName) lines.push(`【相关文档】${meta.docName}`);
-            if (meta.outlineTitle) lines.push(`【相关大纲】${meta.outlineTitle}`);
-            if (meta.process) lines.push(`【操作描述】${meta.process}`);
-            const outputs = meta.outputs || {};
-            if (outputs.summary) lines.push(`【执行结果】${outputs.summary}`);
-            lines.push(`【特殊要求】${meta.specialRequirements || '无'}`);
-          }
-          
-          // 通用上下文信息
-          const context = meta.context || {};
-          if (context.loadedDocsCount > 0) {
-            lines.push(`【当前环境】已加载 ${context.loadedDocsCount} 个文档`);
-          }
-          
-        } catch (e) { 
-          // 解析失败时，显示原始内容摘要
-          lines.push(`【原始记录】${content.slice(0, 200)}...`);
-        }
-      } else {
-        // 没有 meta 时，显示原始内容
-        lines.push(`【原始记录】${content.slice(0, 200)}...`);
-      }
-      
-      lines.push('');
-    });
-    
-    lines.push('---');
-    lines.push('提示: 点击「AI 智能优化」可将上述内容转化为更通用的结构化脚本');
-    return lines.join('\n');
-  };
-
-  // 从完整脚本中提取某个步骤的内容
-  const getScriptForSection = (fullScript, sectionIndex) => {
-    if (!fullScript || sectionIndex < 0) return fullScript || '';
-    
-    // 尝试匹配 [步骤N] 格式（AI 优化后）
-    const aiFormatRegex = /(\[步骤\d+\][^\[]*?)(?=\[步骤\d+\]|===\s*Replay|===\s*脚本|$)/gs;
-    const aiMatches = [...fullScript.matchAll(aiFormatRegex)];
-    if (aiMatches.length > 0 && sectionIndex < aiMatches.length) {
-      return aiMatches[sectionIndex][1].trim();
-    }
-    
-    // 尝试匹配 === 步骤 N: 标题 === 格式（初始格式）
-    const initialFormatRegex = /(===\s*步骤\s*\d+[：:][^=]*?===[\s\S]*?)(?====\s*步骤|===\s*Replay|===\s*脚本|---\n提示|$)/g;
-    const initialMatches = [...fullScript.matchAll(initialFormatRegex)];
-    if (initialMatches.length > 0 && sectionIndex < initialMatches.length) {
-      return initialMatches[sectionIndex][1].trim();
-    }
-    
-    // 如果无法解析，返回全部内容
-    return fullScript;
-  };
-
-  // 更新完整脚本中某个步骤的内容
-  const updateScriptForSection = (fullScript, sectionIndex, newContent) => {
-    if (!fullScript || sectionIndex < 0) return newContent;
-    
-    // 尝试匹配 [步骤N] 格式
-    const aiFormatRegex = /(\[步骤\d+\][^\[]*?)(?=\[步骤\d+\]|===\s*Replay|===\s*脚本|$)/gs;
-    const aiMatches = [...fullScript.matchAll(aiFormatRegex)];
-    if (aiMatches.length > 0 && sectionIndex < aiMatches.length) {
-      const parts = [];
-      let lastEnd = 0;
-      aiMatches.forEach((match, idx) => {
-        if (idx === sectionIndex) {
-          parts.push(fullScript.slice(lastEnd, match.index));
-          parts.push(newContent);
-        } else {
-          parts.push(fullScript.slice(lastEnd, match.index + match[1].length));
-        }
-        lastEnd = match.index + match[1].length;
-      });
-      parts.push(fullScript.slice(lastEnd));
-      return parts.join('');
-    }
-    
-    // 尝试匹配 === 步骤 N: 标题 === 格式
-    const initialFormatRegex = /(===\s*步骤\s*\d+[：:][^=]*?===[\s\S]*?)(?====\s*步骤|===\s*Replay|===\s*脚本|---\n提示|$)/g;
-    const initialMatches = [...fullScript.matchAll(initialFormatRegex)];
-    if (initialMatches.length > 0 && sectionIndex < initialMatches.length) {
-      const parts = [];
-      let lastEnd = 0;
-      initialMatches.forEach((match, idx) => {
-        if (idx === sectionIndex) {
-          parts.push(fullScript.slice(lastEnd, match.index));
-          parts.push(newContent + '\n\n');
-        } else {
-          parts.push(fullScript.slice(lastEnd, match.index + match[1].length));
-        }
-        lastEnd = match.index + match[1].length;
-      });
-      parts.push(fullScript.slice(lastEnd));
-      return parts.join('');
-    }
-    
-    // 如果无法解析，直接返回新内容
-    return newContent;
-  };
 
   // AI 优化沉淀内容（带 sections 参数版本 - 解决 React 闭包问题）
   // 用于自动处理时直接传入 sections，避免闭包捕获旧状态
@@ -4126,8 +2550,65 @@ export default function SOPWorkbench({ onSwitch }) {
         return `【步骤${i + 1}】${s.action || '操作'}\n${s.content || ''}`;
       }).join('\n\n---\n\n');
       
-      // 初始化模式：将原始录制内容结构化为大模型可理解的格式
-      const prompt = `你是一个经验沉淀助手。用户录制了一系列操作步骤，需要你将这些原始录制内容进行**结构化处理**，生成可供大模型 Replay 使用的记录。
+      // 【关键修复】根据操作类型判断是否需要复杂的数据处理逻辑
+      // 简单填入摘要操作不需要【输出格式】【计算公式】等字段
+      const hasDispatchOperation = sections.some(s => {
+        const meta = s.meta || {};
+        const type = meta.type || meta.buttonAction || '';
+        return type.includes('dispatch') || type === 'execute_instruction';
+      });
+      
+      // 判断是否都是简单的填入摘要操作
+      const isSimpleInsertOnly = sections.every(s => {
+        const meta = s.meta || {};
+        const type = meta.type || meta.buttonAction || '';
+        return type === 'insert_to_summary' || type === 'insert_to_summary_multi' || 
+               type === 'add_doc' || type === 'delete_doc' || type === 'outline_extract' ||
+               type === 'copy_full_to_summary' || type === 'outline_link_doc' || type === 'outline_unlink_doc';
+      });
+      
+      console.log('[processDepositWithAIWithSections] 操作类型分析:', { hasDispatchOperation, isSimpleInsertOnly });
+      
+      // 根据操作类型选择不同的 prompt 模板
+      let prompt;
+      
+      if (isSimpleInsertOnly && !hasDispatchOperation) {
+        // 简单操作模板：不需要【输出格式】【计算公式】等复杂字段
+        prompt = `你是一个经验沉淀助手。用户录制了一系列简单操作步骤，需要你将这些原始录制内容进行**简洁的结构化处理**。
+
+**重要原则 - 保持简单，不要画蛇添足：**
+1. 这是简单的填入/上传/抽取操作，**不需要**数据处理逻辑
+2. **不要**添加【输出格式】【计算公式】等字段（这些是复杂 dispatch 操作才需要的）
+3. 只需记录：来源、选中内容原文、目标位置
+4. 保持原始内容，不要过度抽象
+
+【原始录制内容】
+${sectionsText}
+
+【生成要求 - 简洁记录格式】
+1. **保留原文**：选中的内容原样保留，不要替换为变量
+2. **位置明确**：清晰记录目标位置（标题、摘要索引）
+3. **不要添加**：输出格式、计算公式、数据处理需求等复杂字段
+
+请直接返回结构化记录（纯文本格式）：
+
+【沉淀名称】简洁的名称（如：政治中心区防控工作情况--填入摘要）
+【操作概述】一句话描述
+
+=== 步骤 1: 步骤标题 ===
+【操作名称】目标标题--动作名称（如：（一）政治中心区防控工作情况--填入摘要）
+【操作类型】操作类型（如 insert_to_summary_multi）
+【来源文档】文档名称
+【选中内容原文】完整保留原始选中的文本内容（原样复制，不要替换为变量）
+【目标标题】要填入的目标位置标题
+【目标位置】具体写入位置（如：三级标题「XXX」的第1个摘要）
+【AI执行指导】简单的执行说明：从来源文档中选取相似内容，填入目标位置
+
+=== 步骤 2: ... ===
+...`;
+      } else {
+        // 复杂操作模板：dispatch 等需要【输出格式】【计算公式】等字段
+        prompt = `你是一个经验沉淀助手。用户录制了包含数据处理的操作步骤，需要你将这些原始录制内容进行**结构化处理**，生成可供大模型 Replay 使用的记录。
 
 **核心原则 - 抽象需求而非具体数据：**
 1. 不要记录具体的数字、计算结果，而要记录**计算逻辑和需求描述**
@@ -4147,25 +2628,31 @@ ${sectionsText}
 
 请直接返回结构化的大模型记录内容（纯文本格式，不要用代码块包裹）：
 
-【沉淀名称】基于操作内容建议一个名称
+【沉淀名称】整个沉淀流程的名称，简洁概括（如：政治中心区防控工作摘要填入、警务要素统计处理）
 【操作概述】一句话描述整个流程要做什么
 
 === 步骤 1: 步骤标题 ===
+【操作名称】该步骤的具体名称，格式：目标标题--动作名称（如：一、警务要素"勤"方面--填入摘要）
 【操作类型】操作类型（如 insert_to_summary_multi, dispatch 等）
 【来源文档】文档名称或文档特征描述
 【选中内容】从文档中选取的内容特征描述（不要具体数字，要描述内容类型）
-【数据处理需求】如果涉及数据计算，描述计算逻辑（如：统计XX的总数、汇总XX数据等）
+【原文】完整保留原始录制中的选中原文内容（如果有的话，原样复制）
+【输出格式】（仅 dispatch 类型需要）期望的输出格式模板
+【计算公式】（仅 dispatch 类型需要）数据计算逻辑
 【目标标题】要填入的目标位置
+【目标位置】具体写入位置（如：一级标题的第1个摘要）
 【内容特征】用于定位的关键特征（开头、结尾）
 【前文上下文】内容前面的文字特征
 【后文上下文】内容后面的文字特征
 【AI执行指导】给大模型的执行指导，必须包含如何处理数据的说明
+【执行结果】保留原始录制中的执行结果描述（如：成功在XXX标题下写入了XXX内容）
 
 === 步骤 2: ... ===
 ...
 
 【Replay 执行要点】
 总结执行时需要注意的关键点，特别是数据处理的逻辑`;
+      }
 
       console.log('[processDepositWithAIWithSections] 发送 AI 请求...');
       
@@ -4196,13 +2683,40 @@ ${sectionsText}
         
         if (data?.content) {
           const optimizedContent = data.content.trim();
-          const nameMatch = optimizedContent.match(/【沉淀名称】(.+)/);
-          const suggestedName = nameMatch ? nameMatch[1].trim() : '';
+          
+          // 【沉淀名称】→ 整个沉淀的名称
+          const depositNameMatch = optimizedContent.match(/【沉淀名称】([^【\n]+)/);
+          const suggestedDepositName = depositNameMatch ? depositNameMatch[1].trim() : '';
+          
+          // 【操作名称】→ 步骤的名称（可能有多个，按步骤提取）
+          const operationNameRegex = /【操作名称】([^【\n]+)/g;
+          const operationNames = [];
+          let match;
+          while ((match = operationNameRegex.exec(optimizedContent)) !== null) {
+            operationNames.push(match[1].trim());
+          }
+          
+          console.log('[processDepositWithAIWithSections] 提取结果:', {
+            沉淀名称: suggestedDepositName || '(未提取到)',
+            操作名称: operationNames.length > 0 ? operationNames : '(未提取到)'
+          });
+          
+          // 更新每个步骤的 action
+          let updatedSections = sections;
+          if (sections && sections.length > 0) {
+            updatedSections = sections.map((s, idx) => {
+              // 用 AI 生成的【操作名称】更新步骤的 action
+              const newActionName = operationNames[idx] || s.action;
+              return { ...s, action: newActionName };
+            });
+          }
           
           setDepositConfirmData(prev => ({
             ...prev,
             llmRecordContent: optimizedContent,
-            depositName: suggestedName || prev.depositName,
+            sections: updatedSections,
+            // 【沉淀名称】更新到整个沉淀的名称
+            depositName: suggestedDepositName || prev.depositName,
             isProcessing: false,
             autoProcessing: false
           }));
@@ -4278,19 +2792,22 @@ ${sectionsText}
 
 请直接返回结构化的大模型记录内容（纯文本格式，不要用代码块包裹）：
 
-【沉淀名称】基于操作内容建议一个名称
+【沉淀名称】使用格式：目标标题名称--动作名称（如：【亲子单车整治情况】--填入摘要、（一）政治中心区防控工作情况--执行指令）
 【操作概述】一句话描述整个流程要做什么
 
 === 步骤 1: 步骤标题 ===
 【操作类型】操作类型（如 insert_to_summary_multi, dispatch 等）
 【来源文档】文档名称或文档特征描述
 【选中内容】从文档中选取的内容特征描述（不要具体数字，要描述内容类型）
+【原文】完整保留原始录制中的选中原文内容（如果有的话，原样复制）
 【数据处理需求】如果涉及数据计算，描述计算逻辑（如：统计XX的总数、汇总XX数据等）
 【目标标题】要填入的目标位置
+【目标位置】具体写入位置（如：一级标题的第1个摘要）
 【内容特征】用于定位的关键特征（开头、结尾）
 【前文上下文】内容前面的文字特征
 【后文上下文】内容后面的文字特征
 【AI执行指导】给大模型的执行指导，必须包含如何处理数据的说明
+【执行结果】保留原始录制中的执行结果描述（如：成功在XXX标题下写入了XXX内容）
 
 === 步骤 2: ... ===
 ...
@@ -4326,7 +2843,7 @@ ${combinedRequirements}
 
 请直接返回优化后的大模型记录内容（纯文本格式，不要用代码块包裹）：
 
-【沉淀名称】建议的名称
+【沉淀名称】使用格式：目标标题名称--动作名称（如：【亲子单车整治情况】--填入摘要）
 【操作概述】一句话描述整个流程
 
 === 步骤 1: 步骤标题 ===
@@ -4369,7 +2886,7 @@ ${combinedRequirements}
 
 请直接返回优化后的结构化脚本（纯文本格式，不要用代码块包裹）：
 
-【沉淀名称】建议的名称
+【沉淀名称】使用格式：目标标题名称--动作名称（如：【亲子单车整治情况】--填入摘要）
 【流程概述】一句话描述整个流程的目的
 
 === 执行步骤 ===
@@ -4437,9 +2954,22 @@ ${combinedRequirements}
           // 直接使用 AI 返回的文本
           const optimizedContent = data.content.trim();
           
-          // 尝试从内容中提取建议名称
-          const nameMatch = optimizedContent.match(/【沉淀名称】(.+)/);
-          const suggestedName = nameMatch ? nameMatch[1].trim() : '';
+          // 【沉淀名称】→ 整个沉淀的名称
+          const depositNameMatch = optimizedContent.match(/【沉淀名称】([^【\n]+)/);
+          const suggestedDepositName = depositNameMatch ? depositNameMatch[1].trim() : '';
+          
+          // 【操作名称】→ 步骤的名称（可能有多个，按步骤提取）
+          const operationNameRegex = /【操作名称】([^【\n]+)/g;
+          const operationNames = [];
+          let opMatch;
+          while ((opMatch = operationNameRegex.exec(optimizedContent)) !== null) {
+            operationNames.push(opMatch[1].trim());
+          }
+          
+          console.log('[processDepositWithAI] 提取结果:', {
+            沉淀名称: suggestedDepositName || '(未提取到)',
+            操作名称: operationNames.length > 0 ? operationNames : '(未提取到)'
+          });
           
           // 累积用户的需求（用于下次优化时保留上下文）- 仅非自动处理时累积
           const newAccumulatedReqs = (!isAutoProcess && depositConfirmData.userRequirements?.trim())
@@ -4448,12 +2978,24 @@ ${combinedRequirements}
                 : depositConfirmData.userRequirements.trim())
             : depositConfirmData.accumulatedRequirements || '';
           
+          // 更新每个步骤的 action
+          const currentSections = depositConfirmData.sections || [];
+          let updatedSections = currentSections;
+          if (currentSections.length > 0) {
+            updatedSections = currentSections.map((s, idx) => {
+              const newActionName = operationNames[idx] || s.action;
+              return { ...s, action: newActionName };
+            });
+          }
+          
           // 根据视图模式写回对应的字段
           if (scriptViewMode === 'llm') {
             setDepositConfirmData(prev => ({
               ...prev,
               llmRecordContent: optimizedContent,
-              depositName: suggestedName || prev.depositName,
+              sections: updatedSections,
+              // 【沉淀名称】更新到整个沉淀的名称
+              depositName: suggestedDepositName || prev.depositName,
               accumulatedRequirements: newAccumulatedReqs,
               userRequirements: isAutoProcess ? prev.userRequirements : '', // 自动处理时保留用户输入
               isProcessing: false,
@@ -4469,7 +3011,9 @@ ${combinedRequirements}
             setDepositConfirmData(prev => ({
               ...prev,
               structuredScript: optimizedContent,
-              depositName: suggestedName || prev.depositName,
+              sections: updatedSections,
+              // 【沉淀名称】更新到整个沉淀的名称
+              depositName: suggestedDepositName || prev.depositName,
               accumulatedRequirements: newAccumulatedReqs,
               userRequirements: isAutoProcess ? prev.userRequirements : '', // 自动处理时保留用户输入
               isProcessing: false,
@@ -4520,103 +3064,11 @@ ${combinedRequirements}
     const depositName = depositConfirmData.depositName?.trim() || defaultName;
     const structuredScript = depositConfirmData.structuredScript?.trim() || '';
     
-    // 从结构化脚本中解析每个步骤的大模型记录
-    // 支持两种格式：
-    // 1. [步骤N] 标题 - AI 优化后的格式
-    // 2. === 步骤 N: 标题 === - 初始生成的格式
-    const parseLLMStepsFromScript = (script) => {
-      if (!script) return [];
-      const steps = [];
-      
-      // 解析字段的通用函数 - 支持 "- 字段:" 和 "【字段】" 两种格式
-      const parseField = (content, fieldName) => {
-        // 先尝试 "- 字段:" 格式
-        const dashRegex = new RegExp(`-\\s*${fieldName}[：:]\\s*(.*?)(?=-\\s*\\w|【|$)`, 's');
-        const dashMatch = content.match(dashRegex);
-        if (dashMatch) return dashMatch[1].trim();
-        
-        // 再尝试 "【字段】" 格式
-        const bracketRegex = new RegExp(`【${fieldName}】\\s*(.*?)(?=【|===|$)`, 's');
-        const bracketMatch = content.match(bracketRegex);
-        if (bracketMatch) return bracketMatch[1].trim();
-        
-        return '';
-      };
-      
-      // 尝试匹配 [步骤N] 格式（AI 优化后）
-      const aiFormatRegex = /\[步骤(\d+)\]\s*([^\n]+)([\s\S]*?)(?=\[步骤\d+\]|===\s*Replay|===\s*脚本|$)/g;
-      let match;
-      while ((match = aiFormatRegex.exec(script)) !== null) {
-        const stepNum = parseInt(match[1]);
-        const stepTitle = match[2].trim();
-        const stepContent = match[3].trim();
-        
-        steps.push({
-          stepNum,
-          title: stepTitle,
-          type: parseField(stepContent, '类型'),
-          description: parseField(stepContent, '描述'),
-          condition: parseField(stepContent, '条件'),
-          contentDescription: parseField(stepContent, '内容描述'),
-          contextBefore: parseField(stepContent, '前文特征'),
-          contextAfter: parseField(stepContent, '后文特征'),
-          targetTitle: parseField(stepContent, '目标标题'),
-          // 支持多种 AI 指导字段名称
-          aiGuidance: parseField(stepContent, 'AI执行指导') || parseField(stepContent, 'AI指导') || parseField(stepContent, '执行指导'),
-          fallbackParams: parseField(stepContent, '脚本回退参数'),
-          rawContent: stepContent
-        });
-      }
-      
-      // 如果没有匹配到 AI 格式，尝试匹配初始格式 === 步骤 N: 标题 ===
-      if (steps.length === 0) {
-        const initialFormatRegex = /===\s*步骤\s*(\d+)[：:]\s*([^=\n]+?)\s*===([\s\S]*?)(?====\s*步骤|===\s*Replay|===\s*脚本|---|\n\n\n|$)/g;
-        while ((match = initialFormatRegex.exec(script)) !== null) {
-          const stepNum = parseInt(match[1]);
-          const stepTitle = match[2].trim();
-          const stepContent = match[3].trim();
-          
-          steps.push({
-            stepNum,
-            title: stepTitle,
-            type: parseField(stepContent, '操作类型') || parseField(stepContent, '类型'),
-            description: parseField(stepContent, '描述') || parseField(stepContent, '指令Prompt'),
-            condition: parseField(stepContent, '条件'),
-            contentDescription: parseField(stepContent, '内容描述'),
-            contextBefore: parseField(stepContent, '前文特征'),
-            contextAfter: parseField(stepContent, '后文特征'),
-            targetTitle: parseField(stepContent, '目标标题') || parseField(stepContent, '输出目标'),
-            // 支持多种 AI 指导字段名称
-            aiGuidance: parseField(stepContent, 'AI执行指导') || parseField(stepContent, 'AI指导') || parseField(stepContent, '执行指导'),
-            inputSource: parseField(stepContent, '输入来源'),
-            outputTarget: parseField(stepContent, '输出目标'),
-            outputContent: parseField(stepContent, '输出内容'),
-            specialRequirements: parseField(stepContent, '特殊要求'),
-            rawContent: stepContent
-          });
-        }
-      }
-      
-      return steps;
-    };
-    
     // 解析结构化脚本中的所有步骤
     // 同时解析 structuredScript 和 llmRecordContent，合并字段
     const llmRecordContent = depositConfirmData.llmRecordContent?.trim() || '';
     const stepsFromStructured = parseLLMStepsFromScript(structuredScript);
     const stepsFromLLMRecord = parseLLMStepsFromScript(llmRecordContent);
-    
-    // 直接从 llmRecordContent 中解析【AI执行指导】字段（更灵活的匹配）
-    const parseAiGuidanceDirectly = (content) => {
-      if (!content) return '';
-      // 尝试匹配【AI执行指导】字段 - 支持多种结束标记
-      const regex = /【AI执行指导】\s*([\s\S]*?)(?=【[^A]|【AI执行指导】|\[步骤|\n\n\n|---\n|===|$)/s;
-      const match = content.match(regex);
-      if (match) {
-        return match[1].trim();
-      }
-      return '';
-    };
     
     // 从 llmRecordContent 直接提取 aiGuidance
     const directAiGuidance = parseAiGuidanceDirectly(llmRecordContent);
@@ -4654,64 +3106,6 @@ ${combinedRequirements}
     
     const isLLMMode = precipitationMode === 'llm';
     
-    // 辅助函数：从原始内容中提取 __REPLAY_META__
-    const extractReplayMeta = (content) => {
-      if (!content) return null;
-      const metaMatch = content.match(/__REPLAY_META__\n(.+)/s);
-      if (metaMatch) {
-        try {
-          return JSON.parse(metaMatch[1]);
-        } catch (_) {}
-      }
-      return null;
-    };
-    
-    // 辅助函数：基于 llmScript 和 originalMeta 生成新的 __REPLAY_META__
-    const generateReplayMeta = (llmStep, originalMeta, section) => {
-      // 优先使用原始的 meta，然后用 llmStep 中的信息补充/更新
-      const baseMeta = originalMeta || {};
-      
-      return {
-        ...baseMeta,
-        // 从 llmScript 更新的字段
-        type: llmStep?.type || baseMeta.type || section.action,
-        buttonAction: llmStep?.type || baseMeta.buttonAction || 'dispatch',
-        intentDescription: llmStep?.description || baseMeta.intentDescription || section.action,
-        // 输入来源信息
-        inputSourceDesc: llmStep?.inputSource || baseMeta.inputSourceDesc || '',
-        // 输出目标信息
-        outputTargetDesc: llmStep?.outputTarget || baseMeta.outputTargetDesc || '',
-        targetTitle: llmStep?.targetTitle || baseMeta.targetTitle || '',
-        // 内容描述（用于大模型定位）
-        contentDescription: llmStep?.contentDescription || baseMeta.contentDescription || '',
-        contextBefore: llmStep?.contextBefore || baseMeta.contextBefore || '',
-        contextAfter: llmStep?.contextAfter || baseMeta.contextAfter || '',
-        // AI 执行指导
-        aiGuidance: llmStep?.aiGuidance || baseMeta.aiGuidance || '',
-        // 特殊要求
-        specialRequirements: llmStep?.specialRequirements || baseMeta.specialRequirements || '无',
-        // 标记为大模型模式生成
-        generatedByLLM: true,
-        generatedAt: Date.now()
-      };
-    };
-    
-    // 辅助函数：从结构化脚本中提取某个步骤的完整格式化内容
-    const extractFullStepContent = (script, stepNum) => {
-      if (!script) return null;
-      // 匹配 [步骤N] 格式
-      const aiFormatRegex = new RegExp(`(\\[步骤${stepNum}\\][^\\[]*?)(?=\\[步骤\\d+\\]|===\\s*Replay|===\\s*脚本|$)`, 's');
-      const aiMatch = script.match(aiFormatRegex);
-      if (aiMatch) return aiMatch[1].trim();
-      
-      // 匹配 === 步骤 N: 标题 === 格式
-      const initialFormatRegex = new RegExp(`(===\\s*步骤\\s*${stepNum}[：:][^=]*?===.*?)(?====\\s*步骤|===\\s*Replay|===\\s*脚本|---|\n\n\n|$)`, 's');
-      const initialMatch = script.match(initialFormatRegex);
-      if (initialMatch) return initialMatch[1].trim();
-      
-      return null;
-    };
-    
     // 为每个 section 保存记录
     // - 大模型模式：保存 llmScript（从结构化脚本解析）和 originalScript，并生成新的 __REPLAY_META__
     // - 脚本模式：只保存 originalScript，保留原始 __REPLAY_META__
@@ -4722,19 +3116,35 @@ ${combinedRequirements}
       // 从原始内容中提取 __REPLAY_META__
       const originalMeta = extractReplayMeta(s.content) || s.meta;
       
+      // 【修复】获取用户在弹窗中编辑的灵活上传字段
+      const existingLlmScript = s.llmScript || {};
+      const userFlexKeywords = existingLlmScript.flexKeywords || '';
+      const userDocSelector = existingLlmScript.docSelector || null;
+      
       // 构建脚本记录内容 - 优先使用完整的格式化步骤内容
-      const fullStepContent = extractFullStepContent(structuredScript, idx + 1);
+      // 【关键修复】优先从 llmRecordContent 中提取（与编辑弹窗内容保持一致）
+      const llmRecordContentStr = depositConfirmData.llmRecordContent || '';
+      const fullStepFromLLMRecord = extractFullStepContent(llmRecordContentStr, idx + 1);
+      const fullStepContent = fullStepFromLLMRecord || extractFullStepContent(structuredScript, idx + 1);
       const scriptContent = fullStepContent || llmStep?.rawContent || s.content;
       
       // 生成/更新 __REPLAY_META__
-      let replayMeta = originalMeta;
+      let replayMeta = originalMeta ? { ...originalMeta } : {};
       if (isLLMMode && llmStep) {
         // 大模型模式：基于 llmScript 生成新的 meta
         replayMeta = generateReplayMeta(llmStep, originalMeta, s);
       }
       
+      // 【修复】无论哪种模式，都将灵活上传字段合并到 replayMeta
+      if (userFlexKeywords) {
+        replayMeta.flexKeywords = userFlexKeywords;
+      }
+      if (userDocSelector) {
+        replayMeta.docSelector = userDocSelector;
+      }
+      
       // 构建带有 __REPLAY_META__ 的完整内容
-      const contentWithMeta = replayMeta 
+      const contentWithMeta = (replayMeta && Object.keys(replayMeta).length > 0)
         ? `${scriptContent}\n\n${REPLAY_META_MARKER}\n${JSON.stringify(replayMeta)}`
         : scriptContent;
       
@@ -4744,10 +3154,13 @@ ${combinedRequirements}
         buttonLabel: s.buttonLabel,
         // 保存带有 __REPLAY_META__ 的内容
         content: contentWithMeta,
-        // 同时保留原始 meta 信息用于回退
+        // 同时保留原始 meta 信息用于回退（包含灵活上传字段）
         meta: replayMeta,
         // 保存原始未处理的 content 用于严格脚本回退
-        rawContent: s.content
+        rawContent: s.content,
+        // 【新增】保存灵活上传字段
+        flexKeywords: userFlexKeywords,
+        docSelector: userDocSelector
       };
       
       // 大模型记录 - 只在大模型模式下有值
@@ -4755,20 +3168,35 @@ ${combinedRequirements}
       // 目的：大模型 Replay 时可以直接使用 llmScript 中的完整信息
       let llmScript = null;
       if (isLLMMode) {
+        // 【修复】先获取用户在弹窗中编辑的 llmScript 字段（如 flexKeywords、docSelector）
+        const existingLlmScript = s.llmScript || {};
+        
         llmScript = {
+          // === 【重要】首先继承用户编辑的字段 ===
+          ...existingLlmScript,
+          
           // === 从脚本解析的字段（显示用）===
-          title: llmStep?.title || s.action || '',
-          type: llmStep?.type || originalMeta?.type || '',
-          description: llmStep?.description || originalMeta?.actionDescription || '',
-          condition: llmStep?.condition || '',
-          contentDescription: llmStep?.contentDescription || '',
-          contextBefore: llmStep?.contextBefore || originalMeta?.contextBefore || '',
-          contextAfter: llmStep?.contextAfter || originalMeta?.contextAfter || '',
-          targetTitle: llmStep?.targetTitle || originalMeta?.outputTargetDesc || '',
-          aiGuidance: llmStep?.aiGuidance || originalMeta?.aiGuidance || '',
-          inputSource: llmStep?.inputSource || originalMeta?.inputSourceDesc || '',
-          outputTarget: llmStep?.outputTarget || originalMeta?.outputTargetDesc || '',
-          specialRequirements: llmStep?.specialRequirements || originalMeta?.specialRequirements || '',
+          title: llmStep?.title || existingLlmScript.title || s.action || '',
+          type: llmStep?.type || existingLlmScript.type || originalMeta?.type || '',
+          description: llmStep?.description || existingLlmScript.description || originalMeta?.actionDescription || '',
+          condition: llmStep?.condition || existingLlmScript.condition || '',
+          contentDescription: llmStep?.contentDescription || existingLlmScript.contentDescription || '',
+          contextBefore: llmStep?.contextBefore || existingLlmScript.contextBefore || originalMeta?.contextBefore || '',
+          contextAfter: llmStep?.contextAfter || existingLlmScript.contextAfter || originalMeta?.contextAfter || '',
+          targetTitle: llmStep?.targetTitle || existingLlmScript.targetTitle || originalMeta?.outputTargetDesc || '',
+          aiGuidance: llmStep?.aiGuidance || existingLlmScript.aiGuidance || originalMeta?.aiGuidance || '',
+          inputSource: llmStep?.inputSource || existingLlmScript.inputSource || originalMeta?.inputSourceDesc || '',
+          outputTarget: llmStep?.outputTarget || existingLlmScript.outputTarget || originalMeta?.outputTargetDesc || '',
+          specialRequirements: llmStep?.specialRequirements || existingLlmScript.specialRequirements || originalMeta?.specialRequirements || '',
+          
+          // 【新增】输出格式和计算公式 - 用于 Replay 时的数据处理
+          outputFormat: existingLlmScript.outputFormat || originalMeta?.outputFormat || '',
+          calculationFormula: existingLlmScript.calculationFormula || originalMeta?.calculationFormula || '',
+          
+          // === 【重要】灵活上传字段：优先使用用户编辑的值 ===
+          flexKeywords: existingLlmScript.flexKeywords || '',
+          flexMatchResult: existingLlmScript.flexMatchResult || '',
+          docSelector: existingLlmScript.docSelector || originalMeta?.docSelector || null,
           
           // === 完整的格式化脚本内容（沉淀弹窗中显示的内容）===
           // 用于大模型 Replay 时作为上下文
@@ -4796,6 +3224,9 @@ ${combinedRequirements}
           selectedSectionTitles: originalMeta?.selectedSectionTitles || [],
           outlineSegmentsMeta: originalMeta?.outlineSegmentsMeta || [],
           destinations: originalMeta?.destinations || [],
+          // 【关键】多摘要目标详情（包含 summaryIndex）
+          targetSummaries: originalMeta?.targetSummaries || [],
+          targetSectionIds: originalMeta?.targetSectionIds || [],
           // 输出信息
           outputs: originalMeta?.outputs || {},
           outputContent: llmStep?.outputContent || originalMeta?.outputs?.outputContent || '',
@@ -4821,14 +3252,27 @@ ${combinedRequirements}
         };
       }
       
+      // 【修复】即使在脚本模式下，也保存灵活上传字段
+      // 如果 llmScript 为 null 但有灵活上传字段，创建一个最小的 llmScript 对象
+      const userFlexMatchResult = existingLlmScript.flexMatchResult || '';
+      const finalLlmScript = llmScript || (
+        (userFlexKeywords || userDocSelector) ? {
+          flexKeywords: userFlexKeywords,
+          flexMatchResult: userFlexMatchResult,
+          docSelector: userDocSelector,
+          type: originalMeta?.type || '',
+          docName: originalMeta?.docName || ''
+        } : null
+      );
+      
       return {
         ...s,
         // 更新 content 为带有 __REPLAY_META__ 的内容
         content: contentWithMeta,
-        // 保存 meta 用于 Replay
+        // 保存 meta 用于 Replay（包含灵活上传字段）
         meta: replayMeta,
-        // 大模型记录（仅大模型模式下有值）
-        llmScript,
+        // 大模型记录（现在脚本模式下也会保存灵活上传字段）
+        llmScript: finalLlmScript,
         // 脚本记录（两种模式都保存）
         originalScript,
         // 初始化 replay 状态
@@ -4850,6 +3294,10 @@ ${combinedRequirements}
       // 强校验：必须校验满足相似的前后特征或相似内容才可处理，较容易导致 pass
       // 不校验：不做强制校验要求，基于提供信息努力找到目标位置执行
       validationMode: depositConfirmData.validationMode || 'none',
+      // 【新增】字段级别的校验配置 { stepIndex_fieldName: true/false }
+      // 校验的字段必须存在才能 replay 成功，不校验的字段不影响结果
+      // 校验失败时返回 skip（pass）而非 fail
+      fieldValidation: depositConfirmData.fieldValidation || {},
       sections: sectionsWithBoth,  // 包含大模型记录和脚本记录的 sections
       // 大模型模式：保存完整的结构化脚本（AI 优化版）
       // 脚本模式：不保存结构化脚本
@@ -4907,14 +3355,6 @@ ${combinedRequirements}
     setEditingDepositId(null);  // 重置编辑状态
   };
 
-  // 从结构化脚本中提取指定字段
-  const extractFromScript = (script, fieldName) => {
-    if (!script) return '';
-    const regex = new RegExp(`【${fieldName}】(.+?)(?=\\n|$)`);
-    const match = script.match(regex);
-    return match ? match[1].trim() : '';
-  };
-
   // 取消沉淀确认
   const cancelDepositConfirm = () => {
     setShowDepositConfirmModal(false);
@@ -4935,21 +3375,84 @@ ${combinedRequirements}
     // 构建结构化脚本内容 - 如果有保存的脚本则使用，否则从 sections 生成
     let structuredScript = deposit.structuredScript || '';
     if (!structuredScript && deposit.sections?.length > 0) {
-      // 从 sections 生成结构化脚本
+      // 【优化】从 sections 生成更完整的结构化脚本，优先使用 meta（最完整的数据源）
       structuredScript = deposit.sections.map((s, idx) => {
+        const meta = s.meta || {};
         const llm = s.llmScript || {};
-        const lines = [`[步骤${idx + 1}] ${s.action || llm.description || '操作'}`];
+        // 合并数据源：meta 优先，其次 llmScript
+        const data = { ...llm, ...meta };
         
-        if (llm.description) lines.push(`- 描述: ${llm.description}`);
-        if (llm.instructions || llm.promptContent) lines.push(`- 指令内容: ${llm.instructions || llm.promptContent}`);
-        if (llm.inputSourceDesc) lines.push(`- 输入来源: ${llm.inputSourceDesc}`);
-        if (llm.targetTitle || llm.outputTargetDesc) lines.push(`- 目标位置: ${llm.targetTitle || llm.outputTargetDesc}`);
-        if (llm.aiGuidance) lines.push(`- AI 指导: ${llm.aiGuidance}`);
-        if (llm.specialRequirements) lines.push(`- 特殊要求: ${llm.specialRequirements}`);
+        const lines = [`[步骤${idx + 1}] ${s.action || data.intentDescription || data.description || '操作'}`];
         
-        // 如果有原始 content，也可以包含
-        if (s.content && !llm.description) {
-          lines.push(`- 原始记录: ${s.content.substring(0, 200)}${s.content.length > 200 ? '...' : ''}`);
+        // 操作类型
+        if (data.type) lines.push(`【操作类型】${data.type}`);
+        
+        // 描述
+        if (data.intentDescription || data.description) {
+          lines.push(`【描述】${data.intentDescription || data.description}`);
+        }
+        
+        // 文档名称
+        if (data.docName) lines.push(`【文档名称】${data.docName}`);
+        
+        // 来源类型
+        if (data.source) lines.push(`【来源类型】${data.source === 'upload' ? '文件上传' : data.source}`);
+        
+        // 是否覆盖
+        if (data.overwritten !== undefined) {
+          lines.push(`【是否覆盖】${data.overwritten ? '是' : '否'}`);
+        }
+        
+        // 处理过程
+        if (data.process) lines.push(`【处理过程】${data.process}`);
+        
+        // 特殊要求
+        if (data.specialRequirements) lines.push(`【特殊要求】${data.specialRequirements}`);
+        
+        // 输入来源
+        const inputs = Array.isArray(data.inputs) ? data.inputs : [];
+        if (inputs.length > 0) {
+          const inputLines = inputs.map((inp, i) => {
+            const parts = [];
+            if (inp.kind) parts.push(`类型: ${inp.kind}`);
+            if (inp.docName) parts.push(`文档: ${inp.docName}`);
+            if (inp.contextSummary) parts.push(`来源: ${inp.contextSummary}`);
+            return `[${i + 1}] ${parts.join(', ')}`;
+          });
+          lines.push(`【输入来源】\n${inputLines.join('\n')}`);
+        }
+        
+        // 目标位置
+        const destinations = Array.isArray(data.destinations) ? data.destinations : [];
+        if (destinations.length > 0) {
+          const destKind = destinations[0]?.kind;
+          if (destKind === 'docs_list') {
+            lines.push(`【目标位置】文档列表`);
+          } else if (data.targetTitle || data.outputTargetDesc) {
+            lines.push(`【目标位置】${data.targetTitle || data.outputTargetDesc}`);
+          }
+        }
+        
+        // 执行结果
+        if (data.outputs?.executionResult) {
+          lines.push(`【执行结果】${data.outputs.executionResult}`);
+        } else if (data.outputs?.summary) {
+          lines.push(`【执行结果】${data.outputs.summary}`);
+        }
+        
+        // 执行状态
+        if (data.outputs?.status) lines.push(`【执行状态】${data.outputs.status}`);
+        
+        // 灵活上传字段
+        if (data.flexKeywords) lines.push(`【灵活名称上传】${data.flexKeywords}`);
+        if (data.docSelector) lines.push(`【文档选择器】${JSON.stringify(data.docSelector)}`);
+        
+        // AI 指导
+        if (data.aiGuidance) lines.push(`【AI执行指导】${data.aiGuidance}`);
+        
+        // 指令内容
+        if (data.instructions || data.promptContent) {
+          lines.push(`【指令内容】${data.instructions || data.promptContent}`);
         }
         
         return lines.join('\n');
@@ -4962,6 +3465,7 @@ ${combinedRequirements}
       depositName: deposit.name || deposit.id,
       precipitationMode: deposit.precipitationMode || 'llm',
       validationMode: deposit.validationMode || 'none',
+      fieldValidation: deposit.fieldValidation || {},  // 【新增】加载字段级别校验配置
       structuredScript,
       llmRecordContent: deposit.llmRecordContent || '', // 加载大模型记录内容
       userRequirements: '',
@@ -4975,117 +3479,174 @@ ${combinedRequirements}
     setShowDepositConfirmModal(true);
   };
 
+  // 【新增】编辑单个 section - 打开弹窗并选中该 section
+  const editDepositSection = (depositId, sectionId) => {
+    const deposit = deposits.find(d => d.id === depositId);
+    if (!deposit) {
+      showToast('未找到该沉淀');
+      return;
+    }
+    
+    // 找到 section 的索引
+    const sectionIndex = (deposit.sections || []).findIndex(s => s.id === sectionId);
+    if (sectionIndex < 0) {
+      showToast('未找到该操作步骤');
+      return;
+    }
+    
+    // 【优化】构建结构化脚本内容 - 从 meta 读取完整信息
+    let structuredScript = deposit.structuredScript || '';
+    if (!structuredScript && deposit.sections?.length > 0) {
+      structuredScript = deposit.sections.map((s, idx) => {
+        const meta = s.meta || {};
+        const llm = s.llmScript || {};
+        const data = { ...llm, ...meta };
+        
+        const lines = [`[步骤${idx + 1}] ${s.action || data.intentDescription || data.description || '操作'}`];
+        
+        if (data.type) lines.push(`【操作类型】${data.type}`);
+        if (data.intentDescription || data.description) {
+          lines.push(`【描述】${data.intentDescription || data.description}`);
+        }
+        if (data.docName) lines.push(`【文档名称】${data.docName}`);
+        if (data.source) lines.push(`【来源类型】${data.source === 'upload' ? '文件上传' : data.source}`);
+        if (data.overwritten !== undefined) lines.push(`【是否覆盖】${data.overwritten ? '是' : '否'}`);
+        if (data.process) lines.push(`【处理过程】${data.process}`);
+        if (data.specialRequirements) lines.push(`【特殊要求】${data.specialRequirements}`);
+        
+        const inputs = Array.isArray(data.inputs) ? data.inputs : [];
+        if (inputs.length > 0) {
+          const inputLines = inputs.map((inp, i) => {
+            const parts = [];
+            if (inp.kind) parts.push(`类型: ${inp.kind}`);
+            if (inp.docName) parts.push(`文档: ${inp.docName}`);
+            if (inp.contextSummary) parts.push(`来源: ${inp.contextSummary}`);
+            return `[${i + 1}] ${parts.join(', ')}`;
+          });
+          lines.push(`【输入来源】\n${inputLines.join('\n')}`);
+        }
+        
+        const destinations = Array.isArray(data.destinations) ? data.destinations : [];
+        if (destinations.length > 0) {
+          const destKind = destinations[0]?.kind;
+          if (destKind === 'docs_list') {
+            lines.push(`【目标位置】文档列表`);
+          } else if (data.targetTitle || data.outputTargetDesc) {
+            lines.push(`【目标位置】${data.targetTitle || data.outputTargetDesc}`);
+          }
+        }
+        
+        if (data.outputs?.executionResult) {
+          lines.push(`【执行结果】${data.outputs.executionResult}`);
+        } else if (data.outputs?.summary) {
+          lines.push(`【执行结果】${data.outputs.summary}`);
+        }
+        if (data.outputs?.status) lines.push(`【执行状态】${data.outputs.status}`);
+        if (data.flexKeywords) lines.push(`【灵活名称上传】${data.flexKeywords}`);
+        if (data.docSelector) lines.push(`【文档选择器】${JSON.stringify(data.docSelector)}`);
+        if (data.aiGuidance) lines.push(`【AI执行指导】${data.aiGuidance}`);
+        if (data.instructions || data.promptContent) {
+          lines.push(`【指令内容】${data.instructions || data.promptContent}`);
+        }
+        
+        return lines.join('\n');
+      }).join('\n\n---\n\n');
+    }
+    
+    // 设置弹窗数据
+    setDepositConfirmData({
+      sections: deposit.sections || [],
+      depositName: deposit.name || deposit.id,
+      precipitationMode: deposit.precipitationMode || 'llm',
+      validationMode: deposit.validationMode || 'none',
+      fieldValidation: deposit.fieldValidation || {},
+      structuredScript,
+      llmRecordContent: deposit.llmRecordContent || '',
+      userRequirements: '',
+      accumulatedRequirements: deposit.accumulatedRequirements || '',
+      optimizeCount: deposit.optimizeCount || 0,
+      isProcessing: false
+    });
+    
+    setEditingDepositId(depositId);
+    setSelectedSectionIndex(sectionIndex);  // 直接选中该 section
+    setShowDepositConfirmModal(true);
+  };
 
   // --- History Handlers ---
 
-
   const handleOpenHistory = () => {
-
 
     setShowHistoryModal(true);
 
-
   };
-
 
   const saveHistory = async () => {
 
-
     if (!template || !template.sections.length) {
-
 
       showToast('当前无可存档内容');
 
-
       return;
-
 
     }
 
-
     setHistoryLoading(true);
-
 
     try {
 
-
       const historyItem = {
-
 
         id: `outline_${Date.now()}`,
 
-
         template: deepClone(template), // Ensure deep clone
-
 
         timestamp: Date.now(),
 
-
         docName: docs.find((d) => d.id === selectedDocId)?.name || '未命名文档',
-
 
         title: docs.find((d) => d.id === selectedDocId)?.name || '未命名文档',
         
         // 保存多摘要合并方式选择状态
         sectionMergeType: Object.keys(sectionMergeType).length > 0 ? { ...sectionMergeType } : undefined
 
-
       };
-
 
       await api('/api/multi/outlines', { method: 'POST', body: historyItem });
 
-
       setOutlineHistory((prev) => [historyItem, ...prev]);
-
 
       showToast('已存档当前大纲');
 
-
     } catch (e) {
-
 
       console.error('保存历史失败', e);
 
-
       showToast('保存失败');
-
 
     } finally {
 
-
       setHistoryLoading(false);
-
 
     }
 
-
   };
-
 
   const useHistory = async (item) => {
 
-
     if (!item?.template) return;
-
 
     setHistoryLoading(true);
 
-
     try {
-
 
       // Apply template to backend
 
-
       const applyRes = await api(`/api/scene/${scene.id}/apply-template`, { method: 'POST', body: { template: item.template } });
-
 
       setTemplate(applyRes.template);
 
-
       setScene(applyRes.scene);
-
 
       setShowOutlineMode(true);
       
@@ -5096,252 +3657,164 @@ ${combinedRequirements}
         setSectionMergeType({});
       }
 
-
       // 记录沉淀
-
 
       logSectionWithMeta('点击了历史大纲选取', {
 
-
         type: 'restore_history_outline',
-
 
         outlineId: item.id,
 
-
         outlineTitle: item.title || item.docName,
-
 
         process: `恢复历史大纲：${item.title || item.docName}`,
 
-
         destinations: [{ kind: 'outline_panel' }],
-
 
         outputs: { summary: `已恢复大纲：${item.title || item.docName}` }
 
-
       });
-
 
       showToast('已恢复历史大纲');
 
-
       setShowHistoryModal(false);
 
-
     } catch (e) {
-
 
       console.error('回滚历史失败', e);
 
-
       showToast('回滚失败');
-
 
     } finally {
 
-
       setHistoryLoading(false);
-
 
     }
 
-
   };
-
 
   const deleteHistory = async (itemId) => {
 
-
     if (!confirm('确认删除该存档？')) return;
-
 
     setHistoryLoading(true);
 
-
     try {
-
 
       await api(`/api/multi/outlines/${itemId}`, { method: 'DELETE' });
 
-
       setOutlineHistory((prev) => prev.filter((i) => i.id !== itemId));
-
 
       showToast('已删除存档');
 
-
     } catch (e) {
-
 
       console.error('删除存档失败', e);
 
-
       showToast('删除失败');
-
 
     } finally {
 
-
       setHistoryLoading(false);
-
 
     }
 
-
   };
-
 
   const updateHistoryTitle = async (itemId, newTitle) => {
 
-
     setHistoryLoading(true);
 
-
     try {
-
 
       await api(`/api/multi/outlines/${itemId}`, {
 
-
         method: 'PATCH',
-
 
         body: { title: newTitle }
 
-
       });
-
 
       setOutlineHistory((prev) => prev.map((i) =>
 
-
         i.id === itemId ? { ...i, title: newTitle } : i
-
 
       ));
 
-
       showToast('已更新存档名称');
 
-
     } catch (e) {
-
 
       console.error('更新存档名称失败', e);
 
-
       showToast('更新失败');
-
 
     } finally {
 
-
       setHistoryLoading(false);
-
 
     }
 
-
   };
-
 
   const reloadDeposits = async (silent = false) => {
 
-
     try {
-
 
       const records = await api(`/api/multi/precipitation/records`);
 
-
       if (Array.isArray(records)) {
 
+        // 合并服务端数据和本地 categoryId（categoryId 只存在本地 localStorage）
+        setDeposits(prevDeposits => {
+          // 构建本地 categoryId 映射
+          const localCategoryMap = {};
+          prevDeposits.forEach(d => {
+            if (d.categoryId) {
+              localCategoryMap[d.id] = d.categoryId;
+            }
+          });
 
-        const normalized = records.map((d) => ({
+          const normalized = records.map((d) => ({
+            ...d,
+            precipitationMode: normalizePrecipitationMode(d?.precipitationMode),
+            sections: Array.isArray(d?.sections) ? d.sections : [],
+            // 保留本地的 categoryId
+            categoryId: localCategoryMap[d.id] || d.categoryId || null
+          }));
 
-
-          ...d,
-
-
-          precipitationMode: normalizePrecipitationMode(d?.precipitationMode),
-
-
-          sections: Array.isArray(d?.sections) ? d.sections : []
-
-
-        }));
-
-
-        setDeposits(normalized);
-
+          // 持久化合并后的数据
+          persistDeposits(normalized);
+          return normalized;
+        });
 
         const max = records.reduce((acc, d) => {
 
-
           const m = /_(\d+)$/.exec(d?.id || '');
-
 
           const n = m ? Number(m[1]) : 0;
 
-
           return Number.isFinite(n) && n > acc ? n : acc;
-
 
         }, 0);
 
-
         if (max > 0) setDepositSeq(max);
-
 
       }
 
-
       return true;
-
 
     } catch (e) {
 
-
       console.error('加载沉淀记录失败', e);
-
 
       if (!silent) showToast('刷新沉淀记录失败');
 
-
       return false;
-
 
     }
 
-
   };
-
-
-  const normalizeDepositGroup = (g) => {
-
-
-    if (!g) return null;
-
-
-    const id = typeof g.id === 'string' && g.id.trim() ? g.id.trim() : `group_${Date.now()}`;
-
-
-    const name = typeof g.name === 'string' && g.name.trim() ? g.name.trim() : id;
-
-
-    const depositIds = Array.isArray(g.depositIds) ? Array.from(new Set(g.depositIds.filter(Boolean))) : [];
-
-
-    const createdAt = typeof g.createdAt === 'number' ? g.createdAt : Date.now();
-
-
-    return { ...g, id, name, depositIds, createdAt };
-
-
-  };
-
 
   const reloadDepositGroups = async (silent = false) => {
 
@@ -5355,38 +3828,27 @@ ${combinedRequirements}
 
         setDepositGroups(normalized);
 
-
         if (selectedDepositGroupId && !normalized.some((g) => g.id === selectedDepositGroupId)) {
-
 
           setSelectedDepositGroupId('');
 
-
         }
-
 
       }
 
-
       return true;
-
 
     } catch (e) {
 
-
       console.error('加载场景失败', e);
-
 
       if (!silent) showToast('刷新场景失败');
 
-
       return false;
-
 
     }
 
   };
-
 
   const loadSharedScene = async () => {
 
@@ -5401,7 +3863,6 @@ ${combinedRequirements}
         if (existing?.scene) return existing.scene;
 
       } catch (_) {
-
 
         /* ignore */
       }
@@ -5420,60 +3881,41 @@ ${combinedRequirements}
 
   };
 
-
   const getSelectedDepositIds = () =>
-
 
     deposits.filter((d) => selectedDepositIds?.[d.id]).map((d) => d.id);
 
-
   const createDepositGroupFromSelection = async () => {
-
 
     const ids = getSelectedDepositIds();
 
-
     if (!ids.length) {
-
 
       showToast('请先选择要合并的沉淀');
 
-
       return;
-
 
     }
 
-
     const defaultName = `沉淀集_${depositGroups.length + 1}`;
-
 
     const input = window.prompt(UI_TEXT.t164, defaultName);
 
-
     if (input === null) return;
-
 
     const name = input.trim() || defaultName;
 
-
     const newGroup = {
-
 
       id: `group_${Date.now()}`,
 
-
       name,
-
 
       depositIds: ids,
 
-
       createdAt: Date.now()
 
-
     };
-
 
     setDepositGroups((prev) => [...prev, newGroup]);  // 添加到末尾
     setSelectedDepositGroupId(newGroup.id);
@@ -5489,7 +3931,6 @@ ${combinedRequirements}
     }
   };
 
-
   const updateDepositGroup = async (groupId, patch, successMsg) => {
     if (!groupId) return;
     const nextPatch = { ...patch };
@@ -5498,78 +3939,53 @@ ${combinedRequirements}
       nextPatch.depositIds = nextPatch.depositIds.filter(Boolean);
     }
 
-
     setDepositGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, ...nextPatch } : g));
-
 
     try {
 
-
       await api(`/api/multi/precipitation/groups/${groupId}`, {
-
 
         method: 'PATCH',
 
-
         body: nextPatch
-
 
       });
 
-
       if (successMsg) showToast(successMsg);
-
 
     } catch (e) {
 
-
       console.error('更新沉淀集失败', e);
-
 
       showToast('更新沉淀集失败');
 
-
       await reloadDepositGroups(true);
-
 
     }
 
-
   };
-
 
   const renameDepositGroup = async () => {
 
-
     const group = depositGroups.find((g) => g.id === selectedDepositGroupId);
-
 
     if (!group) {
 
-
       showToast('请先选择沉淀集');
-
 
       return;
 
-
     }
-
 
     const input = window.prompt('请输入沉淀集名称', group.name);
 
-
     if (input === null) return;
-
 
     const name = input.trim() || group.name;
 
-
     await updateDepositGroup(group.id, { name }, '已更新沉淀集名称');
 
-
   };
-
 
   const updateGroupFromSelection = async () => {
     const ids = getSelectedDepositIds();
@@ -5589,26 +4005,38 @@ ${combinedRequirements}
     setShowUpdateGroupModal(true);
   };
 
-  // 确认更新沉淀集（将选中的沉淀并入选中的沉淀集）
+  // 确认更新沉淀集（按照沉淀列表中勾选的顺序替换沉淀集内容）
   const confirmUpdateGroups = async () => {
-    const depositIds = getSelectedDepositIds();
+    console.log('[confirmUpdateGroups] 开始执行');
+    console.log('[confirmUpdateGroups] deposits:', deposits?.length);
+    console.log('[confirmUpdateGroups] selectedDepositIds:', selectedDepositIds);
+    console.log('[confirmUpdateGroups] updateGroupSelectedIds:', updateGroupSelectedIds);
+    
+    // 按照 deposits 列表顺序获取勾选的沉淀 ID
+    const depositIds = deposits
+      .filter((d) => selectedDepositIds?.[d.id])
+      .map((d) => d.id);
+    
+    console.log('[confirmUpdateGroups] 筛选后的 depositIds:', depositIds);
     
     if (!depositIds.length) {
-      showToast('请先选择要合并的沉淀');
+      showToast('请先选择要更新的沉淀');
+      console.log('[confirmUpdateGroups] 没有选择沉淀，返回');
       return;
     }
     
     if (!updateGroupSelectedIds.length) {
       showToast('请选择至少一个沉淀集');
+      console.log('[confirmUpdateGroups] 没有选择沉淀集，返回');
       return;
     }
     
-    // 将选中的沉淀并入所有选中的沉淀集
+    // 按勾选顺序替换沉淀集内容（不是合并）
     for (const groupId of updateGroupSelectedIds) {
       const targetGroup = depositGroups.find(g => g.id === groupId);
       if (targetGroup) {
-        const mergedIds = Array.from(new Set([...(targetGroup.depositIds || []), ...depositIds]));
-        await updateDepositGroup(targetGroup.id, { depositIds: mergedIds });
+        // 直接使用勾选顺序的 depositIds 替换
+        await updateDepositGroup(targetGroup.id, { depositIds });
       }
     }
     
@@ -5617,7 +4045,7 @@ ${combinedRequirements}
       .filter(Boolean)
       .join('、');
     
-    showToast(`已将选中沉淀并入「${groupNames}」`);
+    showToast(`已更新沉淀集「${groupNames}」，共 ${depositIds.length} 条沉淀`);
     setShowUpdateGroupModal(false);
     setUpdateGroupSelectedIds([]);
     
@@ -5627,6 +4055,29 @@ ${combinedRequirements}
     }
   };
 
+  // 从沉淀集中移除指定位置的沉淀
+  const removeDepositFromGroup = async (groupId, depositIndex) => {
+    const group = depositGroups.find(g => g.id === groupId);
+    if (!group) return;
+    
+    const newDepositIds = [...(group.depositIds || [])];
+    newDepositIds.splice(depositIndex, 1);
+    await updateDepositGroup(groupId, { depositIds: newDepositIds }, '已从沉淀集移除');
+  };
+
+  // 调整沉淀集中沉淀的位置
+  const moveDepositInGroup = async (groupId, fromIndex, toIndex) => {
+    const group = depositGroups.find(g => g.id === groupId);
+    if (!group) return;
+    
+    const newDepositIds = [...(group.depositIds || [])];
+    if (fromIndex < 0 || fromIndex >= newDepositIds.length) return;
+    if (toIndex < 0 || toIndex >= newDepositIds.length) return;
+    
+    const [removed] = newDepositIds.splice(fromIndex, 1);
+    newDepositIds.splice(toIndex, 0, removed);
+    await updateDepositGroup(groupId, { depositIds: newDepositIds });
+  };
 
   const deleteDepositGroup = async () => {
     const group = depositGroups.find((g) => g.id === selectedDepositGroupId);
@@ -5647,30 +4098,21 @@ ${combinedRequirements}
     }
   };
 
-
   const replayDepositGroup = async () => {
-
 
     const group = depositGroups.find((g) => g.id === selectedDepositGroupId);
 
-
     if (!group) {
-
 
       showToast('请先选择沉淀集');
 
-
       return;
-
 
     }
 
-
     if (depositGroupReplay[group.id]) return;
 
-
     setDepositGroupReplay((prev) => ({ ...prev, [group.id]: true }));
-
 
     showToast(`开始Replay沉淀集：${group.name}`);
 
@@ -5713,111 +4155,159 @@ ${combinedRequirements}
       console.log(`[沉淀集Replay] 完成沉淀 ${i + 1}/${depositIds.length}: ${dep.name}`);
     }
 
-
     setDepositGroupReplay((prev) => ({ ...prev, [group.id]: false }));
 
-
+    // 刷新文档列表，确保显示最新的文档
+    await refreshDocsFromServer();
+    
     showToast('沉淀集Replay完成');
-
 
   };
 
+  // ========== Replay 应用按钮关联的所有沉淀集 ==========
+  const [appButtonReplaying, setAppButtonReplaying] = useState({}); // buttonId -> bool
+
+  const replayAppButton = async (buttonId) => {
+    const btn = appButtonsConfig.find((b) => b.id === buttonId);
+    if (!btn) {
+      showToast('按钮配置不存在');
+      return;
+    }
+
+    const groupIds = btn.groupIds || [];
+    if (groupIds.length === 0) {
+      showToast('该按钮未关联任何沉淀集');
+      return;
+    }
+
+    if (appButtonReplaying[buttonId]) {
+      showToast('正在执行中，请稍候...');
+      return;
+    }
+
+    setAppButtonReplaying((prev) => ({ ...prev, [buttonId]: true }));
+    showToast(`开始测试按钮「${btn.label}」，共 ${groupIds.length} 个沉淀集`);
+
+    // 确保模板数据已加载
+    console.log('[按钮测试] 开始前检查模板状态...');
+    if (!template || !template.sections || template.sections.length === 0) {
+      console.log('[按钮测试] 模板为空，正在从服务器加载...');
+      showToast('正在加载大纲数据...');
+      try {
+        const serverTemplate = await api('/api/template');
+        if (serverTemplate?.template?.sections?.length > 0) {
+          setTemplate(serverTemplate.template);
+          console.log('[按钮测试] 模板加载成功，共', serverTemplate.template.sections.length, '个标题');
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } catch (e) {
+        console.error('[按钮测试] 模板加载失败:', e);
+        showToast('大纲数据加载失败，Replay 可能不准确');
+      }
+    }
+
+    // 按顺序处理每个沉淀集
+    for (let gIdx = 0; gIdx < groupIds.length; gIdx++) {
+      const groupId = groupIds[gIdx];
+      const group = depositGroups.find((g) => g.id === groupId);
+      
+      if (!group) {
+        console.warn(`[按钮测试] 沉淀集 ${groupId} 不存在，跳过`);
+        continue;
+      }
+
+      console.log(`[按钮测试] 处理沉淀集 ${gIdx + 1}/${groupIds.length}: ${group.name}`);
+      showToast(`处理沉淀集 ${gIdx + 1}/${groupIds.length}: ${group.name}`);
+
+      const depositIds = group.depositIds || [];
+      
+      // 按顺序处理沉淀集中的每个沉淀
+      for (let dIdx = 0; dIdx < depositIds.length; dIdx++) {
+        const depositId = depositIds[dIdx];
+        const dep = deposits.find((d) => d.id === depositId);
+
+        if (!dep) {
+          console.warn(`[按钮测试] 沉淀 ${depositId} 不存在，跳过`);
+          continue;
+        }
+
+        console.log(`[按钮测试] 执行沉淀 ${dIdx + 1}/${depositIds.length}: ${dep.name}`);
+        // eslint-disable-next-line no-await-in-loop
+        await replayDepositForBatch(depositId);
+      }
+    }
+
+    setAppButtonReplaying((prev) => ({ ...prev, [buttonId]: false }));
+    
+    // 刷新文档列表，确保显示最新的文档
+    await refreshDocsFromServer();
+    
+    showToast(`按钮「${btn.label}」测试完成`);
+  };
 
   const normalizeAppButtons = (payload) => {
 
-
     if (!payload || !Array.isArray(payload.buttons)) return DEFAULT_APP_BUTTONS;
-
 
     return payload.buttons.
 
-
       map((btn, idx) => {
-
 
         if (!btn || typeof btn !== 'object') return null;
 
-
         const id = typeof btn.id === 'string' && btn.id.trim() ? btn.id.trim() : `app_btn_${idx}`;
-
 
         const label = typeof btn.label === 'string' ? fixMojibake(btn.label).trim() : '';
 
-
         if (!label) return null;
-
 
         const groupIds = Array.isArray(btn.groupIds) ? btn.groupIds.filter(Boolean) : [];
 
-
         return { id, label, groupIds };
-
 
       }).
 
-
       filter(Boolean);
 
-
   };
-
 
   const updateAppButtonLabel = (id, label) => {
 
-
     setAppButtonsConfig((prev) => prev.map((btn) => btn.id === id ? { ...btn, label } : btn));
 
-
   };
-
 
   const updateAppButtonGroups = (id, groupIds) => {
 
-
     setAppButtonsConfig((prev) => prev.map((btn) => btn.id === id ? { ...btn, groupIds } : btn));
 
-
   };
-
 
   const toggleAppButtonGroup = (id, groupId) => {
 
-
     setAppButtonsConfig((prev) =>
-
 
       prev.map((btn) => {
 
-
         if (btn.id !== id) return btn;
-
 
         const current = Array.isArray(btn.groupIds) ? btn.groupIds : [];
 
-
         const exists = current.includes(groupId);
-
 
         const next = exists ? current.filter((gid) => gid !== groupId) : [...current, groupId];
 
-
         return { ...btn, groupIds: next };
-
 
       })
 
-
     );
-
 
   };
 
-
   const saveAppButtonsConfig = async () => {
 
-
     setAppButtonsSaving(true);
-
 
     try {
 
@@ -5831,30 +4321,21 @@ ${combinedRequirements}
 
       await api(`/api/multi/app-buttons`, { method: 'POST', body: { buttons: cleanedButtons } });
 
-
       showToast('应用端按钮配置已保存');
-
 
     } catch (e) {
 
-
       console.error('保存应用端按钮配置失败', e);
-
 
       showToast('保存应用端按钮配置失败');
 
-
     } finally {
-
 
       setAppButtonsSaving(false);
 
-
     }
 
-
   };
-
 
   
   // 保存 Replay 目录配置
@@ -5877,576 +4358,381 @@ ${combinedRequirements}
     }
   };
 
-
   const saveBackofficeButtonsConfig = async () => {
-
 
     try {
 
-
       const payload = {
-
 
         globalButtons: {
 
-
           activeButtons: globalButtons,
-
 
           deletedButtons,
 
-
           version: '2.0',
-
 
           savedAt: Date.now()
 
-
         }
-
 
       };
 
-
       localStorage.setItem('global-buttons-config', JSON.stringify(payload.globalButtons));
-
 
       await api('/api/config/save', { method: 'POST', body: payload });
 
-
       showToast('后管按钮配置已保存');
-
 
     } catch (e) {
 
-
       console.error('保存后管按钮配置失败', e);
-
 
       showToast('保存后管按钮配置失败');
 
-
     }
 
-
   };
-
-
-  // renderAppButtonsConfigPanel 已迁移到 ./sop/panels/AppButtonsConfigPanel.jsx
-
-
-  // renderGlobalButtonsConfigPanel 已迁移到 ./sop/panels/GlobalButtonsConfigPanel.jsx
-
 
   // --- Precipitation Handlers ---
 
-
   const handleHeaderTitleMouseDown = (e, titleKey) => {
-
 
     if (!isEditingLayout) return;
 
-
     e.preventDefault();
-
 
     e.stopPropagation();
 
-
     const startX = e.clientX;
 
-
     const startY = e.clientY;
-
 
     const startPos = headerTitles[titleKey].position || { left: 0, top: 0 };
 
-
     setDraggingHeaderTitle({ titleKey, startX, startY, startPos });
 
-
   };
-
 
   // 监听标题拖动
 
-
   useEffect(() => {
-
 
     if (!draggingHeaderTitle) return;
 
-
     const handleMouseMove = (e) => {
-
 
       const deltaX = e.clientX - draggingHeaderTitle.startX;
 
-
       const deltaY = e.clientY - draggingHeaderTitle.startY;
-
 
       setHeaderTitles((prev) => ({
 
-
         ...prev,
-
 
         [draggingHeaderTitle.titleKey]: {
 
-
           ...prev[draggingHeaderTitle.titleKey],
-
 
           position: {
 
-
             left: draggingHeaderTitle.startPos.left + deltaX,
-
 
             top: draggingHeaderTitle.startPos.top + deltaY
 
-
           }
 
-
         }
-
 
       }));
 
-
     };
 
-
     const handleMouseUp = () => {
-
 
       setDraggingHeaderTitle(null);
 
-
     };
-
 
     document.addEventListener('mousemove', handleMouseMove);
 
-
     document.addEventListener('mouseup', handleMouseUp);
-
 
     return () => {
 
-
       document.removeEventListener('mousemove', handleMouseMove);
-
 
       document.removeEventListener('mouseup', handleMouseUp);
 
-
     };
-
 
   }, [draggingHeaderTitle]);
 
-
   const handleHeaderTitleResizeMouseDown = (e, titleKey, direction) => {
-
 
     if (!isEditingLayout) return;
 
-
     e.preventDefault();
-
 
     e.stopPropagation();
 
-
     const startX = e.clientX;
-
 
     const startY = e.clientY;
 
-
     const startSize = {
-
 
       width: headerTitles[titleKey].width || 200,
 
-
       height: headerTitles[titleKey].height || 30
 
-
     };
-
 
     setResizingHeaderTitle({ titleKey, startX, startY, startSize, direction });
 
-
   };
-
 
   // 监听标题大小调整
 
-
   useEffect(() => {
-
 
     if (!resizingHeaderTitle) return;
 
-
     const handleMouseMove = (e) => {
-
 
       const deltaX = e.clientX - resizingHeaderTitle.startX;
 
-
       const deltaY = e.clientY - resizingHeaderTitle.startY;
-
 
       setHeaderTitles((prev) => {
 
-
         const newWidth = Math.max(50, resizingHeaderTitle.startSize.width + deltaX);
-
 
         const newHeight = Math.max(20, resizingHeaderTitle.startSize.height + deltaY);
 
-
         return {
-
 
           ...prev,
 
-
           [resizingHeaderTitle.titleKey]: {
-
 
             ...prev[resizingHeaderTitle.titleKey],
 
-
             width: newWidth,
-
 
             height: newHeight
 
-
           }
-
 
         };
 
-
       });
-
 
     };
 
-
     const handleMouseUp = () => {
-
 
       setResizingHeaderTitle(null);
 
-
     };
-
 
     document.addEventListener('mousemove', handleMouseMove);
 
-
     document.addEventListener('mouseup', handleMouseUp);
-
 
     return () => {
 
-
       document.removeEventListener('mousemove', handleMouseMove);
-
 
       document.removeEventListener('mouseup', handleMouseUp);
 
-
     };
-
 
   }, [resizingHeaderTitle]);
 
-
   useEffect(() => {
-
 
     if (!draggingButton) return;
 
-
     const handleMouseMove = (e) => {
-
 
       const deltaX = e.clientX - draggingButton.startX;
 
-
       const deltaY = e.clientY - draggingButton.startY;
-
 
       if (draggingButton.panelId) {
 
-
         const { panelId, buttonId, dragType } = draggingButton;
-
 
         let nextLeft = draggingButton.originalLeft;
 
-
         let nextTop = draggingButton.originalTop;
-
 
         let nextWidth = draggingButton.originalWidth;
 
-
         let nextHeight = draggingButton.originalHeight;
-
 
         if (dragType === 'move') {
 
-
           nextLeft = draggingButton.originalLeft + deltaX;
-
 
           nextTop = draggingButton.originalTop + deltaY;
 
-
         } else if (dragType === 'resize-e') {
 
-
           nextWidth = Math.max(40, draggingButton.originalWidth + deltaX);
-
 
         } else if (dragType === 'resize-s') {
 
-
           nextHeight = Math.max(20, draggingButton.originalHeight + deltaY);
-
 
         } else if (dragType === 'resize-se') {
 
-
           nextWidth = Math.max(40, draggingButton.originalWidth + deltaX);
-
 
           nextHeight = Math.max(20, draggingButton.originalHeight + deltaY);
 
-
         }
-
 
         setButtonPositions((prev) => {
 
-
           const list = prev[panelId] || [];
-
 
           const nextList = list.map((btn) =>
 
-
             btn.id === buttonId ?
-
 
               { ...btn, left: nextLeft, top: nextTop, width: nextWidth, height: nextHeight } :
 
-
               btn
-
 
           );
 
-
           return { ...prev, [panelId]: nextList };
 
-
         });
-
 
         return;
 
-
       }
-
 
       if (draggingButton.action === 'move') {
 
-
         // 移动按钮 - 直接使用delta，因为按钮坐标已经是相对于容器的
 
-
         updateGlobalButton(draggingButton.buttonId, {
-
 
           x: draggingButton.startPos.x + deltaX,
 
-
           y: draggingButton.startPos.y + deltaY
 
-
         });
-
 
       } else if (draggingButton.action === 'resize') {
 
-
         // 调整大小
-
 
         const newWidth = Math.max(50, draggingButton.startSize.width + deltaX);
 
-
         const newHeight = Math.max(20, draggingButton.startSize.height + deltaY);
-
 
         updateGlobalButton(draggingButton.buttonId, {
 
-
           width: newWidth,
-
 
           height: newHeight
 
-
         });
-
 
       }
 
-
     };
-
 
     const handleMouseUp = () => {
 
-
       setDraggingButton(null);
 
-
     };
-
 
     document.addEventListener('mousemove', handleMouseMove);
 
-
     document.addEventListener('mouseup', handleMouseUp);
-
 
     return () => {
 
-
       document.removeEventListener('mousemove', handleMouseMove);
-
 
       document.removeEventListener('mouseup', handleMouseUp);
 
-
     };
-
 
   }, [draggingButton, globalButtons]);
 
-
   // 监听 headerTitles 变化并自动保存到 localStorage
-
 
   useEffect(() => {
 
-
     // 只在标题配置有效时保存（避免保存初始空状态）
-
 
     if (headerTitles && (headerTitles.eyebrow || headerTitles.title)) {
 
-
       localStorage.setItem('workbench_header_titles', JSON.stringify(headerTitles));
-
 
       console.log('[HeaderTitles] Auto-saved to localStorage:', headerTitles);
 
-
     }
-
 
   }, [headerTitles]);
 
-
   const handleStartEditingLayout = () => {
-
 
     // Save current state for cancel
 
-
     setSavedLayout(JSON.parse(JSON.stringify(panelPositions)));
-
 
     setSavedButtons(JSON.parse(JSON.stringify(buttonPositions)));
 
-
     setSavedContentBlocks(JSON.parse(JSON.stringify(contentBlockPositions)));
-
 
     setIsEditingLayout(true);
 
-
   };
-
 
   const applySavedLayout = () => {
 
-
     if (savedLayout) {
-
 
       setPanelPositions(JSON.parse(JSON.stringify(savedLayout)));
 
-
     }
-
 
     if (savedButtons) {
 
-
       setButtonPositions(JSON.parse(JSON.stringify(savedButtons)));
 
-
     }
-
 
     if (savedContentBlocks) {
 
-
       setContentBlockPositions(JSON.parse(JSON.stringify(savedContentBlocks)));
-
 
     }
 
-
   };
-
 
   const handleCancelLayoutEdit = () => {
 
-
     applySavedLayout();
 
-
     setIsEditingLayout(false);
-
 
     showToast('已恢复已保存布局');
 
-
   };
-
 
   const handleCompleteLayoutEdit = async () => {
 
-
     setIsEditingLayout(false);
-
 
     try {
       // 保存所有配置到服务端（持久化到 data 目录）
@@ -6494,590 +4780,366 @@ ${combinedRequirements}
       localStorage.setItem('global-buttons-config', JSON.stringify(globalConfig));
       console.log('[Save] Saved global buttons config:', globalButtons.length, 'active buttons');
 
-
       setSavedLayout(JSON.parse(JSON.stringify(panelPositions)));
-
 
       setSavedButtons(JSON.parse(JSON.stringify(buttonPositions)));
 
-
       setSavedContentBlocks(JSON.parse(JSON.stringify(contentBlockPositions)));
-
 
       setEditingHeaderTitle(null);
 
-
       showToast('配置已保存（本地）');
-
 
     } catch (e) {
 
-
       console.error('Local save failed', e);
-
 
       showToast('⚠️ 本地保存失败，请检查控制台');
 
-
     }
-
 
     (async () => {
 
-
       try {
-
 
         await Promise.all([
 
-
           api('/api/layout', {
 
-
             method: 'POST',
-
 
             body: { layout: panelPositions }
 
-
           }),
-
 
           api('/api/buttons', {
 
-
             method: 'POST',
-
 
             body: { buttons: buttonPositions }
 
-
           }),
-
 
           api('/api/config/save', {
 
-
             method: 'POST',
-
 
             body: {
 
-
               layout: panelPositions,
-
 
               contentBlocks: contentBlockPositions,
 
-
               deletedBlocks,
-
 
               globalButtons: {
 
-
                 activeButtons: globalButtons,
-
 
                 deletedButtons,
 
-
                 version: '2.0',
-
 
                 savedAt: Date.now()
 
-
               },
-
 
               headerTitles,
 
-
               layoutSize
-
 
             }
 
-
           })
-
 
         ]
 
         );
 
-
         console.log('Backend save success');
-
 
       } catch (e) {
 
-
         console.warn('Backend save failed', e);
-
 
       }
 
-
     })();
 
-
   };
-
 
   const handleResetLayout = () => {
 
-
     applySavedLayout();
-
 
     showToast('已恢复到默认布局');
 
-
   };
-
 
   const handleButtonMouseDown = (e, panelId, buttonId, dragType = 'move') => {
 
-
     if (!isEditingLayout) return;
-
 
     const button = buttonPositions[panelId]?.find((b) => b.id === buttonId);
 
-
     if (!button) return;
-
 
     const startX = e.clientX;
 
-
     const startY = e.clientY;
-
 
     setDraggingButton({
 
-
       panelId,
-
 
       buttonId,
 
-
       dragType,
-
 
       startX,
 
-
       startY,
-
 
       originalLeft: button.left,
 
-
       originalTop: button.top,
-
 
       originalWidth: button.width,
 
-
       originalHeight: button.height
 
-
     });
-
 
     e.preventDefault();
 
-
   };
-
 
   const toggleDepositSelected = (depositId, checked) => {
 
-
     setSelectedDepositIds((prev) => {
 
-
       const next = { ...prev };
-
 
       if (checked) next[depositId] = true; else
 
-
         delete next[depositId];
-
 
       return next;
 
-
     });
 
-
   };
-
 
   const clearDepositSelection = () => setSelectedDepositIds({});
 
-
   const persistDepositOrder = async (nextList) => {
-
 
     const order = (nextList || []).map((d) => d.id);
 
-
     if (!order.length) return;
 
-
     try {
-
 
       await api(`/api/multi/precipitation/records/order`, {
 
-
         method: 'POST',
-
 
         body: { order }
 
-
       });
 
-
     } catch (e) {
-
 
       console.error('保存沉淀顺序失败', e);
 
-
       showToast('保存沉淀顺序失败');
 
-
     }
 
-
   };
-
-
-  const reorderDepositList = (list, sourceId, targetId) => {
-
-
-    const next = [...(list || [])];
-
-
-    const fromIdx = next.findIndex((d) => d.id === sourceId);
-
-
-    const toIdx = next.findIndex((d) => d.id === targetId);
-
-
-    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return list;
-
-
-    const [moved] = next.splice(fromIdx, 1);
-
-
-    next.splice(toIdx, 0, moved);
-
-
-    return next;
-
-
-  };
-
-
-  const moveDepositToIndex = (list, depositId, targetIndex) => {
-
-
-    const next = [...(list || [])];
-
-
-    const fromIdx = next.findIndex((d) => d.id === depositId);
-
-
-    if (fromIdx === -1) return list;
-
-
-    const bounded = Math.max(0, Math.min(targetIndex, next.length - 1));
-
-
-    const [moved] = next.splice(fromIdx, 1);
-
-
-    next.splice(bounded, 0, moved);
-
-
-    return next;
-
-
-  };
-
 
   const applyDepositOrderChange = (updater) => {
-
-
-    let nextList = null;
-
-
+    // 【修复】先同步计算新列表，再更新状态和持久化
+    // 避免 React 状态更新异步导致 nextList 为 null 的问题
     setDeposits((prev) => {
-
-
-      nextList = updater(prev);
-
-
+      const nextList = updater(prev);
+      // 在回调内部立即调用持久化，确保 nextList 有值
+      if (nextList && nextList.length > 0) {
+        // 使用 setTimeout 确保状态更新后再持久化
+        setTimeout(() => {
+          persistDepositOrder(nextList);
+          console.log('[applyDepositOrderChange] 已保存沉淀顺序，共', nextList.length, '条');
+        }, 0);
+      }
       return nextList;
-
-
     });
-
-
-    if (nextList) {
-
-
-      persistDepositOrder(nextList);
-
-
-    }
-
-
   };
-
 
   const selectAllDeposits = () => {
 
-
     setSelectedDepositIds(() => {
-
 
       const next = {};
 
-
       deposits.forEach((d) => {
-
 
         next[d.id] = true;
 
-
       });
-
 
       return next;
 
-
     });
 
-
   };
-
 
   const deleteDepositsByIds = async (ids) => {
 
-
     const list = Array.from(new Set((ids || []).filter(Boolean)));
-
 
     if (!list.length) return;
 
-
     const ok = window.confirm(`确定删除选中的沉淀：${list.length} 条）吗？`);
-
 
     if (!ok) return;
 
-
+    // 【关键修复】分离临时沉淀和持久化沉淀
+    // dep_merge_* 开头的是临时沉淀，只存在于本地，不需要调用服务器 DELETE
+    const tempDepositIds = list.filter(id => id.startsWith('dep_merge_'));
+    const persistedDepositIds = list.filter(id => !id.startsWith('dep_merge_'));
+    
+    // 对持久化沉淀调用服务器 DELETE
     const results = await Promise.allSettled(
-
-
-      list.map((id) => api(`/api/multi/precipitation/records/${id}`, { method: 'DELETE' }))
-
-
+      persistedDepositIds.map((id) => api(`/api/multi/precipitation/records/${id}`, { method: 'DELETE' }))
     );
+    
+    // 临时沉淀直接标记为成功
+    const tempResults = tempDepositIds.map(() => ({ status: 'fulfilled' }));
 
-
-    const okIds = list.filter((_, idx) => results[idx].status === 'fulfilled');
-
-
-    const failedIds = list.filter((_, idx) => results[idx].status !== 'fulfilled');
-
+    // 合并结果：临时沉淀 + 持久化沉淀
+    const allIds = [...tempDepositIds, ...persistedDepositIds];
+    const allResults = [...tempResults, ...results];
+    
+    const okIds = allIds.filter((_, idx) => allResults[idx].status === 'fulfilled');
+    const failedIds = allIds.filter((_, idx) => allResults[idx].status !== 'fulfilled');
 
     if (okIds.length) {
 
-
       setDeposits((prev) => prev.filter((d) => !okIds.includes(d.id)));
-
 
       setDepositGroups((prev) =>
 
-
         prev.map((g) => ({ ...g, depositIds: (g.depositIds || []).filter((id) => !okIds.includes(id)) }))
-
 
       );
 
-
       setExpandedLogs((prev) => {
-
 
         const next = { ...prev };
 
-
         okIds.forEach((id) => delete next[id]);
-
 
         return next;
 
-
       });
-
 
       setExpandedDepositSections((prev) => {
 
-
         const next = { ...prev };
-
 
         okIds.forEach((id) => delete next[id]);
 
-
         return next;
 
-
       });
-
 
       setSelectedDepositIds((prev) => {
 
-
         const next = { ...prev };
-
 
         okIds.forEach((id) => delete next[id]);
 
-
         return next;
-
 
       });
 
-
     }
-
 
     if (failedIds.length) {
 
-
       console.error('删除沉淀失败', failedIds);
-
 
       showToast(`批量删除失败：${failedIds.length}/${list.length}，请稍后重试`);
 
-
       await reloadDeposits(true);
-
 
       await reloadDepositGroups(true);
 
-
       return;
 
-
     }
-
 
     const refreshed = await reloadDeposits(false);
 
-
     if (refreshed) showToast('已删除沉淀');
 
-
   };
-
 
   const deleteSelectedDeposits = () => void deleteDepositsByIds(Object.keys(selectedDepositIds || {}).filter((k) => selectedDepositIds[k]));
 
-
   const startEditDeposit = (depositId, field, value) => {
-
 
     setDepositEditing((prev) => ({ ...prev, [`${depositId}||${field}`]: (value ?? '').toString() }));
 
-
   };
-
 
   const startEditDepositOrder = (depositId, currentIndex) => {
 
-
     startEditDeposit(depositId, 'order', String(currentIndex));
 
-
   };
-
 
   const cancelEditDeposit = (depositId, field) => {
 
-
     setDepositEditing((prev) => {
-
 
       const next = { ...prev };
 
-
       delete next[`${depositId}||${field}`];
-
 
       return next;
 
-
     });
 
-
   };
-
 
   const applyDepositName = async (depositId) => {
 
-
     const key = `${depositId}||name`;
-
 
     const value = (depositEditing[key] ?? '').toString().trim();
 
-
     const nextName = value || depositId;
-
 
     try {
 
-
       await api(`/api/multi/precipitation/records/${depositId}`, { method: 'PATCH', body: { name: nextName, title: nextName } });
-
 
       setDeposits((prev) => prev.map((d) => d.id === depositId ? { ...d, name: nextName, title: nextName } : d));
 
-
       cancelEditDeposit(depositId, 'name');
-
 
       showToast('已更新沉淀名称');
 
-
     } catch (e) {
-
 
       console.error('更新沉淀名称失败', e);
 
-
       showToast('更新失败');
-
 
     }
 
-
   };
-
 
   const updateDepositMode = async (depositId, mode) => {
     const nextMode = normalizePrecipitationMode(mode);
@@ -7120,10 +5182,6 @@ ${combinedRequirements}
       await reloadDeposits(true);
     }
   };
-
-
-  // renderDepositModeSelect 和 renderDepositGroupSelector 已迁移到 ./sop/panels/DepositPanels.jsx
-
 
   const getProcessingTabLayout = () => {
     const list = buttonPositions['processing-tabs'] || [];
@@ -7204,133 +5262,90 @@ ${combinedRequirements}
     });
   };
 
-
   const applyDepositOrder = (depositId) => {
-
 
     const key = `${depositId}||order`;
 
-
     const raw = (depositEditing[key] ?? '').toString().trim();
-
 
     const nextOrder = Number.parseInt(raw, 10);
 
-
     if (!Number.isFinite(nextOrder)) {
-
 
       cancelEditDeposit(depositId, 'order');
 
-
       return;
-
 
     }
 
-
     applyDepositOrderChange((prev) => moveDepositToIndex(prev, depositId, Math.max(0, nextOrder - 1)));
-
 
     cancelEditDeposit(depositId, 'order');
 
-
   };
-
 
   const handleDepositOrderKeyDown = (e, depositId) => {
 
-
     if (e.key !== 'Enter') return;
-
 
     e.preventDefault();
 
-
     applyDepositOrder(depositId);
-
 
   };
 
-
   const handleDepositDragStart = (depositId) => (e) => {
-
 
     setDraggingDepositId(depositId);
 
-
     setDragOverDepositId('');
-
 
     try {
 
-
       e.dataTransfer.effectAllowed = 'move';
-
 
       e.dataTransfer.setData('text/plain', depositId);
 
-
     } catch (_) {
-
 
       /* ignore */
     }
 
-
   };
-
 
   const handleDepositDragOver = (depositId) => (e) => {
 
-
     if (!draggingDepositId || draggingDepositId === depositId) return;
 
-
     e.preventDefault();
-
 
     setDragOverDepositId(depositId);
 
-
   };
-
 
   const handleDepositDrop = (depositId) => (e) => {
 
-
     e.preventDefault();
-
 
     const sourceId = draggingDepositId || e.dataTransfer?.getData?.('text/plain');
 
-
     if (!sourceId || sourceId === depositId) return;
-
 
     applyDepositOrderChange((prev) => reorderDepositList(prev, sourceId, depositId));
 
-
     setDraggingDepositId('');
-
 
     setDragOverDepositId('');
 
-
   };
-
 
   const handleDepositDragEnd = () => {
 
-
     setDraggingDepositId('');
-
 
     setDragOverDepositId('');
 
-
   };
-
 
   const renderProcessingTabArrows = () => {
     const list = getProcessingTabLayout();
@@ -7340,66 +5355,51 @@ ${combinedRequirements}
       if (btn?.kind) byKind[btn.kind] = btn;
     });
 
-
     return PROCESSING_TAB_SEQUENCE.slice(0, -1).map((kind, idx) => {
-
 
       const leftBtn = byKind[kind];
 
-
       const rightBtn = byKind[PROCESSING_TAB_SEQUENCE[idx + 1]];
-
 
       if (!leftBtn || !rightBtn) return null;
 
-
       const leftEdge = leftBtn.left + leftBtn.width;
-
 
       const rightEdge = rightBtn.left;
 
-
       const center = leftEdge + (rightEdge - leftEdge) / 2;
-
 
       const top = leftBtn.top + (leftBtn.height - 16) / 2;
 
-
       return (
-
 
         <span
 
-
           key={`tab-seq-${kind}`}
-
 
           className="tab-seq-arrow"
 
-
           style={{ left: `${Math.max(0, center - 10)}px`, top: `${Math.max(0, top)}px` }}>
-
 
           --&gt;
 
-
         </span>);
-
 
     });
 
-
   };
 
-
-  // 沉淀列表模式的按钮: 批量操作 + 沉淀集管理
+  // 沉淀列表模式的按钮: 批量操作 + 沉淀集管理 + 归类管理
   const RECORD_TOOLBAR_DEPOSIT_KINDS = new Set([
     'batch_replay',
     'select_all',
     'delete_selected',
     'clear_selection',
     'group_new',     // 从选中的沉淀创建新沉淀集
-    'group_update'   // 更新已选沉淀集的内容（移至沉淀列表模式）
+    'group_update',  // 更新已选沉淀集的内容（移至沉淀列表模式）
+    'category_new',  // 新建归类
+    'category_assign', // 沉淀归类
+    'category_remove'  // 解除已有归类
   ]);
 
   // 沉淀集列表模式的按钮: 沉淀集信息管理
@@ -7408,7 +5408,6 @@ ${combinedRequirements}
     'group_delete',
     'group_replay'
   ]);
-
 
   const getRecordsToolbarButtons = (kindSet) => {
 
@@ -7432,93 +5431,93 @@ ${combinedRequirements}
 
       let disabled = false;
 
-
       switch (btn.kind) {
-
 
         case 'batch_replay':
 
-
         case 'delete_selected':
-
 
         case 'clear_selection':
 
-
           disabled = !hasSelection;
 
-
           break;
-
 
         case 'select_all':
 
-
           disabled = deposits.length === 0;
 
-
           break;
-
 
         case 'group_new':
 
-
           disabled = !hasSelection;
 
-
           break;
-
 
         case 'group_update':
 
           // 无需先选中沉淀集，弹窗中会提示选择要并入的沉淀集
           disabled = !hasSelection;
 
+          break;
+
+        case 'category_new':
+
+          disabled = false; // 新建归类始终可用
 
           break;
 
+        case 'category_assign':
+
+          disabled = !hasSelection; // 需要先选中沉淀
+
+          break;
+
+        case 'category_remove':
+
+          // 解除归类：需要选中的沉淀中有已归类的
+          if (!hasSelection) {
+            disabled = true;
+          } else {
+            // 检查选中的沉淀中是否有已归类的
+            const selectedIds = getSelectedDepositIds();
+            const hasCategorized = selectedIds.some(id => {
+              const dep = deposits.find(d => d.id === id);
+              return dep?.categoryId;
+            });
+            disabled = !hasCategorized;
+          }
+
+          break;
 
         case 'group_rename':
 
-
         case 'group_delete':
-
 
         case 'group_replay':
 
-
           disabled = !selectedGroup;
 
-
           break;
-
 
         default:
 
-
           break;
 
-
       }
-
 
       if (btn.kind === 'batch_replay' && batchReplayRunning) {
 
-
         disabled = true;
 
-
       }
-
 
       if (btn.kind === 'group_replay' && selectedGroup && depositGroupReplay[selectedGroup.id]) {
 
-
         disabled = true;
 
-
       }
-
 
       let label = btn.label;
 
@@ -7530,30 +5529,30 @@ ${combinedRequirements}
 
       return { ...btn, label, disabled };
 
-
     });
-
 
   };
 
-
   const getDepositReplayStatus = (deposit) => {
-
 
     const bySection = replayState?.[deposit?.id]?.bySection || {};
 
-
     const statuses = (deposit?.sections || []).
-
 
       map((s) => bySection?.[s.id]?.status).
 
-
       filter(Boolean);
 
-
-    if (!statuses.length) return '';
-
+    if (!statuses.length) {
+      // 回退到持久化的回放状态（应用端触发的回放）
+      const lastStatus = (deposit?.lastReplayStatus || '').toString();
+      if (!lastStatus) return '';
+      if (lastStatus === 'fail') return 'fail';
+      if (lastStatus === 'pass' || lastStatus === 'skipped') return 'pass';
+      if (lastStatus === 'partial') return 'partial done';
+      if (lastStatus.endsWith('_done') || lastStatus === 'done') return 'done';
+      return lastStatus;
+    }
 
     // 完全成功
     if (statuses.every((s) => s === 'done')) return 'done';
@@ -7572,57 +5571,105 @@ ${combinedRequirements}
     if (hasDone && !hasFail) return 'partial done';
     if (hasPass && !hasFail && !hasDone) return 'pass';
 
-
     return 'partial done';
 
-
   };
-
 
   const getDepositReplayReason = (deposit) => {
 
-
     const bySection = replayState?.[deposit?.id]?.bySection || {};
-
 
     const issues = (deposit?.sections || []).
 
-
       map((s) => {
-
 
         const state = bySection?.[s.id];
 
-
         if (!state || state.status === 'done' || state.status === 'running') return null;
-
 
         const title = (s.action || s.id || '未命名').toString();
 
-
         const msg = (state.message || '').toString().trim();
-
 
         return msg ? `${title}：${state.status} - ${msg}` : `${title}：${state.status}`;
 
-
       }).
-
 
       filter(Boolean);
 
-
-    if (!issues.length) return '';
-
+    if (!issues.length) {
+      const lastError = (deposit?.lastReplayError || '').toString().trim();
+      if (lastError) return lastError;
+      const lastStatus = (deposit?.lastReplayStatus || '').toString();
+      if (lastStatus === 'pass' || lastStatus === 'skipped') return '上次回放跳过';
+      if (lastStatus === 'partial') return '上次回放部分完成';
+      return '';
+    }
 
     if (issues.length <= 3) return issues.join('、');
 
-
     return `${issues.slice(0, 3).join('、')} 等 ${issues.length} 项`;
-
 
   };
 
+  // renderDepositListPanel - 渲染沉淀列表面板
+  const renderDepositListPanel = (isEditing = false) => {
+    return (
+    <DepositListPanel
+      deposits={deposits}
+      depositCategories={depositCategories}
+      depositEditing={depositEditing}
+      selectedDepositIds={selectedDepositIds}
+      expandedLogs={expandedLogs}
+      sectionExpanded={sectionExpanded}
+      replayState={replayState}
+      dragOverDepositId={dragOverDepositId}
+      isEditing={isEditing}
+      toggleDepositSelected={toggleDepositSelected}
+      handleDepositDragStart={handleDepositDragStart}
+      handleDepositDragEnd={handleDepositDragEnd}
+      handleDepositDragOver={handleDepositDragOver}
+      handleDepositDrop={handleDepositDrop}
+      startEditDeposit={startEditDeposit}
+      cancelEditDeposit={cancelEditDeposit}
+      applyDepositName={applyDepositName}
+      applyDepositOrder={applyDepositOrder}
+      startEditDepositOrder={startEditDepositOrder}
+      handleDepositNameKeyDown={handleDepositNameKeyDown}
+      handleDepositOrderKeyDown={handleDepositOrderKeyDown}
+      editDeposit={editDeposit}
+      replayDeposit={replayDeposit}
+      deleteDepositsByIds={deleteDepositsByIds}
+      setExpandedLogs={setExpandedLogs}
+      setAllDepositSectionsExpanded={setAllDepositSectionsExpanded}
+      toggleSectionExpanded={toggleSectionExpanded}
+      replaySingleSection={replaySingleSection}
+      deleteDepositSection={deleteDepositSection}
+      editDepositSection={editDepositSection}  // 【新增】编辑单个 section
+      updateDepositMode={updateDepositMode}
+      updateSectionReplayMode={updateSectionReplayMode}
+      getDepositReplayStatus={getDepositReplayStatus}
+      getDepositReplayReason={getDepositReplayReason}
+      deleteCategory={deleteCategory}
+      renameCategory={renameCategory}
+      reorderCategories={reorderCategories}
+      updateCategoryLevel={updateCategoryLevel}
+      setCategoryParent={setCategoryParent}
+      showToast={showToast}
+      batchReplayDeposits={(ids) => ids.forEach(id => replayDeposit(id))}
+      createDepositGroup={(name, depositIds) => {
+        // 创建新沉淀集
+        const newGroup = {
+          id: `group_${Date.now()}`,
+          name,
+          depositIds: depositIds || [],
+          createdAt: Date.now()
+        };
+        setDepositGroups(prev => [...prev, newGroup]);
+        showToast(`已创建沉淀集：${name}`);
+      }}
+    />
+  );};
 
   // renderDepositGroupsList - 包装组件以传递 props
   const renderDepositGroupsList = () => (
@@ -7642,6 +5689,7 @@ ${combinedRequirements}
       depositGroups={depositGroups}
       selectedDepositGroupId={selectedDepositGroupId}
       deposits={deposits}
+      depositCategories={depositCategories}
       depositEditing={depositEditing}
       startEditDeposit={startEditDeposit}
       applyDepositName={applyDepositName}
@@ -7652,9 +5700,10 @@ ${combinedRequirements}
       replayState={replayState}
       getDepositReplayStatus={getDepositReplayStatus}
       getDepositReplayReason={getDepositReplayReason}
+      removeDepositFromGroup={removeDepositFromGroup}
+      moveDepositInGroup={moveDepositInGroup}
     />
   );
-
 
   const addDeposit = () => {
     // 使用当前列表长度 + 1 作为显示编号
@@ -7673,193 +5722,130 @@ ${combinedRequirements}
     startEditDeposit(finalId, 'name', `沉淀${displaySeq}`);
   };
 
-
   const addDepositSection = (depositId) => {
-
 
     const newSec = {
 
-
       id: `dsec_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-
 
       action: '新增 section',
 
-
       content: '',
-
 
       requirements: { ...DEFAULT_SECTION_REQUIREMENTS }
 
-
     };
 
-
     setDeposits((prev) =>
-
 
       prev.map((d) => d.id === depositId ? { ...d, sections: [...(d.sections || []), newSec] } : d)
 
-
     );
-
 
     startEditDeposit(depositId, `${newSec.id}||action`, newSec.action);
 
-
     startEditDeposit(depositId, `${newSec.id}||exec`, '');
-
 
     startEditDeposit(depositId, `${newSec.id}||summary`, '');
 
-
     startEditDeposit(depositId, `${newSec.id}||location`, '');
-
 
     startEditDeposit(depositId, `${newSec.id}||req_input`, DEFAULT_SECTION_REQUIREMENTS.inputSource);
 
-
     startEditDeposit(depositId, `${newSec.id}||req_exec`, DEFAULT_SECTION_REQUIREMENTS.actionExecution);
-
 
     startEditDeposit(depositId, `${newSec.id}||req_summary`, DEFAULT_SECTION_REQUIREMENTS.executionSummary);
 
-
     startEditDeposit(depositId, `${newSec.id}||req_location`, DEFAULT_SECTION_REQUIREMENTS.recordLocation);
 
-
   };
-
 
   const deleteDepositSection = (depositId, sectionId) => {
 
-
     setDeposits((prev) =>
-
 
       prev.map((d) =>
 
-
         d.id === depositId ? { ...d, sections: (d.sections || []).filter((s) => s.id !== sectionId) } : d
-
 
       )
 
-
     );
-
 
     setExpandedDepositSections((prev) => {
 
-
       const next = { ...prev };
-
 
       if (next[depositId]) {
 
-
         next[depositId] = { ...(next[depositId] || {}) };
-
 
         delete next[depositId][sectionId];
 
-
       }
-
 
       return next;
 
-
     });
-
 
     cancelEditDeposit(depositId, `${sectionId}||action`);
 
-
     cancelEditDeposit(depositId, `${sectionId}||exec`);
-
 
     cancelEditDeposit(depositId, `${sectionId}||summary`);
 
-
     cancelEditDeposit(depositId, `${sectionId}||location`);
-
 
     cancelEditDeposit(depositId, `${sectionId}||req_input`);
 
-
     cancelEditDeposit(depositId, `${sectionId}||req_exec`);
-
 
     cancelEditDeposit(depositId, `${sectionId}||req_summary`);
 
-
     cancelEditDeposit(depositId, `${sectionId}||req_location`);
-
 
     showToast('已删除 section');
 
-
   };
-
 
   const applyDepositSectionField = (depositId, sectionId, field) => {
 
-
     const key = `${depositId}||${sectionId}||${field}`;
-
 
     const value = (depositEditing[key] ?? '').toString();
 
-
     setDeposits((prev) =>
-
 
       prev.map((d) => {
 
-
         if (d.id !== depositId) return d;
-
 
         const nextSections = (d.sections || []).map((s) => s.id === sectionId ? { ...s, [field]: value } : s);
 
-
         return { ...d, sections: nextSections };
-
 
       })
 
-
     );
-
 
     cancelEditDeposit(depositId, `${sectionId}||${field}`);
 
-
   };
-
 
   const startEditDepositSection = (depositId, section) => {
 
-
     setExpandedDepositSections((prev) => ({
-
 
       ...prev,
 
-
       [depositId]: { ...(prev?.[depositId] || {}), [section.id]: true }
 
-
     }));
-
 
     const parsed = parseDepositSectionContent(section?.content || '');
     const llm = section?.llmScript || {};
 
-
     const requirements = getSectionRequirements(section);
-
 
     // 新的字段结构：基于 llmScript
     startEditDeposit(depositId, `${section.id}||type`, llm.type || section?.meta?.type || '');
@@ -7875,129 +5861,87 @@ ${combinedRequirements}
     startEditDeposit(depositId, `${section.id}||summary`, parsed.executionSummary || '');
     startEditDeposit(depositId, `${section.id}||location`, parsed.recordLocation || '');
 
-
     startEditDeposit(depositId, `${section.id}||req_input`, requirements.inputSource);
-
 
     startEditDeposit(depositId, `${section.id}||req_exec`, requirements.actionExecution);
 
-
     startEditDeposit(depositId, `${section.id}||req_summary`, requirements.executionSummary);
-
 
     startEditDeposit(depositId, `${section.id}||req_location`, requirements.recordLocation);
 
-
   };
-
 
   const flexEditUploadDepositSection = async (depositId, section) => {
 
-
     try {
-
 
       const meta = extractReplayMeta(section?.content || '') || {};
 
-
       const currentDesc = (meta?.docSelector?.description || '').toString();
-
 
       const input = window.prompt(
 
-
         '请描述要上传的文件（用于匹配文件名），例如：上传列表中包含“2024年10月”的 .txt 文件',
-
 
         currentDesc
 
-
       );
-
 
       if (input === null) return;
 
-
       const description = input.toString().trim();
-
 
       if (!description) {
 
-
         showToast('描述不能为空');
-
 
         return;
 
-
       }
-
 
       const res = await api('/api/replay/file-selector', {
 
-
         method: 'POST',
-
 
         body: { description, exampleName: (meta?.docName || '').toString() }
 
-
       });
-
 
       const selector = res?.selector;
 
-
       if (!selector || typeof selector !== 'object') {
-
 
         showToast('生成文件匹配规则失败');
 
-
         return;
-
 
       }
 
-
       const nextMeta = {
-
 
         ...(meta || {}),
 
-
         type: 'add_doc',
-
 
         source: 'upload',
 
-
         docSelector: selector
-
 
       };
 
-
       const selectorHint =
-
 
         selector.kind === 'regex' ?
 
-
           `regex=${(selector.pattern || '').toString()}` :
-
 
           `keywords=${Array.isArray(selector.keywords) ? selector.keywords.join('??') : ''}${selector.extension ? ` ext=${selector.extension}` : ''}`;
 
-
       const head = `上传文档（灵活上传）：${selector.mode === 'multi' ? '批量匹配' : '单个匹配'}`;
-
 
       const body = [`描述：${description}`, `规则：${selectorHint}`].join('\n');
 
-
       const nextContent = appendReplayMeta([head, body].join('\n'), nextMeta);
-
 
       // 先构建更新后的 deposit 对象
       const currentDeposits = deposits || [];
@@ -8012,12 +5956,23 @@ ${combinedRequirements}
         return { 
           ...s, 
           content: nextContent,
-          // 更新 llmScript 中的 docSelector
+          // 【重要】同时更新 llmScript（大模型记录）和 originalScript（脚本记录）
+          // 灵活上传的修改应该同时影响两种模式的 replay
           llmScript: {
             ...(s.llmScript || {}),
             docSelector: selector,
-            flexKeywords: description
-          }
+            flexKeywords: description,
+            // 更新描述信息
+            actionDescription: `灵活上传文档：${description}`,
+            description: description
+          },
+          originalScript: {
+            ...(s.originalScript || {}),
+            content: nextContent,
+            meta: nextMeta
+          },
+          // 更新 meta（确保两种模式都能获取到最新的 docSelector）
+          meta: nextMeta
         };
       });
       const updatedDeposit = { ...currentDeposit, sections: nextSections, updatedAt: Date.now() };
@@ -8037,15 +5992,11 @@ ${combinedRequirements}
         showToast('生成成功但保存失败，请手动保存');
       }
 
-
     } catch (err) {
-
 
       console.error(err);
 
-
       showToast(err?.message || '灵活上传失败');
-
 
     }
   };
@@ -8141,6 +6092,12 @@ ${combinedRequirements}
       
       const res = await replayOneDepositSection(depWithMode, section);
       setReplaySectionStatus(depositId, sectionId, res.status, res.message || '', res.replayMode || 'script');
+      
+      // 【重要】Replay 成功后刷新文档列表，确保显示新上传的文档
+      if (res.status === 'done') {
+        await refreshDocsFromServer();
+      }
+      
       showToast(`单步 Replay ${res.status === 'done' ? '完成' : '失败'}`);
     } catch (err) {
       await restoreReplaySnapshot(snap);
@@ -8161,33 +6118,23 @@ ${combinedRequirements}
     // 旧字段
     cancelEditDeposit(depositId, `${sectionId}||action`);
 
-
     cancelEditDeposit(depositId, `${sectionId}||exec`);
-
 
     cancelEditDeposit(depositId, `${sectionId}||summary`);
 
-
     cancelEditDeposit(depositId, `${sectionId}||location`);
-
 
     cancelEditDeposit(depositId, `${sectionId}||req_input`);
 
-
     cancelEditDeposit(depositId, `${sectionId}||req_exec`);
-
 
     cancelEditDeposit(depositId, `${sectionId}||req_summary`);
 
-
     cancelEditDeposit(depositId, `${sectionId}||req_location`);
-
 
   };
 
-
   const applyDepositSection = async (depositId, sectionId) => {
-
 
     // 新字段 keys（基于 llmScript）
     const typeKey = `${depositId}||${sectionId}||type`;
@@ -8200,24 +6147,17 @@ ${combinedRequirements}
     // 旧字段 keys
     const actionKey = `${depositId}||${sectionId}||action`;
 
-
     const execKey = `${depositId}||${sectionId}||exec`;
-
 
     const summaryKey = `${depositId}||${sectionId}||summary`;
 
-
     const locationKey = `${depositId}||${sectionId}||location`;
-
 
     const reqInputKey = `${depositId}||${sectionId}||req_input`;
 
-
     const reqExecKey = `${depositId}||${sectionId}||req_exec`;
 
-
     const reqSummaryKey = `${depositId}||${sectionId}||req_summary`;
-
 
     const reqLocationKey = `${depositId}||${sectionId}||req_location`;
 
@@ -8232,57 +6172,39 @@ ${combinedRequirements}
     // 旧字段值
     const operationRecord = (depositEditing[actionKey] ?? '').toString();
 
-
     const actionExecution = (depositEditing[execKey] ?? '').toString();
-
 
     const executionSummary = (depositEditing[summaryKey] ?? '').toString();
 
-
     const recordLocation = (depositEditing[locationKey] ?? '').toString();
-
 
     const currentSection =
 
-
       deposits.find((d) => d.id === depositId)?.sections?.find((s) => s.id === sectionId) || {};
-
 
     const baseRequirements = getSectionRequirements(currentSection);
 
-
     const requirements = {
-
 
       inputSource: normalizeRequirement(depositEditing[reqInputKey] ?? baseRequirements.inputSource),
 
-
       actionExecution: normalizeRequirement(depositEditing[reqExecKey] ?? baseRequirements.actionExecution),
-
 
       executionSummary: normalizeRequirement(depositEditing[reqSummaryKey] ?? baseRequirements.executionSummary),
 
-
       recordLocation: normalizeRequirement(depositEditing[reqLocationKey] ?? baseRequirements.recordLocation)
-
 
     };
 
-
     const compileKey = `${depositId}||${sectionId}`;
-
 
     setCompilingDepositSections((prev) => ({ ...prev, [compileKey]: true }));
 
-
     try {
-
 
       const res = await api(`/api/multi/precipitation/records/${depositId}/sections/${sectionId}/compile`, {
 
-
         method: 'POST',
-
 
         body: {
 
@@ -8302,228 +6224,168 @@ ${combinedRequirements}
           // 旧字段（兼容）
           operationRecord,
 
-
           actionExecution,
-
 
           executionSummary,
 
-
           recordLocation,
-
 
           actionLabel: operationRecord,
 
-
           requirements
-
 
         }
 
-
       });
-
 
       if (res?.record) {
 
-
         setDeposits((prev) => prev.map((d) => d.id === res.record.id ? res.record : d));
-
 
       } else if (res?.section) {
 
-
         setDeposits((prev) =>
-
 
           prev.map((d) => {
 
-
             if (d.id !== depositId) return d;
-
 
             const nextSections = (d.sections || []).map((s) =>
 
-
               s.id === sectionId ? { ...res.section, requirements: res.section.requirements || requirements } : s
-
 
             );
 
-
             return { ...d, sections: nextSections };
-
 
           })
 
-
         );
-
 
       }
 
-
       cancelEditDepositSection(depositId, sectionId);
-
 
       showToast('已更新 section');
 
-
     } catch (e) {
-
 
       console.error('编译沉淀信息失败', e);
 
-
       showToast(e?.message || '编译失败');
-
 
     } finally {
 
-
       setCompilingDepositSections((prev) => {
-
 
         const next = { ...prev };
 
-
         delete next[compileKey];
-
 
         return next;
 
-
       });
-
 
     }
 
-
   };
-
 
   const handleDepositNameKeyDown = (e, depositId) => {
 
-
     if (e.key !== 'Enter') return;
 
-
     e.preventDefault();
-
 
     void applyDepositName(depositId);
 
-
   };
-
 
   const handleDepositSectionKeyDown = (e, depositId, sectionId) => {
 
-
     if (e.key !== 'Enter') return;
-
 
     if (e.shiftKey) return;
 
-
     e.preventDefault();
-
 
     void applyDepositSection(depositId, sectionId);
 
-
   };
-
 
   const isDepositSectionExpanded = (depositId, sectionId) => {
 
-
     const byDep = expandedDepositSections?.[depositId];
 
+    // 【修改】默认收起（false），而非展开
+    if (!byDep) return false;
 
-    if (!byDep) return true;
-
-
-    if (byDep[sectionId] === undefined) return true;
-
+    if (byDep[sectionId] === undefined) return false;
 
     return !!byDep[sectionId];
 
-
   };
-
 
   const toggleDepositSectionExpanded = (depositId, sectionId) => {
 
-
     setExpandedDepositSections((prev) => {
-
 
       const current = prev?.[depositId] || {};
 
-
       const nextVal = !(current[sectionId] !== false);
-
 
       return { ...prev, [depositId]: { ...current, [sectionId]: nextVal } };
 
-
     });
 
-
   };
-
 
   const setAllDepositSectionsExpanded = (depositId, expanded) => {
-
-
     const dep = deposits.find((d) => d.id === depositId);
-
-
     if (!dep) return;
 
-
-    const map = {};
-
-
-    (dep.sections || []).forEach((s) => {
-
-
-      map[s.id] = !!expanded;
-
-
+    // 使用 setSectionExpanded 更新状态（与 toggleSectionExpanded 保持一致）
+    setSectionExpanded((prev) => {
+      const next = { ...prev };
+      (dep.sections || []).forEach((s) => {
+        const key = `${depositId}_${s.id}`;
+        next[key] = !!expanded;
+      });
+      return next;
     });
-
-
-    setExpandedDepositSections((prev) => ({ ...prev, [depositId]: map }));
-
-
   };
 
+  // 检查某个沉淀的所有 section 是否全部展开
+  const areAllSectionsExpanded = (depositId) => {
+    const dep = deposits.find((d) => d.id === depositId);
+    if (!dep || !dep.sections || dep.sections.length === 0) return false;
+    
+    return dep.sections.every((s) => {
+      const key = `${depositId}_${s.id}`;
+      return sectionExpanded[key] === true;
+    });
+  };
+
+  // 切换某个沉淀的所有 section 展开/收起状态
+  const toggleAllDepositSectionsExpanded = (depositId) => {
+    const allExpanded = areAllSectionsExpanded(depositId);
+    setAllDepositSectionsExpanded(depositId, !allExpanded);
+  };
 
   const batchReplaySelectedDeposits = async () => {
 
-
     const ids = Object.keys(selectedDepositIds || {}).filter((k) => selectedDepositIds[k]);
-
 
     if (!ids.length) {
 
-
       showToast('请先选择要批量 Replay 的沉淀');
-
 
       return;
 
-
     }
-
 
     if (batchReplayRunning) return;
 
-
     setBatchReplayRunning(true);
-
 
     try {
 
@@ -8565,986 +6427,736 @@ ${combinedRequirements}
         console.log(`[批量Replay] 完成沉淀 ${i + 1}/${ids.length}: ${depName}`);
       }
 
-
       showToast('批量 Replay 完成');
 
-
     } finally {
-
 
       setBatchReplayRunning(false);
 
-
     }
 
-
   };
-
 
   const submitInputForm = async (formTarget) => {
 
-
     const formElement = formTarget instanceof HTMLFormElement ? formTarget : inputFormRef.current;
-
 
     if (!formElement) return;
 
-
     try {
-
 
       const form = new FormData(formElement);
 
-
       const name = (form.get('name') || '').toString().trim() || '未命名文档';
-
 
       const content = (form.get('content') || '').toString();
 
-
       if (!content.trim()) {
-
 
         showToast('粘贴的文本不能为空');
 
-
         return;
 
-
       }
-
 
       if (typeof content !== 'string') {
 
-
         showToast('content 必须为字符串');
-
 
         return;
 
-
       }
-
 
       const createRes = await api('/api/docs', { method: 'POST', body: { name, content } });
 
-
       const doc = createRes?.doc;
-
 
       setDocs((prev) => upsertDocsToFront(prev, [doc]));
 
-
       setSelectedDocId(doc.id);
-
 
       logSectionWithMeta('添加文档', {
 
-
         type: 'add_doc',
-
 
         docName: doc?.name || name,
 
-
         source: 'manual',
-
 
         overwritten: !!createRes?.overwritten,
 
-
         inputs: [{ kind: 'manual_text', length: (content || '').toString().length }],
-
 
         process: createRes?.overwritten ? '覆盖同名文档并更新内容' : '新增文档',
 
-
         outputs: { summary: '已新增文档：' + (doc?.name || name) + (createRes?.overwritten ? '（覆盖同名文档）' : '') },
-
 
         destinations: [{ kind: 'docs_list' }]
 
-
       });
-
 
       if (scene) {
 
-
         const docIds = Array.from(new Set([doc.id, ...(scene.docIds || [])]));
-
 
         const { scene: s } = await api(`/api/scene/${scene.id}`, {
 
-
           method: 'PATCH',
-
 
           body: { docIds }
 
-
         });
-
 
         setScene(s);
 
-
       }
-
 
       formElement.reset();
 
-
       showToast('文档已保存');
-
 
     } catch (err) {
 
-
       console.error(err);
-
 
       showToast(err.message || '保存失败');
 
-
     }
-
 
   };
 
-
   async function handleCreateDoc(event) {
-
 
     event.preventDefault();
 
-
     await submitInputForm(event.target);
 
-
   }
-
 
   function extractText(raw) {
 
-
     if (!raw) return '';
-
 
     if (typeof raw !== 'string') return String(raw);
 
-
     const trimmed = raw.trim();
-
 
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
 
-
       try {
-
 
         const parsed = JSON.parse(trimmed);
 
-
         if (typeof parsed === 'string') return parsed;
-
 
         if (parsed.detail && typeof parsed.detail === 'string') return parsed.detail;
 
-
         if (parsed.content && typeof parsed.content === 'string') return parsed.content;
-
 
         if (parsed.summary && typeof parsed.summary === 'string') return parsed.summary;
 
-
         const firstStr = Object.values(parsed).find((v) => typeof v === 'string');
-
 
         if (firstStr) return firstStr;
 
-
       } catch (_) {
-
 
         return trimmed;
 
-
       }
 
-
     }
-
 
     return trimmed;
 
-
   }
-
 
   async function handleFilePick(event) {
 
-
     const inputEl = event?.target;
-
 
     const files = Array.from(inputEl?.files || []);
 
-
     if (!files.length) return;
-
 
     const createdDocs = [];
 
-
     const failedFiles = [];
 
-
     try {
-
 
       for (const file of files) {
 
-
         try {
-
 
           const name = file?.name || '未命名文件';
 
-
           const isDocx = isDocxName(name);
-
 
           const rawText = isDocx ? await parseDocxFileToStructuredText(file) : await readFileText(file);
 
-
           const text = typeof rawText === 'string' ? rawText : String(rawText ?? '');
-
 
           const createRes = await api('/api/docs', {
 
-
             method: 'POST',
-
 
             body: { name, content: text }
 
-
           });
-
 
           const doc = createRes?.doc;
 
-
           createdDocs.push(doc);
 
-
-          logSectionWithMeta('添加文档', {
-
+          // 【修改】section 名称使用 "文档名称--上传为新文档" 格式
+          const docFileName = doc?.name || name;
+          const actionSuffix = createRes?.overwritten ? '覆盖同名文档' : '上传原始材料';
+          const sectionActionName = `${docFileName}--${actionSuffix}`;
+          
+          logSectionWithMeta(sectionActionName, {
 
             type: 'add_doc',
 
-
-            docName: doc?.name || name,
-
+            docName: docFileName,
 
             source: 'upload',
 
-
             overwritten: !!createRes?.overwritten,
-
 
             inputs: [
 
-
               {
-
 
                 kind: 'upload_file',
 
-
-                docName: doc?.name || name,
-
+                docName: docFileName,
 
                 length: text.length,
 
-
                 format: isDocx ? 'docx' : 'text'
-
 
               }],
 
+            process: (isDocx ? '解析 Word(.docx) 为结构化文本，' : '') + actionSuffix,
 
-            process: (isDocx ? '解析 Word(.docx) 为结构化文本，' : '') + (createRes?.overwritten ? '覆盖同名文档' : '上传为新文档'),
-
-
-            outputs: { summary: '已上传文档：' + (doc?.name || name) + (createRes?.overwritten ? '（覆盖同名文档）' : '') },
-
+            outputs: { 
+              // 【修复】summary 不再重复文档名称，只描述执行状态
+              summary: createRes?.overwritten ? '覆盖同名文档' : '新文档上传成功',
+              executionResult: `已成功上传文档「${docFileName}」${createRes?.overwritten ? '（覆盖同名文档）' : ''}`,
+              status: 'done'
+            },
 
             destinations: [{ kind: 'docs_list' }]
 
-
           });
-
 
         } catch (err) {
 
-
           console.error(err);
-
 
           failedFiles.push({
 
-
             name: file?.name || '(unknown)',
-
 
             error: err?.message || '读取或保存文件失败'
 
-
           });
-
 
         }
 
-
       }
-
 
       const uniqueCreatedDocs = uniqueDocsByIdKeepLast(createdDocs);
 
-
       if (uniqueCreatedDocs.length) {
-
 
         setDocs((prev) => upsertDocsToFront(prev, uniqueCreatedDocs));
 
-
         setSelectedDocId(uniqueCreatedDocs[0].id);
-
 
         if (scene) {
 
-
           const newIds = uniqueCreatedDocs.map((d) => d.id);
-
 
           const docIds = Array.from(new Set([...newIds, ...(scene.docIds || [])]));
 
-
           const { scene: s } = await api(`/api/scene/${scene.id}`, {
-
 
             method: 'PATCH',
 
-
             body: { docIds }
-
 
           });
 
-
           setScene(s);
-
 
         }
 
-
       }
-
 
       if (uniqueCreatedDocs.length && failedFiles.length) {
 
-
         showToast(`已上传 ${uniqueCreatedDocs.length} 个文档，失败 ${failedFiles.length} 个`);
-
 
       } else if (uniqueCreatedDocs.length) {
 
-
         showToast(`已上传 ${uniqueCreatedDocs.length} 个文档`);
-
 
       } else {
 
-
         const first = failedFiles[0];
-
 
         showToast(first?.error ? `读取或保存文件失败：${first.error}` : '读取或保存文件失败');
 
-
       }
-
 
     } catch (err) {
 
-
       console.error(err);
-
 
       showToast(err?.message || '读取或保存文件失败');
 
-
     } finally {
-
 
       if (uploadInputRef.current) uploadInputRef.current.value = '';
 
-
     }
 
-
   }
-
 
   async function getDocIdsForScene() {
 
-
     if (!scene) return [];
-
 
     let ids = scene.docIds || [];
 
-
     if (!ids.length && docs.length) {
-
 
       ids = docs.map((d) => d.id);
 
-
       const patched = await api(`/api/scene/${scene.id}`, {
-
 
         method: 'PATCH',
 
-
         body: { docIds: ids }
 
-
       });
-
 
       setScene(patched.scene);
 
-
     }
-
 
     return ids;
 
-
   }
-
 
   async function editSection(sectionId) {
 
-
     if (!scene) return;
-
 
     const current = scene.sections?.[sectionId]?.content || '';
 
-
     const next = window.prompt('编辑段落内容（Markdown/Text）', current);
-
 
     if (next === null) return;
 
-
     const { scene: s } = await api(`/api/scene/${scene.id}/section/${sectionId}`, {
-
 
       method: 'PATCH',
 
-
       body: { content: next }
 
-
     });
-
 
     setScene(s);
 
-
     showToast('内容已更新');
 
-
   }
 
-
+  /**
+   * 构建最终文档文本
+   * 收集大纲中的标题和摘要，使用 Markdown 格式，与 replay 保持一致
+   * 根据用户选择的合并方式处理摘要拼接
+   */
   function buildFinalText() {
-
-
     if (template && Array.isArray(template.sections)) {
-
-
-      const parts = template.sections.map(
-
-
-        (s) => `${s.title || ''}\n${(s.summary || '').trim()}`
-
-
-      );
-
-
-      return parts.join('\n\n');
-
-
+      const contentParts = [];
+      for (const sec of template.sections) {
+        if (!sec.title) continue;
+        // 使用 Markdown 格式的标题（# 前缀）
+        const levelPrefix = '#'.repeat(sec.level || 1);
+        contentParts.push(`${levelPrefix} ${sec.title}`);
+        
+        // 收集摘要
+        let summaries = [];
+        if (Array.isArray(sec.summaries) && sec.summaries.length > 0) {
+          summaries = sec.summaries;
+        } else if (sec.summary || sec.hint) {
+          summaries = [{ id: `${sec.id}_sum_0`, content: sec.summary || sec.hint || '' }];
+        }
+        
+        // 【修复】根据用户选择的合并方式处理摘要拼接
+        const mergeType = sectionMergeType[sec.id];
+        const summaryTexts = summaries.map(sum => (sum.content || '').toString().trim()).filter(Boolean);
+        
+        if (summaryTexts.length > 0) {
+          if (mergeType === 'sentence') {
+            // 句子拼接：首尾相连，不换行，直接连接成一个句子
+            contentParts.push(summaryTexts.join(''));
+          } else if (mergeType === 'paragraph') {
+            // 段落拼接：每个摘要之间换行
+            contentParts.push(summaryTexts.join('\n'));
+          } else {
+            // 默认：每个摘要单独一行（保持原有行为）
+            for (const text of summaryTexts) {
+              contentParts.push(text);
+            }
+          }
+        }
+        contentParts.push(''); // 空行分隔
+      }
+      return contentParts.join('\n').trim();
     }
-
 
     const slots = Object.keys(finalSlots).length ? finalSlots : {};
-
-
     if (!Object.keys(slots).length) return '';
 
-
     const lines = [];
-
-
     Object.entries(slots).forEach(([key, slot]) => {
-
-
       lines.push(key);
-
-
       lines.push(slot?.content?.trim() ? slot.content : '暂无内容');
-
-
       lines.push('');
-
-
     });
-
-
     return lines.join('\n');
-
-
   }
 
-
   async function openFinalPreview() {
+    console.log('[openFinalPreview] 开始执行, isDepositing:', isDepositing);
+    console.log('[openFinalPreview] 当前 template sections:', template?.sections?.map(s => ({
+      id: s.id,
+      title: s.title,
+      summary: s.summary,
+      summaries: s.summaries,
+      summariesCount: s.summaries?.length || 0
+    })));
 
-
-    const text = buildFinalText();
-
-
-    if (!text.trim()) {
-
-
-      showToast('暂无可生成的内容');
-
-
-      return;
-
-
+    // 先将当前版面的 template 和 sectionMergeType 同步到服务器
+    if (template) {
+      try {
+        // 【关键修复】同步 template 到当前场景
+        if (scene?.id) {
+          await api(`/api/scene/${scene.id}/apply-template`, { 
+            method: 'POST', 
+            body: { template } 
+          });
+          console.log('[openFinalPreview] 已同步 template 到当前场景:', scene.id);
+        }
+        
+        // 【关键】同时同步到 main 场景，确保应用端能获取到
+        if (scene?.id !== 'main') {
+          await api('/api/scene/main/apply-template', { 
+            method: 'POST', 
+            body: { template } 
+          });
+          console.log('[openFinalPreview] 已同步 template 到 main 场景');
+        }
+        
+        // 同步 template 到缓存（备用）
+        await api('/api/outline/cache', { method: 'POST', body: { template } });
+        console.log('[openFinalPreview] 已同步 template 到缓存');
+        
+        // 同步 sectionMergeType 到场景（当前场景和 main 场景）
+        if (Object.keys(sectionMergeType).length > 0) {
+          if (scene?.id) {
+            await api(`/api/scene/${scene.id}`, { 
+              method: 'PATCH', 
+              body: { sectionMergeType } 
+            });
+          }
+          // 同步到 main 场景
+          await api('/api/scene/main', { 
+            method: 'PATCH', 
+            body: { sectionMergeType } 
+          });
+          console.log('[openFinalPreview] 已同步 sectionMergeType 到场景');
+        }
+      } catch (e) {
+        console.log('[openFinalPreview] 同步数据失败', e);
+      }
     }
 
+    // 直接使用当前版面的 template（已经是最新的）
+    const text = buildFinalTextFromTemplate(template);
+    console.log('[openFinalPreview] buildFinalText 结果长度:', text?.length || 0);
+    console.log('[openFinalPreview] 生成的文本:\n', text);
+
+    if (!text.trim()) {
+      showToast('暂无可生成的内容');
+      console.log('[openFinalPreview] 内容为空，提前返回');
+      return;
+    }
 
     const cfg = llmButtons.find((b) => b.kind === 'final_generate');
 
-
-    let finalText = text;
-
-
-    let usedModel = null;
-
-
-    let modelAttempted = false;
-
-
-    if (cfg?.enabled && (cfg.prompt || '').toString().trim()) {
-
-
-      setFinalizing(true);
-
-
-      modelAttempted = true;
-
-
-      try {
-
-
-        const res = await api('/api/final/generate', {
-
-
-          method: 'POST',
-
-
-          body: { text, systemPrompt: cfg.prompt }
-
-
-        });
-
-
-        if (res?.text && typeof res.text === 'string') finalText = res.text;
-
-
-        usedModel = res?.usedModel !== false;
-
-
-      } catch (err) {
-
-
-        console.error(err);
-
-
-        showToast(err.message || '生成最终文档失败，将使用原始内容预览');
-
-
-        usedModel = null;
-
-
-      } finally {
-
-
-        setFinalizing(false);
-
-
-      }
-
-
-    }
-
-
-    logSectionWithMeta(cfg?.label || UI_TEXT.t91, {
-
-
-      type: 'final_generate',
-
-
-      buttonId: cfg?.id,
-
-
-      buttonLabel: cfg?.label,
-
-
-      prompt: cfg?.prompt,
-
-
-      inputs: [{ kind: 'manual_text', length: text.length }],
-
-
-      process: modelAttempted ? '使用大模型对合并内容进行润色' : '使用当前预览内容（未调用大模型）',
-
-
-      outputs: { summary: '最终文档已生成，长度：' + finalText.length + (usedModel === false ? '（未配置大模型）' : ''), textExcerpt: finalText },
-
-
-      destinations: [{ kind: 'final_preview' }],
-
-
-      usedModel
-
-
+    // 直接弹出预览窗口，显示大纲内容
+    setFinalDocumentPreview({
+      text: text,
+      usedModel: false,
+      sections: template?.sections || [],
+      isGenerating: false
     });
+    setShowDocPreviewModal(true);
 
-
-    const win = window.open('', '_blank');
-
-
-    if (win) {
-
-
-      win.document.write('<pre style="white-space: pre-wrap; font-family: inherit; padding:16px;">');
-
-
-      win.document.write(finalText.replace(/</g, '&lt;').replace(/>/g, '&gt;'));
-
-
-      win.document.write('</pre>');
-
-
-      win.document.close();
-
-
-    } else {
-
-
-      showToast('无法打开预览窗口');
-
-
-    }
-
-
+    // 记录沉淀
+    console.log('[openFinalPreview] 准备调用 logSectionWithMeta, isDepositing:', isDepositing);
+    logSectionWithMeta(cfg?.label || UI_TEXT.t91, {
+      type: 'final_generate',
+      buttonId: cfg?.id,
+      buttonLabel: cfg?.label,
+      precipitationMode: 'script',
+      inputs: [{ kind: 'outline_content', length: text.length }],
+      process: '脚本模式：收集大纲标题+摘要',
+      outputs: { summary: '最终文档已生成，长度：' + text.length, textExcerpt: text },
+      destinations: [{ kind: 'final_preview' }],
+      usedModel: false,
+      buttonConfig: { precipitationMode: 'script' }
+    });
+    console.log('[openFinalPreview] logSectionWithMeta 调用完成');
   }
 
+  /**
+   * 从指定的 template 构建最终文档文本
+   * 使用 Markdown 格式，与版面显示和服务器端 replay 保持一致
+   * 根据用户选择的合并方式处理摘要拼接
+   */
+  function buildFinalTextFromTemplate(tpl) {
+    if (!tpl || !Array.isArray(tpl.sections)) return '';
+    
+    const contentParts = [];
+    for (const sec of tpl.sections) {
+      if (!sec.title) continue;
+      // 使用 Markdown 格式的标题（# 前缀）
+      const levelPrefix = '#'.repeat(sec.level || 1);
+      contentParts.push(`${levelPrefix} ${sec.title}`);
+      
+      // 收集摘要 - 只使用实际的摘要内容，不使用 hint
+      let summaries = [];
+      if (Array.isArray(sec.summaries) && sec.summaries.length > 0) {
+        summaries = sec.summaries;
+      } else if (sec.summary && sec.summary.trim()) {
+        // 向后兼容：将单个 summary 字段转换为数组（不使用 hint）
+        summaries = [{ id: `${sec.id}_sum_0`, content: sec.summary }];
+      }
+      
+      // 【修复】根据用户选择的合并方式处理摘要拼接
+      const mergeType = sectionMergeType[sec.id];
+      const summaryTexts = summaries.map(sum => (sum.content || '').toString().trim()).filter(Boolean);
+      
+      if (summaryTexts.length > 0) {
+        // 默认使用句子拼接（与服务端保持一致）
+        const effectiveMergeType = mergeType || 'sentence';
+        
+        if (effectiveMergeType === 'sentence') {
+          // 句子拼接：首尾相连，不换行，直接连接成一个句子
+          contentParts.push(summaryTexts.join(''));
+        } else if (effectiveMergeType === 'paragraph') {
+          // 段落拼接：每个摘要之间换行
+          contentParts.push(summaryTexts.join('\n'));
+        } else {
+          // 其他情况：默认句子拼接
+          contentParts.push(summaryTexts.join(''));
+        }
+      }
+      contentParts.push(''); // 空行分隔
+    }
+    return contentParts.join('\n').trim();
+  }
 
   async function autoTemplate(buttonConfig) {
 
-
     console.log('[autoTemplate] Called with buttonConfig:', buttonConfig);
-
 
     let currentScene = scene;
 
-
     if (!currentScene) {
-
 
       // Auto-create scene if missing
 
-
       try {
-
 
         const docIds = selectedDocId ? [selectedDocId] : [];
 
-
         const res = await api('/api/scene', {
-
 
           method: 'POST',
 
-
           body: { docIds }
-
 
         });
 
-
         currentScene = res.scene;
-
 
         setScene(currentScene);
 
-
         showToast('已自动创建场景');
-
 
       } catch (e) {
 
-
         console.error('[autoTemplate] Scene creation failed:', e);
-
 
         showToast('自动创建场景失败，请稍后重试');
 
-
         return;
-
 
       }
 
-
     }
-
 
     // Determine configuration:
 
-
     // Ensure we use the clicked button's config (Global Button), merging with defaults if IO is missing
-
 
     let btnConfig = buttonConfig;
 
-
     // If it's a Global Button (likely lacking 'io'), merge with default definition for its kind
-
 
     if (btnConfig && !btnConfig.io) {
 
-
       const defaults = defaultLlmButtons();
-
 
       const defaultMatch = defaults.find((b) => b.kind === btnConfig.kind) || defaults[0];
 
-
       // Merge: Global overrides Default (label, prompt), but inherits IO
-
 
       btnConfig = {
 
-
         ...defaultMatch,
-
 
         ...btnConfig,
 
-
         io: defaultMatch.io // Explicitly use default IO if missing
-
 
       };
 
-
     }
-
 
     if (!btnConfig) {
 
-
       btnConfig = defaultLlmButtons()[0];
 
-
     }
-
 
     // Final button object
 
-
     const btn = btnConfig;
-
 
     console.log('[autoTemplate] Using resolved config:', btn);
 
-
     const doc = docs.find((d) => d.id === selectedDocId);
-
 
     if (!doc) {
 
-
       console.warn('[autoTemplate] No document selected');
-
 
       return showToast('请先在文档源列表中选择一个文档');
 
-
     }
-
 
     const io = normalizeIoRows(btn?.io, { dataSource: btn?.dataSource, outputTarget: btn?.outputTarget });
 
-
     const enabledRows = io.filter((r) => r.enabled);
-
 
     if (!enabledRows.some((r) => r.output === 'titles')) {
 
-
       showToast('请至少保留一条“输入标题”的规则');
-
 
       return;
 
-
     }
-
 
     const sources = Array.from(new Set(enabledRows.map((r) => r.dataSource)));
 
-
     const parts = sources.map((src) => {
-
 
       if (src === 'selected_doc') return `【资源列表选中文档】\n${doc.content || ''}`.trim();
 
-
       return `【内容预览】\n${docDraft || ''}`.trim();
-
 
     });
 
-
     const text = `${doc.name || '文档'}\n\n${parts.join('\n\n---\n\n')}`.trim();
-
 
     if (!text.trim()) return showToast('当前数据源内容为空，无法抽取大纲');
 
-
     console.log('[autoTemplate] Sending to API, text length:', text.length);
-
 
     setLoading(true);
 
-
     try {
-
 
       const tplRes = await api('/api/template/auto', {
 
-
         method: 'POST',
-
 
         body: { text, prompt: btn.prompt || '' }
 
-
       });
-
 
       console.log('[autoTemplate] API response:', tplRes);
 
-
       const hasSummaryToSummary = enabledRows.some((r) => r.output === 'summaries' && r.target === 'summary');
-
 
       const hasSummaryToTitle = enabledRows.some((r) => r.output === 'summaries' && r.target === 'title');
 
-
       const hasTitleToSummary = enabledRows.some((r) => r.output === 'titles' && r.target === 'summary');
-
 
       const transformedTemplate = {
 
-
         ...tplRes.template,
-
 
         sections: (tplRes.template?.sections || []).map((s) => {
 
-
           const modelTitle = (s?.title || '').toString();
-
 
           const modelSummary = (s?.summary || '').toString().trim();
 
-
           const title = hasSummaryToTitle && modelSummary ? `${modelTitle} - ${modelSummary}` : modelTitle;
-
 
           const summaryParts = [];
 
-
           if (hasTitleToSummary && modelTitle) summaryParts.push(modelTitle);
-
 
           if (hasSummaryToSummary && modelSummary) summaryParts.push(modelSummary);
 
-
           const summary = summaryParts.join('\n').trim();
-
 
           // CRITICAL FIX: Return the transformed section object
 
-
           return { ...s, title, summary };
-
 
         })
 
-
       };
-
 
       const applyRes = await api(`/api/scene/${currentScene.id}/apply-template`, {
 
-
         method: 'POST',
-
 
         body: { template: transformedTemplate }
 
-
       });
-
 
       setTemplate(applyRes.template);
 
-
       setScene(applyRes.scene);
 
-
       setShowOutlineMode(true);
-
 
       // ========== 大模型级别沉淀记录（全文大纲抽取）==========
       // 记录完整信息，支持 Replay 时使用新文档内容生成大纲
       logSectionWithMeta('全文大纲抽取', {
-
 
         type: 'outline_extract',
 
@@ -9553,12 +7165,9 @@ ${combinedRequirements}
 
         buttonId: btn.id,
 
-
         buttonLabel: btn.label,
 
-
         prompt: btn.prompt,
-
 
         io: enabledRows,
 
@@ -9571,9 +7180,7 @@ ${combinedRequirements}
 
         inputs: sources.map((src) =>
 
-
           src === 'selected_doc' ?
-
 
             { 
               kind: 'doc_resource', 
@@ -9583,7 +7190,6 @@ ${combinedRequirements}
               contentExcerpt: (doc.content || '').toString().substring(0, 300)
             } :
 
-
             { 
               kind: 'doc_preview', 
               docName: doc.name, 
@@ -9591,21 +7197,16 @@ ${combinedRequirements}
               contentExcerpt: (docDraft || '').toString().substring(0, 300)
             }
 
-
         ),
-
 
         process: '对输入文本进行语义理解，抽取 1-3 级标题，并按按钮配置写入标题/摘要',
 
         // ========== 输出信息 ==========
         outputs: {
 
-
           summary: '生成大纲：标题数 ' + applyRes.template.sections.length + (tplRes?.usedModel === false ? tplRes?.blocked ? '（安全拦截，已降级规则提取）' : '（未配置大模型）' : ''),
 
-
           sectionsCount: applyRes.template.sections.length,
-
 
           usedModel: tplRes?.usedModel !== false,
 
@@ -9621,21 +7222,15 @@ ${combinedRequirements}
 
           sectionsSample: (applyRes.template.sections || []).slice(0, 8).map((s) => ({
 
-
             id: s.id,
-
 
             level: s.level,
 
-
             title: clipText(s.title || '', 80),
-
 
             summaryExcerpt: clipText(s.summary || s.hint || '', 120)
 
-
           }))
-
 
         },
 
@@ -9647,580 +7242,389 @@ ${combinedRequirements}
         aiGuidance: `从输入文档中提取大纲结构，识别标题层级（1-3级），并为每个标题生成摘要或提示信息。Replay 时应使用目标文档的最新内容进行大纲抽取。`,
         specialRequirements: '保持原文档的结构层次，确保标题完整、摘要简洁'
 
-
       });
-
 
       showToast(
 
-
         tplRes?.usedModel === false ?
-
 
           tplRes?.blocked ?
 
-
             '已生成并应用新模板（内容审核拦截：规则抽取）' :
-
 
             '已生成并应用新模板（未配置大模型，请设置 QWEN_API_KEY）' :
 
-
           '已生成并应用新模板'
-
 
       );
 
-
     } catch (err) {
-
 
       showToast(err.message);
 
-
     } finally {
-
 
       setLoading(false);
 
-
     }
-
 
   }
 
-
   const clearOutlineTemplate = async () => {
-
 
     if (!scene?.id) {
 
-
       showToast('scene 未初始化，无法清除大纲');
-
 
       return;
 
-
     }
-
 
     const ok = window.confirm('确定清除当前已抽取的大纲内容吗？（将置空大纲与关联文档）');
 
-
     if (!ok) return;
-
 
     const prevCount = (template?.sections || []).length;
 
-
     setLoading(true);
-
 
     try {
 
-
       const emptyTpl = { id: 'template_empty', name: '空模板', sections: [] };
-
 
       try {
 
-
         await api(`/api/scene/${scene.id}`, { method: 'PATCH', body: { sectionDocLinks: {} } });
 
-
       } catch (_) {
-
 
         /* ignore */
       }
 
-
       const res = await api(`/api/scene/${scene.id}/apply-template`, { method: 'POST', body: { template: emptyTpl } });
-
 
       if (res?.scene) setScene(res.scene);
 
-
       if (res?.template) setTemplate(res.template);
-
 
       setSectionDocLinks(res?.scene?.sectionDocLinks || {});
 
-
       setSectionDocPick({});
-
 
       setSelectedOutlineExec({});
 
-
       setSectionDocDone({});
-
 
       setSummaryExpanded({});
 
-
       setOutlineEditing({});
-
 
       logSectionWithMeta('清除大纲', {
 
-
         type: 'outline_clear',
-
 
         inputs: [{ kind: 'outline_selected', count: prevCount, sectionIds: (template?.sections || []).map((s) => s.id) }],
 
-
         process: '清空已抽取的大纲数据，使用空模板并重置列表',
-
 
         outputs: { summary: `已清空大纲，原有标题 ${prevCount} 条`, clearedCount: prevCount },
 
-
         destinations: [{ kind: 'outline_apply', count: 0 }]
 
-
       });
-
 
       showToast('已清空大纲');
 
-
     } catch (err) {
 
-
       console.error(err);
-
 
       showToast(err?.message || '清除失败');
 
-
     } finally {
-
 
       setLoading(false);
 
-
     }
 
-
   };
-
 
   const runOutlineSlotButton = async (btn) => {
 
-
     if (!btn?.enabled) return;
 
-
     if (!scene) return;
-
 
     if (!template) return;
 
-
     const selectedSections = (template.sections || []).filter((sec) => selectedOutlineExec[sec.id]);
-
 
     if (!selectedSections.length) {
 
-
       showToast('请先勾选要写入的标题');
-
 
       return;
 
-
     }
-
 
     const io = normalizeIoRows(btn?.io, { dataSource: btn?.dataSource, outputTarget: btn?.outputTarget });
 
-
     const enabledRows = io.filter((r) => r.enabled);
-
 
     const hasToSummary = enabledRows.some((r) => r.output === 'summaries' && r.target === 'summary');
 
-
     const hasToTitle = enabledRows.some((r) => r.output === 'summaries' && r.target === 'title');
-
 
     if (!hasToSummary && !hasToTitle) {
 
-
       showToast('按钮配置缺少“摘要/标题”写入规则，无法应用');
-
 
       return;
 
-
     }
-
 
     const doc = docs.find((d) => d.id === selectedDocId) || null;
 
-
     if (!doc) {
-
 
       showToast('请先选择一个文档作为数据源');
 
-
       return;
 
-
     }
-
 
     const previewText =
 
-
       doc?.id && doc.id === selectedDocId && (docDraft || '').toString().trim() ?
-
 
         docDraft :
 
-
         (doc.content || '').toString();
-
 
     const sources = Array.from(new Set(enabledRows.map((r) => r.dataSource)));
 
-
     const parts = sources.map((src) => {
-
 
       if (src === 'selected_doc') return `【资源列表选中文档】\n${doc.content || ''}`.trim();
 
-
       return `【内容预览】\n${previewText}`.trim();
-
 
     });
 
-
     const docContent = `${doc.name || '文档'}\n\n${parts.join('\n\n---\n\n')}`.trim();
-
 
     if (!docContent.trim()) {
 
-
       showToast('当前数据源内容为空');
-
 
       return;
 
-
     }
-
 
     const instructions = ((btn?.label || '').toString().trim() || '执行').toString();
 
-
     const outlineSegments = selectedSections.map((sec, idx) => ({
-
 
       sectionId: sec.id,
 
-
       field: 'summary',
-
 
       label: (sec.title || `标题${idx + 1}`).toString(),
 
-
       content: (sec.summary || sec.hint || '').toString()
-
 
     }));
 
-
     setLoading(true);
-
 
     try {
 
-
       const result = await api('/api/dispatch', {
-
 
         method: 'POST',
 
-
         body: {
-
 
           sceneId: scene.id,
 
-
           instructions,
-
 
           docContent,
 
-
           outlineSegments,
-
 
           systemPrompt: btn?.prompt
 
-
         }
 
-
       });
-
 
       if (result?.usedModel === false) {
 
-
         throw new Error('未配置QWEN_API_KEY，未调用大模型（请在 `server.js` 配置环境变量后重试）');
 
-
       }
-
 
       const summary = extractText(result.summary || '') || '已完成';
 
-
       const detail = extractText(result.detail || '') || '';
-
 
       if (detail.trim()) {
 
-
         const ids = selectedSections.map((s) => s.id);
-
 
         setTemplate((prev) => {
 
-
           if (!prev) return prev;
-
 
           const nextSections = prev.sections.map((sec) => {
 
-
             if (!ids.includes(sec.id)) return sec;
-
 
             return {
 
-
               ...sec,
-
 
               title: hasToTitle ? detail : sec.title,
 
-
               summary: hasToSummary ? detail : sec.summary
-
 
             };
 
-
           });
-
 
           const nextTpl = { ...prev, sections: nextSections };
 
-
           if (scene?.customTemplate) setScene({ ...scene, customTemplate: nextTpl });
-
 
           return nextTpl;
 
-
         });
 
-
       }
-
 
       logSectionWithMeta('个性化按钮', {
 
-
         type: 'outline_action',
-
 
         buttonId: btn?.id,
 
-
         buttonLabel: btn?.label,
-
 
         prompt: btn?.prompt,
 
-
         selectedSectionIds: selectedSections.map((s) => s.id),
-
 
         inputs: [
 
-
           { kind: 'outline_selected', sectionIds: selectedSections.map((s) => s.id) },
-
 
           ...sources.map((src) => ({ kind: src === 'selected_doc' ? 'selected_doc' : 'preview', length: docContent.length }))],
 
-
         process: '使用个性化按钮调用大模型，对选中标题进行写入并应用结果',
-
 
         outputs: { summary, detailLength: detail.length },
 
-
         destinations: [{ kind: 'outline_section_summary_batch', sectionIds: selectedSections.map((s) => s.id), count: selectedSections.length }]
-
 
       });
 
-
       showToast(summary);
-
 
     } catch (err) {
 
-
       console.error(err);
-
 
       showToast(err?.message || '执行失败');
 
-
     } finally {
-
 
       setLoading(false);
 
-
     }
-
 
   };
 
-
   async function runDispatch() {
-
 
     if (!scene) return;
 
-
     const dispatchCfg = llmButtons.find((b) => b.kind === 'dispatch');
-
 
     if (dispatchCfg && !dispatchCfg.enabled) {
 
-
       showToast('执行指令按钮已关闭');
-
 
       return;
 
-
     }
-
 
     const instructions = dispatchInputRef.current?.value || '';
 
-
     if (!instructions.trim()) {
-
 
       showToast('请输入指令');
 
-
       return;
-
 
     }
 
-
     if (dispatchInputRef.current) dispatchInputRef.current.value = '';
-
 
     // 注意：不记录"输入指令"步骤，只在"执行指令"时记录完整信息（包括prompt和输出结果）
 
-
     const baseDoc = docs.find((d) => d.id === selectedDocId)?.content || '';
-
 
     let docContent = baseDoc;
 
-
     let outlineSegments = [];
-
 
     const dispatchInputs = [];
 
-
     let dispatchInputKind = dispatchMode === 'result' ? 'result' : 'doc';
-
 
     let selectedOutlineIdsForDispatch = [];
 
-
     let dispatchInputNote = '';
-
 
     let historyInputs = null;
 
-
     if (dispatchMode === 'batch_outline') {
-
 
       const selectedSections = (template?.sections || []).filter((sec) => selectedOutlineExec[sec.id]);
 
-
       if (!selectedSections.length) {
-
 
         showToast('请先选择要处理的标题');
 
-
         return;
-
 
       }
 
-
       selectedOutlineIdsForDispatch = selectedSections.map((s) => s.id);
-
 
       dispatchInputs.push({ kind: 'outline_selected', sectionIds: selectedOutlineIdsForDispatch });
 
-
       dispatchInputKind = 'outline_selected_batch';
-
 
       dispatchInputNote = '输入来自：已勾选标题及摘要；输出将按 edits 修改大纲';
 
-
       outlineSegments = selectedSections.map((sec, idx) => ({
-
 
         sectionId: sec.id,
 
-
         field: 'summary', // Initial field hint, but content includes both
-
 
         content: `标题：${sec.title}\n摘要：${sec.summary || sec.hint || ''}`,
 
-
         label: `片段${idx + 1}`
 
-
       }));
-
 
       const labeled = outlineSegments.
         map((seg) => `【${seg.label} | ID=${seg.sectionId}】\n${seg.content}`).
         join('\n\n');
       docContent = labeled;
-
 
     } else if (showOutlineMode) {
       // ===== 多摘要选择模式：检查是否有选中的具体摘要 =====
@@ -10229,7 +7633,10 @@ ${combinedRequirements}
       if (selectedSummaryKeys.length > 0) {
         // 使用多摘要选择模式：处理选中的具体摘要
         const summaryTargets = selectedSummaryKeys.map(key => {
-          const [sectionId, sumIdxStr] = key.split('_');
+          // 修复：使用 lastIndexOf 正确分割，因为 sectionId 可能包含下划线（如 sec_local_xxx）
+          const lastUnderscoreIdx = key.lastIndexOf('_');
+          const sectionId = key.slice(0, lastUnderscoreIdx);
+          const sumIdxStr = key.slice(lastUnderscoreIdx + 1);
           const sumIdx = parseInt(sumIdxStr, 10);
           const section = (template?.sections || []).find(s => s.id === sectionId);
           return { sectionId, sumIdx, section, key };
@@ -10352,162 +7759,109 @@ ${combinedRequirements}
       }
     } else if (dispatchMode === 'result') {
 
-
       dispatchInputKind = 'result';
-
 
       dispatchInputNote = '输入来自：操作调度历史中选择的片段；输出写入处理结果';
 
-
       const entries = Object.entries(selectedLogTexts).filter(
-
 
         ([, v]) => typeof v === 'string' && v.trim()
 
-
       );
-
 
       if (!entries.length) {
 
-
         showToast('请先选择操作历史片段');
-
 
         return;
 
-
       }
-
 
       historyInputs = entries.map(([key, text]) => ({
 
-
         key,
-
 
         length: (text || '').toString().trim().length,
 
-
         text: clipText((text || '').toString().trim(), 2200)
-
 
       }));
 
-
       dispatchInputs.push(`历史片段：${entries.length}段）`);
-
 
       const labeled = entries.map(([key, text], idx) => {
 
-
         const tag = key.includes('detail') ? '详情' : '摘要/指令';
-
 
         return `【片：${idx + 1}：${tag}】\n${text.trim()}`;
 
-
       });
-
 
       docContent = labeled.join('\n\n');
 
-
     } else {
-
 
       dispatchInputKind = 'doc';
 
-
       dispatchInputNote = '输入来自：来源列表选中的文档；输出写入处理结果';
-
 
       if (!docContent.trim()) {
 
-
         showToast('请先选择文档并确保内容存在');
-
 
         return;
 
-
       }
-
 
       const selected = docs.find((d) => d.id === selectedDocId);
 
-
       if (selected) dispatchInputs.push({ kind: 'doc_resource', docName: selected.name, length: (selected.content || '').toString().length });
-
 
     }
 
-
     setDispatchLogs((logs) => [...logs, { role: 'user', text: instructions }]);
-
 
     setDispatching(true);
 
-
     try {
-
 
       const result = await api('/api/dispatch', {
 
-
         method: 'POST',
-
 
         body: {
 
-
           sceneId: scene.id,
-
 
           instructions,
 
-
           docContent,
-
 
           outlineSegments,
 
-
           systemPrompt: dispatchCfg?.prompt
-
 
         }
 
-
       });
-
 
       const usedModel = result?.usedModel !== false;
 
-
       const summary = extractText(result.summary || '') || (usedModel ? '模型已处理' : '未配置大模型，使用占位结果');
-
 
       const detail = extractText(result.detail || '');
 
-
       setDispatchLogs((logs) => [...logs, { role: 'system', text: summary, detail }]);
-
 
       setProcessedContent(detail || summary);
 
-
       setSelectedLogTexts({});
-
 
       showToast(summary || '未生成结果');
 
-
       if (dispatchInputRef.current) dispatchInputRef.current.value = '';
 
-
       let appliedEditsCount = 0;
-
 
       // 如果返回了大纲编辑内容，应用到模板上 
       // 辅助函数：从大模型返回的 sectionId 中解析出实际 ID
@@ -10635,24 +7989,17 @@ ${combinedRequirements}
           });
           const nextTpl = { ...prev, sections: nextSections };
 
-
           if (scene?.customTemplate) {
-
 
             setScene({ ...scene, customTemplate: nextTpl });
 
-
           }
-
 
           return nextTpl;
 
-
         });
 
-
       }
-
 
       // 记录 edits 已经更新的 sectionId
       const editedSectionIds = new Set();
@@ -10665,7 +8012,6 @@ ${combinedRequirements}
       }
 
       let appliedSummaryCount = 0;
-
 
       // 对于 edits 没有覆盖到的选中标题，如果有 detail，用 detail 填充
       if (showOutlineMode && detail) {
@@ -10682,39 +8028,27 @@ ${combinedRequirements}
               remainingIds.includes(sec.id) ? { ...sec, summary: detail } : sec
             );
 
-
             const nextTpl = { ...prev, sections: nextSections };
-
 
             if (scene?.customTemplate) {
 
-
               setScene({ ...scene, customTemplate: nextTpl });
-
 
             }
 
-
             return nextTpl;
-
 
           });
 
-
         }
-
 
       }
 
-
       const destinations = [{ kind: 'dispatch_result' }];
-
 
       if (showOutlineMode && appliedSummaryCount) destinations.push({ kind: 'dispatch_apply', count: appliedSummaryCount });
 
-
       if (appliedEditsCount) destinations.push(`文档处理/大纲配置（按 edits 写回${appliedEditsCount}处）`);
-
 
       // 沉淀记录：执行指令 - 记录完整信息
       // 包括：prompt内容、输入来源、输出目标、输出内容、特殊要求
@@ -10922,303 +8256,203 @@ ${combinedRequirements}
           : '无'
       });
 
-
       // 若处理了文档，标记已处理 
-
 
       if (showOutlineMode) {
 
-
         const selectedSections = Object.keys(selectedOutlineExec).filter((id) => selectedOutlineExec[id]);
-
 
         setSectionDocDone((prev) => {
 
-
           const next = { ...prev };
-
 
           selectedSections.forEach((sid) => {
 
-
             const docsInSection = sectionDocLinks[sid] || [];
-
 
             docsInSection.forEach((dId) => {
 
-
               if (!next[sid]) next[sid] = {};
-
 
               next[sid][dId] = true;
 
-
             });
-
 
           });
 
-
           return next;
-
 
         });
 
-
       }
 
-
     } catch (err) {
-
 
       showToast(err.message);
 
-
       setDispatchLogs((logs) => [...logs, { role: 'system', text: `执行失败：${err.message}` }]);
-
 
     } finally {
 
-
       setDispatching(false);
-
 
     }
 
-
   }
-
 
   async function applyProcessedToOutput() {
 
-
     if (!scene) return;
-
 
     const content = processedContent || '';
 
-
     if (!content.trim()) {
-
 
       showToast('暂无可写入的处理结果');
 
-
       return;
 
-
     }
-
 
     setFinalSlots({ result: { content } });
 
-
     showToast('已写入处理结果');
 
-
   }
-
 
   async function deleteDoc(id) {
 
-
     try {
-
 
       await api(`/api/docs/${id}`, { method: 'DELETE' });
 
-
       const nextDocs = docs.filter((d) => d.id !== id);
-
 
       setDocs(nextDocs);
 
-
       setSectionDocLinks((prev) => {
-
 
         const next = { ...prev };
 
-
         Object.keys(next).forEach((secId) => {
-
 
           next[secId] = (next[secId] || []).filter((dId) => dId !== id);
 
-
           if (!next[secId].length) delete next[secId];
-
 
         });
 
-
         return next;
-
 
       });
 
-
       if (scene) {
-
 
         const docIds = (scene.docIds || []).filter((dId) => dId !== id);
 
-
         const updatedScene = { ...scene, docIds };
-
 
         setScene(updatedScene);
 
-
       }
-
 
       if (selectedDocId === id) {
 
-
         setSelectedDocId(nextDocs[0]?.id || null);
 
-
       }
-
 
       showToast('文档已删除');
 
-
     } catch (err) {
 
-
       console.error(err);
-
 
       showToast(err.message || '删除失败');
 
-
     }
-
 
   }
 
-
   const clearAllDocs = async () => {
-
 
     if (!docs.length) return;
 
-
     if (!confirm('确认要清空文档列表中的全部文件吗？此操作不可撤销。')) return;
-
 
     try {
 
-
       for (const doc of docs) {
-
 
         await api(`/api/docs/${doc.id}`, { method: 'DELETE' });
 
-
       }
-
 
       setDocs([]);
 
-
       setSelectedDocId(null);
-
 
       setSectionDocLinks({});
 
-
       setSectionDocPick({});
-
 
       setSectionDocDone({});
 
-
       if (scene) {
-
 
         setScene({ ...scene, docIds: [] });
 
-
       }
-
 
       showToast('已清空全部文档');
 
-
     } catch (err) {
-
 
       console.error(err);
 
-
       showToast(err.message || '清除失败');
-
 
     }
 
-
   };
-
 
   useEffect(() => {
 
-
     if (!appButtonsConfig.length) {
-
 
       setSelectedAppButtonId('');
 
-
       return;
-
 
     }
 
-
     setSelectedAppButtonId((prev) => {
-
 
       if (prev && appButtonsConfig.some((btn) => btn.id === prev)) return prev;
 
-
       return appButtonsConfig[0].id;
-
 
     });
 
-
   }, [appButtonsConfig]);
-
 
   const selectedDoc = docs.find((d) => d.id === selectedDocId);
 
-
   const levelLabel = {
-
 
     1: '一级标题',
 
-
     2: '二级标题',
-
 
     3: '三级标题',
 
-
     4: '四级标题',
-
 
     5: '五级标题'
 
-
   };
 
-
   const slotsForOutput = Object.keys(finalSlots).length ? finalSlots : {};
-
 
   const startEditOutline = (id, field, value, sumIdx = null) => {
     // 支持多摘要：如果提供了 sumIdx，使用带索引的 key
@@ -11229,45 +8463,31 @@ ${combinedRequirements}
     }));
   };
 
-
   const addDocToSection = (sectionId) => {
-
 
     const pick = sectionDocPick[sectionId] || selectedDocId;
 
-
     if (!pick) {
-
 
       showToast('请选择要关联的文档');
 
-
       return;
-
 
     }
 
-
     const current = sectionDocLinks[sectionId] || [];
-
 
     if (current.includes(pick)) return;
 
-
     const nextLinks = { ...sectionDocLinks, [sectionId]: [...current, pick] };
-
 
     setSectionDocLinks(nextLinks);
 
-
     void persistSectionLinks(nextLinks);
-
 
     const sec = (template?.sections || []).find((s) => s.id === sectionId);
 
-
     const docName = docs.find((d) => d.id === pick)?.name || pick;
-
 
     const levelText = sec ? (sec.level === 1 ? '一级标题' : sec.level === 2 ? '二级标题' : sec.level === 3 ? '三级标题' : `${sec.level}级标题`) : '未知';
     
@@ -11309,30 +8529,21 @@ ${combinedRequirements}
       [sec ? `标题：${sec.title || ''}（第${Number(sec.level) || 1}级）` : `标题：${sectionId}`]
     );
 
-
   };
-
 
   const copyPreviewToSummary = (sectionId, docId) => {
 
-
     const pickId = docId || sectionDocPick[sectionId] || selectedDocId;
-
 
     const doc = docs.find((d) => d.id === pickId);
 
-
     const content =
-
 
       pickId && pickId === selectedDocId ? docDraft || doc?.content || '' : doc?.content || '';
 
-
     setTemplate((prev) => {
 
-
       if (!prev) return prev;
-
 
       const nextSections = prev.sections.map((sec) => {
         if (sec.id !== sectionId) return sec;
@@ -11353,24 +8564,17 @@ ${combinedRequirements}
         }
       });
 
-
       const nextTpl = { ...prev, sections: nextSections };
-
 
       if (scene?.customTemplate) {
 
-
         setScene({ ...scene, customTemplate: nextTpl });
-
 
       }
 
-
       return nextTpl;
 
-
     });
-
 
     const sec = (template?.sections || []).find((s) => s.id === sectionId);
     const docName = doc?.name || pickId || '';
@@ -11420,205 +8624,187 @@ ${combinedRequirements}
           targetSectionTitle: sec?.title || '',
           newSummaryLength: contentStr.length
         },
-        destinations: [{ kind: 'outline_section_summary', sectionId, sectionTitle: sec?.title || '' }],
+        destinations: [{ 
+          kind: 'outline_section_summary', 
+          sectionId, 
+          sectionTitle: sec?.title || '',
+          sectionLevel: sec?.level || 1,
+          summaryIndex: 0  // 【新增】复制全文默认写入第1个摘要
+        }],
         // === AI 指导 ===
-        aiGuidance: `在大纲中找到${levelText}「${sec?.title || ''}」，将关联的文档「${docName}」全文复制到该标题的摘要中。Replay 时应验证复制后的内容长度和特征是否匹配。`
+        aiGuidance: `在大纲中找到${levelText}「${sec?.title || ''}」，将关联的文档「${docName}」全文复制到该标题的第1个摘要中。Replay 时应验证复制后的内容长度和特征是否匹配。`
       },
       [sec ? `标题：${sec.title || ''}（第${Number(sec.level) || 1}级）` : `标题：${sectionId}`]
     );
-
 
     showToast(content.toString().trim().length ? '已复制全文到摘要' : '全文为空，已清空摘要');
 
-
   };
-
 
   const removeDocFromSection = (sectionId, docId) => {
 
-
     const current = sectionDocLinks[sectionId] || [];
-
 
     const nextList = current.filter((d) => d !== docId);
 
-
     const next = { ...sectionDocLinks, [sectionId]: nextList };
-
 
     if (!nextList.length) delete next[sectionId];
 
-
     setSectionDocLinks(next);
-
 
     void persistSectionLinks(next);
 
-
     setSectionDocDone((prev) => {
-
 
       const next = { ...prev };
 
-
       if (next[sectionId]) {
-
 
         delete next[sectionId][docId];
 
-
         if (!Object.keys(next[sectionId]).length) delete next[sectionId];
-
 
       }
 
-
       return next;
-
 
     });
 
-
     const sec = (template?.sections || []).find((s) => s.id === sectionId);
-
 
     const docName = docs.find((d) => d.id === docId)?.name || docId;
 
-
     logSectionWithMeta(
-
 
       '取消关联',
 
-
       {
-
 
         type: 'outline_unlink_doc',
 
-
         sectionId,
-
 
         docId,
 
-
         docName,
-
 
         inputs: [{ kind: 'doc_link_pick', sectionId, docName }],
 
-
         process: '从大纲标题移除已关联文档',
-
 
         outputs: { summary: `已取消关联文档：${docName}` },
 
-
         destinations: [{ kind: 'outline_section_docs', sectionId }]
-
 
       },
 
-
       [sec ? `标题：${sec.title || ''}（第${Number(sec.level) || 1}级）` : `标题：${sectionId}`]
-
 
     );
 
-
   };
-
 
   const persistSectionLinks = async (links) => {
 
-
     if (!scene) return null;
 
-
     try {
-
 
       const { scene: s } = await api(`/api/scene/${scene.id}`, {
 
-
         method: 'PATCH',
-
 
         body: { sectionDocLinks: links }
 
-
       });
-
 
       setScene(s);
 
-
       setSectionDocLinks(s?.sectionDocLinks || {});
 
+      // 【关键】同时同步到 main 场景，确保应用端能获取到
+      if (scene.id !== 'main') {
+        await api('/api/scene/main', {
+          method: 'PATCH',
+          body: { sectionDocLinks: links }
+        });
+        console.log('[persistSectionLinks] 已同步 sectionDocLinks 到 main 场景');
+      }
 
       return s;
 
-
     } catch (err) {
 
-
       console.error(err);
-
 
       showToast(err.message || '关联同步失败');
 
-
     }
-
 
     return null;
 
-
   };
-
 
   const saveDocDraft = async () => {
+    console.log('[saveDocDraft] 开始保存, selectedDocId:', selectedDocId);
 
-
-    if (!selectedDocId) return;
-
-
-    try {
-
-
-      const { doc } = await api(`/api/docs/${selectedDocId}`, {
-
-
-        method: 'PATCH',
-
-
-        body: { content: docDraft }
-
-
-      });
-
-
-      setDocs((prev) => prev.map((d) => d.id === doc.id ? doc : d));
-
-
-      showToast('文档内容已保存');
-
-
-    } catch (err) {
-
-
-      console.error(err);
-
-
-      showToast(err.message || '更新文档失败');
-
-
+    if (!selectedDocId) {
+      console.log('[saveDocDraft] 没有选中文档，跳过保存');
+      showToast('请先选择一个文档');
+      return;
     }
 
+    // 获取用户配置的文件目录
+    const exportDir = replayDirConfig?.dirPath || '';
+    if (!exportDir) {
+      console.warn('[saveDocDraft] 未配置文件目录，仅保存到服务端状态');
+    }
 
+    try {
+      console.log('[saveDocDraft] 发送保存请求, 内容长度:', docDraft?.length, '导出目录:', exportDir);
+      
+      const result = await api(`/api/docs/${selectedDocId}`, {
+        method: 'PATCH',
+        body: { 
+          content: docDraft, 
+          exportToFile: !!exportDir,  // 只有配置了目录才导出
+          exportDir: exportDir  // 使用用户配置的目录
+        }
+      });
+      
+      console.log('[saveDocDraft] 服务端响应:', result);
+      
+      const doc = result?.doc;
+      if (!doc) {
+        console.warn('[saveDocDraft] 服务端未返回 doc 对象');
+      }
+
+      // 【修复】确保 docs 数组中的文档内容也同步更新
+      setDocs((prev) => prev.map((d) => {
+        if (d.id === selectedDocId) {
+          // 使用服务端返回的 doc，确保内容是最新的
+          return { ...d, content: docDraft, ...(doc || {}) };
+        }
+        return d;
+      }));
+
+      // 显示保存结果
+      if (result?.exportedPath) {
+        const shortPath = result.exportedPath.split(/[/\\]/).slice(-1).join('/');
+        showToast(`已保存并导出: ${shortPath}`);
+      } else if (!exportDir) {
+        showToast('已保存（未配置文件目录，未导出文件）');
+      } else {
+        showToast('文档内容已保存');
+      }
+      console.log('[saveDocDraft] 保存成功, 导出路径:', result?.exportedPath);
+
+    } catch (err) {
+      console.error('[saveDocDraft] 保存失败:', err);
+      showToast(err.message || '更新文档失败');
+    }
   };
-
 
   const cancelEditOutline = (id, field, sumIdx = null) => {
     // 支持多摘要：如果提供了 sumIdx，使用带索引的 key
@@ -11629,15 +8815,16 @@ ${combinedRequirements}
       return next;
     });
 
-
   };
-
 
   const applyOutlineUpdate = (sectionId, field, value, sumIdx = null) => {
 
     const sec = template?.sections.find((s) => s.id === sectionId);
     const prevSummary = sec?.summary || '';
     const prevTitle = sec?.title || '';
+    
+    // 【关键】在闭包外部获取 sceneId，确保获取到正确的值
+    const currentSceneId = scene?.id;
 
     setTemplate((prev) => {
       if (!prev) return prev;
@@ -11674,123 +8861,114 @@ ${combinedRequirements}
         return sc;
       });
 
+      // 【关键修复】同步到服务端，同时更新当前场景和 main 场景
+      const syncToServer = async () => {
+        try {
+          // 1. 更新当前场景
+          if (currentSceneId) {
+            await api(`/api/scene/${currentSceneId}/apply-template`, { 
+              method: 'POST', 
+              body: { template: nextTpl } 
+            });
+            console.log('[applyOutlineUpdate] 已同步到当前场景:', currentSceneId);
+          }
+          
+          // 2. 【关键】同时更新 main 场景，确保应用端能获取到
+          if (currentSceneId !== 'main') {
+            await api('/api/scene/main/apply-template', { 
+              method: 'POST', 
+              body: { template: nextTpl } 
+            });
+            console.log('[applyOutlineUpdate] 已同步到 main 场景');
+          }
+        } catch (e) {
+          console.log('[applyOutlineUpdate] 同步失败', e);
+        }
+      };
+      syncToServer();
+
       return nextTpl;
     });
 
     cancelEditOutline(sectionId, field, sumIdx);
 
-
     if (field === 'summary') {
-
 
       const sec = (template?.sections || []).find((s) => s.id === sectionId);
       // 沉淀记录：用标题定位，不记录编辑框具体内容
 
-
       logSectionWithMeta(
-
 
         '编辑摘要',
 
-
         {
 
-
           type: 'edit_outline_summary',
-
 
           // 使用标题定位，而非序号
           sectionTitle: sec?.title || '',
           sectionId,
 
-
           inputs: [{ kind: 'manual_edit', sourceType: 'user_edit' }],
-
 
           process: '手动编辑大纲标题下的摘要内容',
 
-
           outputs: {
-
 
             summary: '摘要已更新',
             status: 'done'
 
-
           },
-
 
           // 记录位置：使用标题
           destinations: [{ kind: 'outline_section_summary', sectionTitle: sec?.title || '', sectionId }]
 
-
         },
-
 
         [sec ? `标题：${sec.title || ''}（第${Number(sec.level) || 1}级）` : `标题：${sectionId}`]
 
-
       );
 
-
     } else if (field === 'title') {
-
 
       const sec = (template?.sections || []).find((s) => s.id === sectionId);
       // 沉淀记录：用标题定位，记录标题变更但不记录完整内容
 
-
       logSectionWithMeta(
-
 
         '编辑标题',
 
-
         {
 
-
           type: 'edit_outline_title',
-
 
           // 使用原标题定位
           sectionTitle: prevTitle || '',
           sectionId,
 
-
           inputs: [{ kind: 'manual_edit', sourceType: 'user_edit' }],
-
 
           process: '手动编辑大纲标题文本',
 
-
           outputs: {
-
 
             summary: '标题已更新',
             status: 'done'
 
-
           },
-
 
           // 记录位置：使用标题
           destinations: [{ kind: 'outline_section_title', sectionTitle: prevTitle || '', sectionId }]
 
-
         },
-
 
         [sec ? `标题位置：${prevTitle || ''}` : `标题：${sectionId}`]
 
-
       );
-
 
     }
 
-
   };
-
 
   // 在章节添加新摘要
   const addSummaryToSection = (sectionId, insertAtIndex = null) => {
@@ -11849,7 +9027,7 @@ ${combinedRequirements}
     );
   };
 
-  // 从章节删除摘要
+  // 【修改】清空章节摘要内容（保留摘要位置，只清空内容）
   const removeSummaryFromSection = (sectionId, sumIdx) => {
     const sec = template?.sections.find((s) => s.id === sectionId);
     if (!sec) return;
@@ -11864,14 +9042,82 @@ ${combinedRequirements}
         const currentSummaries = Array.isArray(s.summaries) ? [...s.summaries] : 
           (s.summary || s.hint ? [{ id: `${s.id}_sum_0`, content: s.summary || s.hint || '' }] : []);
 
+        // 【修改】清空指定摘要的内容，而不是删除整个摘要项
+        if (sumIdx >= 0 && sumIdx < currentSummaries.length) {
+          currentSummaries[sumIdx] = { ...currentSummaries[sumIdx], content: '' };
+        }
+
+        // 更新主 summary 字段（拼接所有摘要）
+        const combinedSummary = currentSummaries.map(sum => sum.content).filter(Boolean).join('\n\n');
+
+        // 【重要】同时清空 hint 字段，确保界面不显示旧内容
+        return { 
+          ...s, 
+          summaries: currentSummaries, 
+          summary: combinedSummary,
+          hint: combinedSummary || ''  // 同步清空 hint 字段
+        };
+      });
+
+      const nextTpl = { ...prev, sections: updatedSections };
+
+      setScene((sc) => {
+        if (!sc) return sc;
+        if (sc.customTemplate || prev.id === 'template_auto' || prev.id === 'template_empty') {
+          return { ...sc, customTemplate: nextTpl };
+        }
+        return sc;
+      });
+
+      return nextTpl;
+    });
+
+    // 自动沉淀记录
+    logSectionWithMeta(
+      '清空摘要',
+      {
+        type: 'clear_summary_content',
+        sectionId,
+        sectionTitle: sec?.title || '',
+        summaryIndex: sumIdx,
+        process: '清空大纲标题下的某个摘要内容',
+        outputs: { summary: '已清空摘要内容' }
+      },
+      [`标题：${sec?.title || ''}（第${Number(sec?.level) || 1}级）`]
+    );
+    
+    showToast('已清空摘要内容');
+  };
+
+  // 【新增】删除章节下的某个摘要条目（真正删除，而不是清空内容）
+  const deleteSummaryFromSection = (sectionId, sumIdx) => {
+    const sec = template?.sections.find((s) => s.id === sectionId);
+    if (!sec) return;
+
+    setTemplate((prev) => {
+      if (!prev) return prev;
+
+      const updatedSections = prev.sections.map((s) => {
+        if (s.id !== sectionId) return s;
+
+        // 获取当前摘要列表
+        const currentSummaries = Array.isArray(s.summaries) ? [...s.summaries] : 
+          (s.summary || s.hint ? [{ id: `${s.id}_sum_0`, content: s.summary || s.hint || '' }] : []);
+
+        // 如果只有一个摘要，不允许删除
+        if (currentSummaries.length <= 1) {
+          showToast('至少需要保留一个摘要位置');
+          return s;
+        }
+
+        // 删除指定索引的摘要
         if (sumIdx >= 0 && sumIdx < currentSummaries.length) {
           currentSummaries.splice(sumIdx, 1);
         }
 
         // 更新主 summary 字段（拼接所有摘要）
         const combinedSummary = currentSummaries.map(sum => sum.content).filter(Boolean).join('\n\n');
-
-        return { ...s, summaries: currentSummaries, summary: combinedSummary };
+        return { ...s, summaries: currentSummaries, summary: combinedSummary, hint: combinedSummary || '' };
       });
 
       const nextTpl = { ...prev, sections: updatedSections };
@@ -11891,21 +9137,27 @@ ${combinedRequirements}
     logSectionWithMeta(
       '删除摘要',
       {
-        type: 'remove_summary_from_section',
+        type: 'delete_summary_from_section',
         sectionId,
         sectionTitle: sec?.title || '',
         summaryIndex: sumIdx,
-        process: '删除大纲标题下的某个摘要',
+        process: '删除大纲标题下的某个摘要条目',
         outputs: { summary: '已删除摘要' }
       },
       [`标题：${sec?.title || ''}（第${Number(sec?.level) || 1}级）`]
     );
+    
+    showToast('已删除摘要');
   };
 
   // 选择章节的摘要合并方式（只设置状态，不立即合并）
   // 实际合并在最终文档生成时执行
   const selectSectionMergeType = (sectionId, mergeType) => {
     const currentType = sectionMergeType[sectionId];
+    const sec = template?.sections?.find(s => s.id === sectionId);
+    const sectionTitle = sec?.title || sectionId;
+    const summaryCount = Array.isArray(sec?.summaries) ? sec.summaries.length : 1;
+    
     // 点击同一个按钮时取消选择
     if (currentType === mergeType) {
       setSectionMergeType(prev => {
@@ -11913,8 +9165,93 @@ ${combinedRequirements}
         delete next[sectionId];
         return next;
       });
+      
+      // 【新增】记录取消合并方式的操作
+      if (isDepositing && sec) {
+        const cancelRecord = {
+          type: 'cancel_merge_type',
+          sectionId,
+          sectionTitle,
+          sectionLevel: sec.level || 2,
+          previousMergeType: mergeType,
+          summaryCount,
+          timestamp: Date.now()
+        };
+        console.log('[selectSectionMergeType] 取消合并方式:', cancelRecord);
+      }
     } else {
       setSectionMergeType(prev => ({ ...prev, [sectionId]: mergeType }));
+      
+      // 【关键新增】自动记录合并方式选择为沉淀
+      if (isDepositing && sec) {
+        const mergeTypeLabel = mergeType === 'sentence' ? '句子拼接' : '段落拼接';
+        const summaryContents = Array.isArray(sec.summaries) 
+          ? sec.summaries.map((s, i) => `摘要[${i}]: ${(s.content || '').substring(0, 50)}...`).join('\n')
+          : '';
+        
+        // 构建结构化脚本内容
+        const structuredContent = `=== 步骤 1: 设置摘要合并方式 ===
+【操作类型】set_merge_type
+【目标标题】${sec.level === 1 ? '一级标题' : sec.level === 2 ? '二级标题' : '三级标题'}「${sectionTitle}」
+【合并方式】${mergeTypeLabel}（${mergeType}）
+【摘要数量】${summaryCount} 个摘要
+【当前摘要内容】
+${summaryContents}
+【AI执行指导】
+在大纲中定位标题「${sectionTitle}」，将该章节下的 ${summaryCount} 个摘要设置为${mergeTypeLabel}模式。
+${mergeType === 'sentence' ? '句子拼接：将多个摘要首尾相连，不换行，形成一个连续的长句。' : '段落拼接：将多个摘要用换行分隔，形成多个段落。'}
+在最终文档生成时，按此合并方式处理这些摘要。`;
+
+        // 创建沉淀记录
+        const depositRecord = {
+          id: `dep_merge_${Date.now()}`,
+          name: `${sectionTitle}--${mergeTypeLabel}`,
+          precipitationMode: 'llm',
+          createdAt: Date.now(),
+          sections: [{
+            id: `sec_merge_${Date.now()}_1`,
+            action: `设置${mergeTypeLabel}`,
+            content: structuredContent,
+            requirements: {
+              inputSource: 'optional',
+              actionExecution: 'optional'
+            },
+            llmScript: {
+              type: 'set_merge_type',
+              title: `${sectionTitle}--${mergeTypeLabel}`,
+              structuredScriptContent: structuredContent,
+              targetSectionId: sectionId,
+              targetSectionTitle: sectionTitle,
+              targetSectionLevel: sec.level || 2,
+              mergeType: mergeType,
+              summaryCount: summaryCount,
+              destinations: [{
+                kind: 'outline_section',
+                sectionId: sectionId,
+                sectionTitle: sectionTitle
+              }]
+            },
+            meta: {
+              type: 'set_merge_type',
+              sectionId,
+              sectionTitle,
+              sectionLevel: sec.level || 2,
+              mergeType,
+              summaryCount
+            }
+          }]
+        };
+        
+        // 添加到沉淀列表
+        setDeposits(prev => {
+          const next = [...prev, depositRecord];
+          persistDeposits(next);
+          return next;
+        });
+        
+        showToast(`已记录：${sectionTitle} - ${mergeTypeLabel}`);
+        console.log('[selectSectionMergeType] 已记录合并方式沉淀:', depositRecord);
+      }
     }
   };
 
@@ -11931,7 +9268,9 @@ ${combinedRequirements}
     if (currentSummaries.length < 2) return; // 少于2个摘要无需合并
 
     // 根据合并类型选择分隔符
-    const separator = mergeType === 'sentence' ? '；' : '\n\n';
+    // 句子拼接：首尾相连，不换行，直接连接成一个句子
+    // 段落拼接：每个摘要之间换行
+    const separator = mergeType === 'sentence' ? '' : '\n';
     const mergedContent = currentSummaries
       .map(sum => (sum.content || '').trim())
       .filter(Boolean)
@@ -11995,205 +9334,141 @@ ${combinedRequirements}
     }
     
     // 根据选择的合并方式返回合并内容
-    const separator = mergeType === 'sentence' ? '；' : '\n\n';
+    // 句子拼接：首尾相连，不换行，直接连接成一个句子
+    // 段落拼接：每个摘要之间换行
+    const separator = mergeType === 'sentence' ? '' : '\n';
     return currentSummaries.map(sum => (sum.content || '').trim()).filter(Boolean).join(separator);
   };
 
-
   const clearOutlineSummary = (sectionId) => {
-
 
     const sec = template?.sections.find((s) => s.id === sectionId);
 
-
     const prevShown = sec?.summary || sec?.hint || '';
-
 
     setTemplate((prev) => {
 
-
       if (!prev) return prev;
-
 
       const updatedSections = prev.sections.map((s) => s.id === sectionId ? { ...s, summary: '', hint: '' } : s);
 
-
       const nextTpl = { ...prev, sections: updatedSections };
-
 
       setScene((sc) => {
 
-
         if (!sc) return sc;
-
 
         if (sc.customTemplate || prev.id === 'template_auto' || prev.id === 'template_empty') {
 
-
           return { ...sc, customTemplate: nextTpl };
-
 
         }
 
-
         return sc;
-
 
       });
 
-
       return nextTpl;
 
-
     });
-
 
     setSummaryExpanded((prev) => ({ ...prev, [sectionId]: false }));
 
-
     cancelEditOutline(sectionId, 'summary');
-
 
     logSectionWithMeta(
 
-
       '删除摘要',
-
 
       {
 
-
         type: 'clear_outline_summary',
-
 
         sectionId,
 
-
         inputs: [{ kind: 'outline_selected', sectionIds: [sectionId] }],
-
 
         process: '清空该标题下的摘要/提示内容',
 
-
         outputs: { summary: `摘要已清空，原长度：${(prevShown || '').toString().length}`, beforeExcerpt: clipText(prevShown || '', 260) },
-
 
         destinations: [{ kind: 'outline_section_summary', sectionId }]
 
-
       },
-
 
       [sec ? `标题：${sec.title || ''}（第${Number(sec.level) || 1}级）` : `标题：${sectionId}`]
 
-
     );
-
 
     showToast('已删除摘要');
 
-
   };
-
 
   const updateSectionLevel = (sectionId, level) => {
 
-
     const lvl = Number(level) || 1;
-
 
     setTemplate((prev) => {
 
-
       if (!prev) return prev;
-
 
       const updatedSections = prev.sections.map((s) =>
 
-
         s.id === sectionId ? { ...s, level: Math.max(1, Math.min(4, lvl)) } : s
-
 
       );
 
-
       const nextTpl = { ...prev, sections: updatedSections };
-
 
       setScene((sc) => {
 
-
         if (!sc) return sc;
-
 
         if (sc.customTemplate || prev.id === 'template_auto' || prev.id === 'template_empty') {
 
-
           return { ...sc, customTemplate: nextTpl };
-
 
         }
 
-
         return sc;
-
 
       });
 
-
       return nextTpl;
-
 
     });
 
-
   };
-
 
   const updateTemplateSections = (updater) => {
 
-
     setTemplate((prev) => {
-
 
       if (!prev) return prev;
 
-
       const nextSections = updater(prev.sections || []);
-
 
       const nextTpl = { ...prev, sections: nextSections };
 
-
       setScene((sc) => {
-
 
         if (!sc) return sc;
 
-
         if (sc.customTemplate || prev.id === 'template_auto' || prev.id === 'template_empty') {
-
 
           return { ...sc, customTemplate: nextTpl };
 
-
         }
-
 
         return sc;
 
-
       });
-
 
       return nextTpl;
 
-
     });
 
-
   };
-
 
   const addSectionBelow = (afterId) => {
     // 获取参考标题的信息（用于沉淀记录和继承级别）
@@ -12286,165 +9561,112 @@ ${combinedRequirements}
       specialRequirements: '新增的标题默认为一级标题，标题文本为「新标题」'
     });
 
-
   };
-
 
   const removeSectionById = (sectionId) => {
 
-
     const sections = template?.sections || [];
-
 
     const idx = sections.findIndex((s) => s.id === sectionId);
 
-
     if (idx === -1) return;
-
 
     const baseLevel = Math.max(1, Math.min(3, Number(sections[idx]?.level) || 1));
 
-
     const idsToRemove = [sections[idx].id];
-
 
     for (let i = idx + 1; i < sections.length; i += 1) {
 
-
       const lvl = Math.max(1, Math.min(3, Number(sections[i]?.level) || 1));
-
 
       if (lvl <= baseLevel) break;
 
-
       idsToRemove.push(sections[i].id);
-
 
     }
 
-
     const removed = sections.filter((s) => idsToRemove.includes(s.id));
-
 
     updateTemplateSections((list) => (list || []).filter((s) => !idsToRemove.includes(s.id)));
 
-
     setSectionDocLinks((prev) => {
-
 
       const next = { ...prev };
 
-
       idsToRemove.forEach((id) => delete next[id]);
-
 
       persistSectionLinks(next);
 
-
       return next;
 
-
     });
-
 
     setSectionDocPick((prev) => {
 
-
       const next = { ...prev };
-
 
       idsToRemove.forEach((id) => delete next[id]);
 
-
       return next;
 
-
     });
-
 
     setSelectedOutlineExec((prev) => {
 
-
       const next = { ...prev };
-
 
       idsToRemove.forEach((id) => delete next[id]);
 
-
       return next;
 
-
     });
-
 
     setSectionDocDone((prev) => {
 
-
       const next = { ...prev };
-
 
       idsToRemove.forEach((id) => delete next[id]);
 
-
       return next;
 
-
     });
-
 
     setSummaryExpanded((prev) => {
 
-
       const next = { ...prev };
-
 
       idsToRemove.forEach((id) => delete next[id]);
 
-
       return next;
 
-
     });
-
 
     setOutlineEditing((prev) => {
 
-
       const next = { ...prev };
-
 
       idsToRemove.forEach((id) => {
 
-
         delete next[`${id}||title`];
-
 
         delete next[`${id}||summary`];
 
-
       });
-
 
       return next;
 
-
     });
 
-
     const removedRoot = sections[idx];
-
 
     // ========== 大模型级别沉淀记录（删除标题）==========
     const levelText = baseLevel === 1 ? '一级标题' : baseLevel === 2 ? '二级标题' : baseLevel === 3 ? '三级标题' : `${baseLevel}级标题`;
     
     logSectionWithMeta(
 
-
       '删除标题',
 
-
       {
-
 
         type: 'delete_outline_section',
 
@@ -12453,9 +9675,7 @@ ${combinedRequirements}
 
         sectionId,
 
-
         removedIds: idsToRemove,
-
 
         baseLevel,
         
@@ -12482,32 +9702,24 @@ ${combinedRequirements}
           hint: s.hint || ''
         })),
 
-
         process: `删除第${baseLevel}级标题，并删除其下级标题`,
 
         // ========== 输出信息 ==========
         outputs: {
 
-
           summary: `已删除标题：${removedRoot?.title || sectionId}（共${idsToRemove.length}条）`,
           
           deletedCount: idsToRemove.length,
 
-
           removedSample: removed.slice(0, 8).map((s) => ({
-
 
             id: s.id,
 
-
             level: s.level,
-
 
             title: clipText(s.title || '', 80)
 
-
           }))
-
 
         },
 
@@ -12519,99 +9731,97 @@ ${combinedRequirements}
         aiGuidance: `删除指定标题及其所有下级标题。Replay 时应根据标题名称「${removedRoot?.title || ''}」定位目标标题，然后执行删除操作。`,
         specialRequirements: '删除操作会同时删除该标题下的所有子标题'
 
-
       },
-
 
       []
 
-
     );
 
-
   };
-
 
   const outlineTree = buildSectionTree(template?.sections || []);
 
-
   const updatePreviewSelection = () => {
 
-
     const el = previewTextRef.current;
-
 
     if (!el) return;
 
-
     const start = Number(el.selectionStart ?? 0);
 
-
     const end = Number(el.selectionEnd ?? 0);
-
 
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
 
-
       setPreviewSelection({ text: '', start: 0, end: 0 });
-
 
       return;
 
-
     }
 
-
     const text = (el.value || '').slice(start, end);
-
 
     if (!text.toString().trim()) {
 
-
       setPreviewSelection({ text: '', start: 0, end: 0 });
-
 
       return;
 
-
     }
-
 
     setPreviewSelection({ text, start, end });
 
-
   };
-
 
   const getPreviewSelectionFromDom = () => {
 
-
     const el = previewTextRef.current;
-
 
     if (!el) return null;
 
+    // 【修改】支持 contentEditable div 的文本选择
+    // 优先使用 window.getSelection() 获取选中文本
+    const sel = window.getSelection();
+    if (sel && sel.toString().trim()) {
+      const text = sel.toString();
+      const fullText = docDraft || '';
+      
+      // 【关键】使用 findTextPositionInMarkdown 正确处理带 ** 标记的文本
+      const pos = findTextPositionInMarkdown(fullText, text);
+      if (pos) {
+        return { text, start: pos.start, end: pos.end };
+      }
+      
+      // 回退：直接在纯文本版本中查找
+      const plainText = stripBoldMarkers(fullText);
+      const plainStart = plainText.indexOf(text);
+      if (plainStart >= 0) {
+        // 尝试映射到原始位置
+        const pos2 = findTextPositionInMarkdown(fullText, text, plainStart);
+        if (pos2) {
+          return { text, start: pos2.start, end: pos2.end };
+        }
+        return { text, start: plainStart, end: plainStart + text.length };
+      }
+      
+      return { text, start: 0, end: text.length };
+    }
 
-    const start = Number(el.selectionStart ?? 0);
+    // 回退：尝试使用 textarea 的方式（兼容旧代码）
+    if (typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number') {
+      const start = Number(el.selectionStart ?? 0);
+      const end = Number(el.selectionEnd ?? 0);
+      if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+        const text = (el.value || '').slice(start, end);
+        if (text.toString().trim()) {
+          return { text, start, end };
+        }
+      }
+    }
 
-
-    const end = Number(el.selectionEnd ?? 0);
-
-
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
-
-
-    const text = (el.value || '').slice(start, end);
-
-
-    if (!text.toString().trim()) return null;
-
-
-    return { text, start, end };
-
+    return null;
 
   };
-
 
   const insertSelectionToCheckedSummaries = async () => {
     // 优先使用保存的previewSelection状态（点击按钮时DOM选择可能已丢失）
@@ -12622,6 +9832,11 @@ ${combinedRequirements}
     if (!snippetTrimmed) {
       showToast('请先在预览区选择文本');
       return;
+    }
+    
+    // 【新增】如果正在沉淀，增加待处理操作计数
+    if (isDepositing) {
+      setPendingDepositOperations(prev => prev + 1);
     }
 
     if (!showOutlineMode || processingTab !== 'outline') {
@@ -12635,14 +9850,24 @@ ${combinedRequirements}
     // ===== 多摘要选择模式：检查是否有选中的具体摘要 =====
     const selectedSummaryKeys = Object.keys(selectedSummaries || {}).filter(k => selectedSummaries[k]);
     
+    // 【调试】打印选中的摘要信息
+    console.log('[insertSelectionToCheckedSummaries] selectedSummaries:', selectedSummaries);
+    console.log('[insertSelectionToCheckedSummaries] selectedSummaryKeys:', selectedSummaryKeys);
+    
     if (selectedSummaryKeys.length > 0) {
       // 使用多摘要选择模式：填入到选中的具体摘要中
       const summaryTargets = selectedSummaryKeys.map(key => {
-        const [sectionId, sumIdxStr] = key.split('_');
+        // 修复：使用 lastIndexOf 正确分割，因为 sectionId 可能包含下划线（如 sec_local_xxx）
+        const lastUnderscoreIdx = key.lastIndexOf('_');
+        const sectionId = key.slice(0, lastUnderscoreIdx);
+        const sumIdxStr = key.slice(lastUnderscoreIdx + 1);
         const sumIdx = parseInt(sumIdxStr, 10);
         const section = (template?.sections || []).find(s => s.id === sectionId);
+        console.log('[insertSelectionToCheckedSummaries] 解析 key:', key, '-> sectionId:', sectionId, 'sumIdx:', sumIdx);
         return { sectionId, sumIdx, section, key };
       }).filter(t => t.section);
+      
+      console.log('[insertSelectionToCheckedSummaries] summaryTargets:', summaryTargets.map(t => ({ sectionId: t.sectionId, sumIdx: t.sumIdx, title: t.section?.title })));
       
       if (!summaryTargets.length) {
         showToast('未找到有效的目标摘要');
@@ -12703,11 +9928,24 @@ ${combinedRequirements}
       }
 
       // 获取选中内容的上下文
-      const fullDocText = doc?.content || '';
+      const fullDocText = docDraft || doc?.content || '';
       const selStart = domSel?.start ?? previewSelection.start;
       const selEnd = domSel?.end ?? previewSelection.end;
       const contextBefore = fullDocText.slice(Math.max(0, selStart - 100), selStart).trim();
       const contextAfter = fullDocText.slice(selEnd, selEnd + 100).trim();
+      
+      // 【关键】获取选中区域的原始文本（可能包含 ** 加粗标记）
+      const originalSelectedText = fullDocText.slice(selStart, selEnd);
+      
+      // 检测选中内容是否包含加粗标记
+      const hasBoldContent = /\*\*[^*\n]+\*\*/.test(originalSelectedText);
+      // 提取加粗的文本内容
+      const boldTexts = [];
+      const boldRegex = /\*\*([^*\n]+)\*\*/g;
+      let boldMatch;
+      while ((boldMatch = boldRegex.exec(originalSelectedText)) !== null) {
+        boldTexts.push(boldMatch[1]);
+      }
       
       // 提取选中文本的开头和结尾特征
       const textHead = snippetTrimmed.slice(0, 50).trim();
@@ -12744,8 +9982,12 @@ ${combinedRequirements}
         return `${levelLabel}「${t.sectionTitle}」的摘要[${t.summaryIndex}]`;
       });
 
+      // 沉淀名称：目标标题名称--填入摘要
+      const firstTargetTitle = targetSummaryDetails[0]?.sectionTitle || '未知标题';
+      const depositActionName = `${firstTargetTitle}--填入摘要`;
+
       logSectionWithMeta(
-        '填入摘要（多选）',
+        depositActionName,
         {
           type: 'insert_to_summary_multi',
           intentDescription: `将文档「${docName}」中的选中内容填入到 ${summaryTargets.length} 个摘要位置`,
@@ -12775,6 +10017,8 @@ ${combinedRequirements}
               textLength: snippetTrimmed.length,
               textHead: textHead,
               textTail: textTail,
+              // 原始文本（保留加粗标记）
+              originalText: originalSelectedText,
               // 前后文上下文
               contextBefore: clipText(contextBefore, 80),
               contextAfter: clipText(contextAfter, 80),
@@ -12785,7 +10029,11 @@ ${combinedRequirements}
                 charCount: snippetTrimmed.length,
                 lineCount: snippetTrimmed.split('\n').length,
                 hasNumbers: /\d/.test(snippetTrimmed),
-                hasDates: /\d{4}年|\d{1,2}月|\d{1,2}日/.test(snippetTrimmed)
+                hasDates: /\d{4}年|\d{1,2}月|\d{1,2}日/.test(snippetTrimmed),
+                // 【新增】加粗信息
+                hasBold: hasBoldContent,
+                boldTexts: boldTexts.length > 0 ? boldTexts : undefined,
+                boldCount: boldTexts.length
               }
             },
             { 
@@ -12796,16 +10044,20 @@ ${combinedRequirements}
               targetDescriptions: targetTitlesWithLevel
             }
           ],
-          process: `将内容预览中框选的文本填入到已选中的 ${summaryTargets.length} 个摘要中（替换原有内容）`,
-          outputs: {
-            summary: `已写入 ${summaryTargets.length} 个摘要（字数：${snippetTrimmed.length}）`,
-            usedModel: '',
-            status: 'done',
-            // 记录每个目标的输出详情
-            targetSummaries: targetSummaryDetails,
-            writtenContent: snippetTrimmed,
-            writtenContentExcerpt: clipText(snippetTrimmed, 200)
-          },
+        process: `将内容预览中框选的文本填入到已选中的 ${summaryTargets.length} 个摘要中（替换原有内容）`,
+        outputs: {
+          summary: `已写入 ${summaryTargets.length} 个摘要（字数：${snippetTrimmed.length}）`,
+          usedModel: '',
+          status: 'done',
+          // 【新增】详细的执行结果描述
+          executionResult: targetSummaryDetails.map(t => 
+            `成功在「${t.sectionTitle}」标题下的第${t.summaryIndex + 1}个摘要中写入了「${clipText(snippetTrimmed, 50)}」内容（共${snippetTrimmed.length}字）`
+          ).join('；'),
+          // 记录每个目标的输出详情
+          targetSummaries: targetSummaryDetails,
+          writtenContent: snippetTrimmed,
+          writtenContentExcerpt: clipText(snippetTrimmed, 200)
+        },
           destinations: targetSummaryDetails.map(t => ({ 
             kind: 'outline_section_summary_item',
             sectionId: t.sectionId,
@@ -12827,6 +10079,11 @@ ${combinedRequirements}
       setSelectedSummaries({});
       setPreviewSelection({ text: '', start: 0, end: 0 });
       showToast(`已写入 ${summaryTargets.length} 个摘要`);
+      
+      // 【新增】操作完成，减少待处理计数
+      if (isDepositing) {
+        setPendingDepositOperations(prev => Math.max(0, prev - 1));
+      }
       return;
     }
 
@@ -12890,11 +10147,28 @@ ${combinedRequirements}
     }
 
     // 获取选中内容的上下文（前后各100字符）
-    const fullDocText = doc?.content || '';
+    const fullDocText = docDraft || doc?.content || '';
     const selStart = domSel?.start ?? previewSelection.start;
     const selEnd = domSel?.end ?? previewSelection.end;
     const contextBefore = fullDocText.slice(Math.max(0, selStart - 100), selStart).trim();
     const contextAfter = fullDocText.slice(selEnd, selEnd + 100).trim();
+    
+    // 【关键】获取选中区域的原始文本（可能包含 ** 加粗标记）
+    const originalSelectedText = fullDocText.slice(selStart, selEnd);
+    
+    // 检测选中内容是否包含加粗标记
+    const hasBoldContent = /\*\*[^*\n]+\*\*/.test(originalSelectedText);
+    // 提取加粗的文本内容
+    const boldTexts = [];
+    const boldRegex = /\*\*([^*\n]+)\*\*/g;
+    let boldMatch;
+    while ((boldMatch = boldRegex.exec(originalSelectedText)) !== null) {
+      boldTexts.push(boldMatch[1]);
+    }
+    
+    // 提取选中文本的开头和结尾特征
+    const textHead = snippetTrimmed.slice(0, 50).trim();
+    const textTail = snippetTrimmed.slice(-50).trim();
     
     // 获取目标标题的详细信息
     const targetSectionDetails = selectedSections.map(s => ({
@@ -12903,45 +10177,87 @@ ${combinedRequirements}
       level: s.level || 1,
       hadContentBefore: !!(s.summary?.toString().trim())
     }));
+    
+    // 目标标题的层级描述
+    const targetTitlesWithLevel = targetSectionDetails.map(t => {
+      const levelLabel = t.level === 1 ? '一级标题' : t.level === 2 ? '二级标题' : '三级标题';
+      return `${levelLabel}「${t.title}」`;
+    });
 
     logSectionWithMeta(
       '填入摘要',
       {
         type: 'insert_to_summary',
-        intentDescription: '填入摘要',
+        intentDescription: `将文档「${docName}」中的选中内容填入到 ${ids.length} 个标题的摘要`,
         docName,
         docId: doc?.id || '',
         selection: { start: selStart, end: selEnd },
         targetSectionIds: ids,
+        // 目标标题信息（便于大模型语义匹配）
+        selectedSectionTitles: targetSectionDetails.map(t => t.title),
+        targetSectionsDetail: targetSectionDetails,
         inputs: [
           {
             kind: 'selection',
             docName,
-            contextSummary: docName,
+            contextSummary: `文档「${docName}」中的选中内容`,
             sourceType: 'selection',
+            // 选中文本的完整特征
+            text: snippetTrimmed,
             textExcerpt: clipText(snippetTrimmed, 200),
             textLength: snippetTrimmed.length,
+            textHead: textHead,
+            textTail: textTail,
+            // 原始文本（保留加粗标记）
+            originalText: originalSelectedText,
+            // 前后文上下文
             contextBefore: clipText(contextBefore, 80),
-            contextAfter: clipText(contextAfter, 80)
+            contextAfter: clipText(contextAfter, 80),
+            // 内容特征（用于大模型识别）
+            contentFeatures: {
+              startsWith: textHead,
+              endsWith: textTail,
+              charCount: snippetTrimmed.length,
+              lineCount: snippetTrimmed.split('\n').length,
+              hasNumbers: /\d/.test(snippetTrimmed),
+              hasDates: /\d{4}年|\d{1,2}月|\d{1,2}日/.test(snippetTrimmed),
+              // 【新增】加粗信息
+              hasBold: hasBoldContent,
+              boldTexts: boldTexts.length > 0 ? boldTexts : undefined,
+              boldCount: boldTexts.length
+            }
           },
           { 
             kind: 'outline_selected', 
             contextSummary: `已选标题：${ids.length}条`,
-            sourceType: 'outline_selected'
+            sourceType: 'outline_selected',
+            targetDescriptions: targetTitlesWithLevel
           }
         ],
-        process: '将内容预览中框选的文本追加到已勾选标题的摘要',
+        process: `将内容预览中框选的文本追加到已勾选的 ${ids.length} 个标题的摘要`,
         outputs: {
           summary: `已写入摘要：${ids.length} 个标题（字数：${snippetTrimmed.length}）`,
           usedModel: '',
           status: 'done',
-          targetSections: targetSectionDetails
+          // 【新增】详细的执行结果描述
+          executionResult: targetSectionDetails.map(t => {
+            const levelLabel = t.level === 1 ? '一级标题' : t.level === 2 ? '二级标题' : '三级标题';
+            return `成功在${levelLabel}「${t.title}」的摘要中写入了「${clipText(snippetTrimmed, 50)}」内容（共${snippetTrimmed.length}字）`;
+          }).join('；'),
+          targetSections: targetSectionDetails,
+          writtenContent: snippetTrimmed,
+          writtenContentExcerpt: clipText(snippetTrimmed, 200)
         },
-        destinations: [{ 
-          kind: 'outline_section_summary_batch', 
-          sectionTitle: targetSectionDetails.map(s => s.title).join('、'),
-          count: ids.length 
-        }],
+        destinations: targetSectionDetails.map(t => ({ 
+          kind: 'outline_section_summary',
+          sectionId: t.id,
+          sectionTitle: t.title,
+          sectionLevel: t.level,
+          summaryIndex: 0,  // 【新增】标题选择模式默认写入第1个摘要
+          hadContentBefore: t.hadContentBefore
+        })),
+        // AI 指导信息
+        aiGuidance: `在大纲中找到以下标题位置：${targetTitlesWithLevel.join('、')}。将来源文档「${docName}」中选中的内容（以「${textHead}」开头，以「${textTail}」结尾，共${snippetTrimmed.length}字${hasBoldContent ? '，包含加粗文本' : ''}）填入这些标题的摘要中。`,
         overwrittenSectionIds: overwriteIds,
         emptyBeforeSectionIds: emptyBeforeIds
       },
@@ -12958,8 +10274,12 @@ ${combinedRequirements}
     }
 
     showToast('已写入摘要');
+    
+    // 【新增】操作完成，减少待处理计数
+    if (isDepositing) {
+      setPendingDepositOperations(prev => Math.max(0, prev - 1));
+    }
   };
-
 
   const setReplaySectionStatus = (depositId, sectionId, status, message, replayMode = null) => {
     const normalizedMessage =
@@ -12985,54 +10305,37 @@ ${combinedRequirements}
     });
   };
 
-
   const captureReplaySnapshot = () =>
-
 
     deepClone({
 
-
       docs,
-
 
       selectedDocId,
 
-
       docDraft,
-
 
       template,
 
-
       scene,
-
 
       sectionDocLinks,
 
-
       sectionDocPick,
-
 
       selectedOutlineExec,
 
-
       sectionDocDone,
-
 
       dispatchLogs,
 
-
       processedContent,
-
 
       finalSlots,
 
-
       summaryExpanded
 
-
     });
-
 
   const restoreReplaySnapshot = async (snap) => {
     if (!snap) return;
@@ -13059,139 +10362,80 @@ ${combinedRequirements}
     }
   };
 
-
-  const findDocIdByNameInList = (name, list) => {
-
-
-    const key = (name || '').toString().trim().toLowerCase();
-
-
-    if (!key) return null;
-
-
-    const d = (list || []).find((x) => (x?.name || '').toString().trim().toLowerCase() === key);
-
-
-    return d?.id || null;
-
-
-  };
-
-
   const findDocIdByName = (name) => findDocIdByNameInList(name, docs);
-
-
-  const waitUiTick = () => new Promise((r) => setTimeout(r, 0));
-
 
   const refreshDocsFromServer = async () => {
 
-
     try {
-
 
       const res = await api('/api/docs');
 
-
       if (Array.isArray(res?.docs)) {
-
 
         setDocs(res.docs);
 
-
         return res.docs;
-
 
       }
 
-
     } catch (_) {
-
 
       /* ignore */
     }
 
-
     return null;
 
-
   };
-
 
   const refreshSceneFromServer = async (sceneId) => {
 
-
     const id = (sceneId || scene?.id || '').toString();
-
 
     if (!id) return null;
 
-
     try {
-
 
       const res = await api(`/api/scene/${id}`);
 
-
       const s = res?.scene;
-
 
       if (s) {
 
-
         setScene(s);
-
 
         setSectionDocLinks(s.sectionDocLinks || {});
 
-
         if (s.customTemplate) setTemplate(s.customTemplate);
-
 
       }
 
-
       return s || null;
-
 
     } catch (_) {
 
-
       return null;
 
-
     }
-
 
   };
 
-
   const getServerTemplate = async (sceneId) => {
-
 
     const s = await refreshSceneFromServer(sceneId);
 
-
     if (s?.customTemplate) return s.customTemplate;
-
 
     try {
 
-
       const tplRes = await api('/api/template');
-
 
       return tplRes?.template || null;
 
-
     } catch (_) {
-
 
       return null;
 
-
     }
-
 
   };
 
@@ -13226,57 +10470,23 @@ ${combinedRequirements}
     return [];
   };
 
-
   const applyTemplateToServer = async (tpl) => {
-
 
     if (!scene?.id) throw new Error('scene 未初始化，无法获取大纲');
 
-
     if (!tpl || !Array.isArray(tpl.sections)) throw new Error('template 无效');
-
 
     const res = await api(`/api/scene/${scene.id}/apply-template`, { method: 'POST', body: { template: tpl } });
 
-
     if (res?.scene) setScene(res.scene);
-
 
     if (res?.template) setTemplate(res.template);
 
-
     if (res?.scene?.sectionDocLinks) setSectionDocLinks(res.scene.sectionDocLinks || {});
-
 
     return res?.template || null;
 
-
   };
-
-
-  const strictReplayRequired = (meta, action) => {
-
-
-    if (meta && typeof meta === 'object') return false;
-
-
-    const a = (action || '').toString();
-
-
-    if (a === '输入指令') return false;
-
-
-    if (a === '编辑标题' || a === '编辑摘要' || a === '删除摘要') return false;
-
-
-    if (a === '添加文档') return false;
-
-
-    return true;
-
-
-  };
-
 
   const replayOneDepositSection = async (deposit, section) => {
     // ========== 确定 Replay 模式：优先使用 section 级别的设置 ==========
@@ -13298,34 +10508,296 @@ ${combinedRequirements}
           console.log('[Replay] 获取 replayDir 配置失败', e);
         }
         
+        // 【关键修复】对于 insert_to_summary 操作，先从文档列表中查找录制时的源文档
+        // 不依赖用户当前选中的预览文档
+        const sectionMeta = section?.meta || {};
+        const sectionLlmScript = section?.llmScript || {};
+        const metaType = (sectionMeta.type || '').toString();
+        const isInsertToSummary = metaType === 'insert_to_summary' || metaType === 'insert_to_summary_multi';
+        
+        let currentDocContent = '';
+        let currentDocName = '';
+        
+        // 【关键修复】脚本模式也需要获取源文档内容，用于上下文验证
+        if (isInsertToSummary) {
+          // 【关键】从录制信息中获取源文档名称
+          const selectionInput = Array.isArray(sectionMeta.inputs) 
+            ? sectionMeta.inputs.find(x => x?.kind === 'selection') 
+            : null;
+          const recordedDocName = selectionInput?.docName || sectionMeta?.docName || sectionLlmScript?.docName || '';
+          const recordedDocId = sectionMeta?.docId || sectionLlmScript?.docId || '';
+          
+          console.log('[Replay] insert_to_summary 源文档查找:', { recordedDocName, recordedDocId, docsCount: docs.length });
+          
+          // 【源文档匹配辅助函数】- 支持多种匹配方式
+          const matchDocByNameOrId = (docList, targetName, targetId) => {
+            if (!docList || !Array.isArray(docList) || docList.length === 0) return null;
+            
+            // 1. 精确 ID 匹配
+            if (targetId) {
+              const byId = docList.find(d => d.id === targetId);
+              if (byId) return byId;
+            }
+            
+            // 2. 精确名称匹配
+            if (targetName) {
+              const exact = docList.find(d => d.name === targetName);
+              if (exact) return exact;
+            }
+            
+            // 3. 双向包含匹配
+            if (targetName) {
+              const contains = docList.find(d => 
+                d.name?.includes(targetName) || targetName.includes(d.name)
+              );
+              if (contains) return contains;
+            }
+            
+            // 4. 关键词模糊匹配
+            if (targetName) {
+              const extractKeywords = (name) => {
+                return (name || '')
+                  .replace(/\.(txt|docx?|pdf|xlsx?)$/i, '')
+                  .replace(/^\d{6,8}/, '')
+                  .replace(/[（）()【】\[\]\-_]/g, ' ')
+                  .split(/\s+/)
+                  .filter(k => k.length >= 2);
+              };
+              
+              const targetKeywords = extractKeywords(targetName);
+              if (targetKeywords.length > 0) {
+                let bestMatch = null;
+                let bestScore = 0;
+                
+                for (const d of docList) {
+                  const docKeywords = extractKeywords(d.name);
+                  const matchCount = targetKeywords.filter(tk => 
+                    docKeywords.some(dk => dk.includes(tk) || tk.includes(dk))
+                  ).length;
+                  const score = matchCount / targetKeywords.length;
+                  
+                  if (score > bestScore && score >= 0.5) {
+                    bestScore = score;
+                    bestMatch = d;
+                  }
+                }
+                
+                if (bestMatch) {
+                  console.log('[Replay] 关键词匹配成功，匹配度:', bestScore, '文档:', bestMatch.name);
+                  return bestMatch;
+                }
+              }
+            }
+            
+            return null;
+          };
+          
+          // 从文档列表中查找源文档
+          const matchedDoc = matchDocByNameOrId(docs, recordedDocName, recordedDocId);
+          if (matchedDoc) {
+            currentDocContent = matchedDoc.content || '';
+            currentDocName = matchedDoc.name || '';
+            console.log('[Replay] 从文档列表找到源文档:', currentDocName, '内容长度:', currentDocContent.length);
+          } else {
+            console.log('[Replay] 未在文档列表中找到源文档，尝试从服务器获取');
+            // 尝试从服务器获取
+            try {
+              const docRes = await api('/api/docs');
+              if (docRes?.docs && Array.isArray(docRes.docs)) {
+                const serverDoc = matchDocByNameOrId(docRes.docs, recordedDocName, recordedDocId);
+                if (serverDoc?.content) {
+                  currentDocContent = serverDoc.content;
+                  currentDocName = serverDoc.name || '';
+                  console.log('[Replay] 从服务器找到源文档:', currentDocName);
+                }
+              }
+            } catch (e) {
+              console.warn('[Replay] 从服务器获取文档失败:', e);
+            }
+          }
+          
+          // 如果还是找不到，跳过执行
+          if (!currentDocContent) {
+            console.log('[Replay] 未找到源文档，跳过 insert_to_summary 执行');
+            return {
+              status: 'pass',
+              message: `⏭️ 跳过执行：未在文档列表中找到源文档「${recordedDocName || '(未知)'}」`,
+              replayMode: 'skipped',
+              passReason: 'source_doc_not_found'
+            };
+          }
+        } else {
+          // 其他操作类型：使用当前选中的预览文档
+          const currentDoc = docs.find(d => d.id === selectedDocId);
+          currentDocContent = currentDoc?.content || '';
+          currentDocName = currentDoc?.name || '';
+        }
+        
+        // 获取 section 在沉淀中的步骤索引（用于字段校验）
+        const stepIndex = (deposit?.sections || []).findIndex(s => s.id === section?.id);
+        
+        // 【关键修复】确保 aiGuidance、计算公式、输出格式都被正确传递到服务端
+        // 从多个来源尝试获取这些字段
+        
+        // 辅助函数：从内容中提取指定字段
+        const extractField = (content, fieldName) => {
+          if (!content) return '';
+          const regex = new RegExp(`【${fieldName}】\\s*([\\s\\S]*?)(?=【[^【]|\\[步骤|\\n\\n\\n|---\\n|===|$)`, 's');
+          const match = content.match(regex);
+          return match ? match[1].trim() : '';
+        };
+        
+        // 获取所有来源内容
+        const allSources = [
+          sectionLlmScript?.structuredScriptContent || '',
+          section?.llmScript?.structuredScriptContent || '',
+          deposit?.llmRecordContent || '',
+          section?.content || ''
+        ].filter(Boolean);
+        
+        // 从各来源提取字段
+        let aiGuidanceForServer = sectionLlmScript?.aiGuidance || sectionMeta?.aiGuidance || '';
+        let calculationFormula = sectionLlmScript?.calculationFormula || '';
+        let outputFormat = sectionLlmScript?.outputFormat || '';
+        
+        // 从内容中提取（如果还没有值）
+        for (const source of allSources) {
+          if (!aiGuidanceForServer) {
+            aiGuidanceForServer = extractField(source, 'AI执行指导');
+          }
+          if (!calculationFormula) {
+            calculationFormula = extractField(source, '计算公式');
+          }
+          if (!outputFormat) {
+            outputFormat = extractField(source, '输出格式');
+          }
+          // 如果都找到了，停止搜索
+          if (aiGuidanceForServer && calculationFormula && outputFormat) break;
+        }
+        
+        // 【关键】将计算公式和输出格式合并到 aiGuidance 中
+        // 这样服务端就能收到完整的处理指导
+        const fullGuidanceParts = [];
+        if (aiGuidanceForServer) {
+          fullGuidanceParts.push(`【AI执行指导】\n${aiGuidanceForServer}`);
+        }
+        if (calculationFormula) {
+          fullGuidanceParts.push(`【计算公式】\n${calculationFormula}`);
+        }
+        if (outputFormat) {
+          fullGuidanceParts.push(`【输出格式】\n${outputFormat}`);
+        }
+        
+        const fullAiGuidance = fullGuidanceParts.join('\n\n');
+        
+        console.log('[Replay] 提取到的字段:', {
+          aiGuidance: aiGuidanceForServer?.substring(0, 50) || '(空)',
+          calculationFormula: calculationFormula?.substring(0, 50) || '(空)',
+          outputFormat: outputFormat?.substring(0, 30) || '(空)'
+        });
+        console.log('[Replay] 传递给服务端的完整 aiGuidance:', fullAiGuidance?.substring(0, 150) || '(空)');
+        
+        // 【关键修复】将完整的 aiGuidance（包含计算公式和输出格式）合并到 section.llmScript 中传递给服务端
+        const enhancedSection = {
+          ...section,
+          stepIndex: stepIndex >= 0 ? stepIndex : 0,
+          llmScript: {
+            ...sectionLlmScript,
+            aiGuidance: fullAiGuidance || sectionLlmScript?.aiGuidance || '',
+            calculationFormula: calculationFormula,
+            outputFormat: outputFormat
+          },
+          meta: {
+            ...sectionMeta,
+            aiGuidance: fullAiGuidance || sectionMeta?.aiGuidance || ''
+          }
+        };
+        
         // 调用服务端统一 API
+        // 传递沉淀级别的格式要求和 AI 指导
+        // 【关键】使用 section 级别的校验模式（如果设置了的话），否则使用沉淀级别的
+        const sectionValidationMode = section?.sectionValidationMode || deposit?.validationMode || 'none';
+        
         const res = await api('/api/replay/execute-section', {
           method: 'POST',
           body: {
             sceneId: scene?.id || 'main',
-            section,
+            section: enhancedSection,
             mode: mode,
-            replayDirPath
+            replayDirPath,
+            // 【关键修复】传递从录制信息中找到的源文档内容
+            currentDocContent,
+            currentDocName,
+            // 【重要】传递沉淀级别的格式要求，用于 AI 处理
+            depositAccumulatedRequirements: deposit?.accumulatedRequirements || '',
+            depositLlmRecordContent: deposit?.llmRecordContent || '',
+            // 【关键修复】传递完整的 aiGuidance（包含计算公式和输出格式）
+            aiGuidance: fullAiGuidance,
+            calculationFormula: calculationFormula,
+            outputFormat: outputFormat,
+            // 【新增】传递字段级别校验配置，校验失败时返回 skip 而非 fail
+            fieldValidation: deposit?.fieldValidation || {},
+            // 【修改】使用 section 级别的校验模式
+            // 如果设置为 'strict'，则所有可校验字段都必须通过才执行，否则 skip
+            validationMode: sectionValidationMode
           }
         });
         
-        // 如果服务端返回了更新的模板，同步到本地
-        if (res?.template) {
-          setTemplate(res.template);
-          // 同步更新大纲缓存
+        // 【重要】执行成功后，主动获取最新的大纲（不再依赖 API 返回 template）
+        // 这样可以避免返回大量数据，同时确保前端大纲与服务端同步
+        if (res?.status === 'done') {
           try {
-            await api('/api/outline/cache', { method: 'POST', body: { template: res.template } });
+            const cacheRes = await api('/api/outline/cache');
+            if (cacheRes?.template) {
+              setTemplate(cacheRes.template);
+              console.log('[Replay] 已从服务端同步最新大纲');
+            }
           } catch (e) {
-            console.log('[Replay] 同步大纲缓存失败', e);
+            console.log('[Replay] 同步大纲失败，将在下次操作时同步', e);
           }
         }
         
-        // 返回结果
-        return {
-          status: res?.status || 'done',
-          message: res?.reason || '执行完成',
+        // 【重要】同步更新 sectionDocLinks（关联文档等操作需要）
+        if (res?.scene?.sectionDocLinks) {
+          setSectionDocLinks(res.scene.sectionDocLinks);
+          console.log('[Replay] 已同步 sectionDocLinks:', Object.keys(res.scene.sectionDocLinks).length, '个关联');
+        }
+        
+        // 【关键新增】处理 set_merge_type 的 Replay 结果
+        // 如果服务器返回了 mergeTypeResult，更新前端的 sectionMergeType 状态
+        if (res?.extraData?.mergeTypeResult) {
+          const { sectionId, mergeType, sectionTitle, mergeTypeLabel } = res.extraData.mergeTypeResult;
+          if (sectionId && mergeType) {
+            setSectionMergeType(prev => ({ ...prev, [sectionId]: mergeType }));
+            console.log('[Replay] 已同步合并方式:', sectionTitle, '→', mergeTypeLabel);
+          }
+        }
+        
+        // 返回结果 - 注意：不要默认返回 'done'，必须检查服务端返回的实际状态
+        const actualStatus = res?.status;
+        if (!actualStatus) {
+          console.error('[Replay] 服务端返回缺少 status 字段', res);
+          return {
+            status: 'fail',
+            message: '服务端返回格式异常：缺少 status 字段',
+            replayMode: mode
+          };
+        }
+        
+        // 【新增】处理最终文档生成结果
+        const result = {
+          status: actualStatus,
+          message: res?.reason || (actualStatus === 'done' ? '执行完成' : '执行结束'),
           replayMode: res?.replayMode || mode
         };
+        
+        // 如果是最终文档生成，附带文档内容
+        if (res?.finalDocument) {
+          result.finalDocument = res.finalDocument;
+          console.log('[Replay] 收到最终文档，长度:', res.finalDocument.text?.length || 0);
+        }
+        
+        return result;
       } catch (err) {
         console.error('[Replay] 服务端 API 执行失败', err);
         return {
@@ -13437,6 +10909,23 @@ ${combinedRequirements}
       if (llmScript.specialRequirements) meta.specialRequirements = llmScript.specialRequirements;
       if (llmScript.buttonId) meta.buttonId = llmScript.buttonId;
       if (llmScript.selectedDocName) meta.selectedDocName = llmScript.selectedDocName;
+      
+      // 【关键修复】从 llmScript 中获取目标位置信息（包含 summaryIndex）
+      if (Array.isArray(llmScript.destinations) && llmScript.destinations.length > 0) {
+        meta.destinations = llmScript.destinations;
+      }
+      if (Array.isArray(llmScript.targetSummaries) && llmScript.targetSummaries.length > 0) {
+        meta.targetSummaries = llmScript.targetSummaries;
+      }
+      if (Array.isArray(llmScript.targetSectionIds) && llmScript.targetSectionIds.length > 0) {
+        meta.targetSectionIds = llmScript.targetSectionIds;
+      }
+      if (Array.isArray(llmScript.inputs) && llmScript.inputs.length > 0) {
+        meta.inputs = llmScript.inputs;
+      }
+      if (llmScript.outputs && typeof llmScript.outputs === 'object') {
+        meta.outputs = { ...meta.outputs, ...llmScript.outputs };
+      }
     } else {
       // 脚本模式：使用 originalScript 或 rawMeta
       meta = {
@@ -13454,7 +10943,6 @@ ${combinedRequirements}
 
     const action = (section?.action || '').toString();
 
-
     // ========== 校验模式逻辑 ==========
     // 脚本模式：始终强校验（名称不一致就失败）
     // 大模型模式：可以选择强校验或不校验（由 validationMode 控制）
@@ -13462,12 +10950,9 @@ ${combinedRequirements}
     // 脚本模式强制使用强校验，大模型模式根据用户设置
     const isStrictValidation = mode === 'script' ? true : (userValidationMode === 'strict');
 
-
     const softErrors = [];
 
-
     const assertReplay = (cond, message, opts = {}) => {
-
 
       if (cond) return true;
 
@@ -13485,21 +10970,15 @@ ${combinedRequirements}
         return false;
       }
 
-
       throw new Error(message || 'Replay 校验失败');
-
 
     };
 
-
     const finalizeReplayResult = (result) => {
-
 
       if (!result) return result;
 
-
       if (!softErrors.length) return result;
-
 
       if (result.status === 'done') {
         // 有差异但执行成功 - 兼容性执行
@@ -13513,60 +10992,41 @@ ${combinedRequirements}
           baseMessage = `📜 脚本 Replay Done（存在差异：${diffDetails}）`;
         }
 
-
         return { ...result, status: 'pass', message: baseMessage, softErrors: [...softErrors] };
-
 
       }
 
-
       return { ...result, softErrors: [...softErrors] };
-
 
     };
 
-
     if (strictReplayRequired(meta, action)) {
-
 
       throw new Error('该 section 缺少回放元数据，无法严格复现；请重新沉淀后再 Replay');
 
-
     }
-
 
     if (meta?.type === 'dispatch_input' || action === '输入指令') {
 
-
       return {
-
 
         status: 'pass', message: '已采用大模型泛化执行'
 
-
       };
-
 
     }
 
-
     if (
-
 
       meta?.type === 'edit_outline_title' ||
 
-
       meta?.type === 'edit_outline_summary' ||
-
 
       meta?.type === 'clear_outline_summary' ||
 
-
       action === '编辑标题' ||
 
-
       action === '编辑摘要' ||
-
 
       action === '删除摘要') {
 
@@ -13678,7 +11138,7 @@ ${combinedRequirements}
     if (meta?.type === 'merge_summaries_in_section' || action === '合并摘要') {
       const sectionId = meta?.sectionId || meta?.targetSectionId;
       const sectionTitle = meta?.sectionTitle || llmScript?.targetSectionTitle;
-      const mergeType = meta?.mergeType || 'paragraph';
+      const mergeType = meta?.mergeType || 'sentence'; // 默认使用句子拼接
       
       let targetSection = null;
       
@@ -13719,7 +11179,6 @@ ${combinedRequirements}
       const modeMsg = mode === 'llm' ? `🤖 大模型匹配合并摘要：${targetSection.title}` : '📜 脚本 Replay Done';
       return finalizeReplayResult({ status: 'done', message: modeMsg, replayMode: mode });
     }
-
 
     if (meta?.type === 'add_doc' || action === '添加文档') {
       const docName = meta?.docName || ((section?.content || '').toString().split('添加文档：')[1] || '').trim();
@@ -13847,12 +11306,9 @@ ${combinedRequirements}
     }
     if (meta?.type === 'outline_extract' || action === '全文大纲抽取') {
 
-
       const btnId = meta?.buttonId;
 
-
       const btn = btnId && llmButtons.find((b) => b.id === btnId) || llmButtons.find((b) => b.kind === 'outline_extract' && b.enabled);
-
 
       // 大模型模式：找不到按钮返回 pass；脚本模式：严格校验
       if (!btn) {
@@ -13867,16 +11323,12 @@ ${combinedRequirements}
         throw new Error('未找到可用的"全文大纲抽取"按钮');
       }
 
-
       const prefer = meta?.selectedDocName || meta?.docName;
       let targetDocId = null;
 
-
       if (prefer) {
 
-
         targetDocId = findDocIdByName(prefer);
-
 
         // 大模型模式：精确匹配失败时使用语义匹配
         if (!targetDocId && mode === 'llm' && docs.length > 0) {
@@ -13911,21 +11363,15 @@ ${combinedRequirements}
           }
         }
 
-
         if (targetDocId) {
-
 
           const d = docs.find((x) => x.id === targetDocId);
 
-
           setSelectedDocId(targetDocId);
-
 
           setDocDraft(d?.content || '');
 
-
           await waitUiTick();
-
 
         } else if (mode === 'llm') {
           // 大模型模式：找不到文档返回 pass
@@ -13937,36 +11383,25 @@ ${combinedRequirements}
           });
         }
 
-
       }
-
 
       const expectedCount = Number.isFinite(meta?.outputs?.sectionsCount) ? Number(meta.outputs.sectionsCount) : null;
 
-
       const count = await runOutlineExtractButton({ btn, preferDocName: meta?.selectedDocName });
-
 
       assertReplay(count > 0, '大纲抽取返回 0 条，无法复现');
 
-
       if (expectedCount !== null) {
-
 
         assertReplay(
 
-
           count === expectedCount,
-
 
           `大纲抽取条目数与原沉淀不一致：预期${expectedCount}，现 ${count}`
 
-
         );
 
-
       }
-
 
       await refreshSceneFromServer(scene?.id);
 
@@ -13976,9 +11411,7 @@ ${combinedRequirements}
         : `📜 脚本精确抽取：${count} 条大纲`;
       return finalizeReplayResult({ status: 'done', message: extractModeMsg, replayMode: mode });
 
-
     }
-
 
     if (meta?.type === 'copy_full_to_summary' || action === '复制全文到摘要') {
       // ========== 大模型模式：基于语义相似性匹配 ==========
@@ -14223,7 +11656,6 @@ ${combinedRequirements}
       return finalizeReplayResult({ status: 'done', message: copyModeMsg, replayMode: mode });
     }
 
-
     if (meta?.type === 'outline_link_doc' || action === '关联文档') {
       // ========== 大模型模式：基于语义相似性匹配文档和目标位置 ==========
       if (mode === 'llm') {
@@ -14453,7 +11885,6 @@ ${combinedRequirements}
       return finalizeReplayResult({ status: 'done', message: linkModeMsg, replayMode: mode });
     }
 
-
     if (meta?.type === 'outline_unlink_doc' || action === '取消关联') {
       // ========== 大模型模式：基于语义相似性匹配 ==========
       if (mode === 'llm') {
@@ -14550,72 +11981,49 @@ ${combinedRequirements}
       const id = findDocIdByName(docName);
       if (!id) throw new Error(`未找到同名文档：${docName}`);
 
-
       const current = sectionDocLinks[sectionId] || [];
-
 
       const nextList = current.filter((d) => d !== id);
 
-
       const next = { ...sectionDocLinks, [sectionId]: nextList };
-
 
       if (!nextList.length) delete next[sectionId];
 
-
       setSectionDocLinks(next);
-
 
       setSectionDocPick((prev) => {
 
-
         const n = { ...prev };
-
 
         if (n[sectionId] === id) delete n[sectionId];
 
-
         return n;
 
-
       });
-
 
       await persistSectionLinks(next);
 
-
       const s = await refreshSceneFromServer(scene?.id);
-
 
       const serverLinks = s?.sectionDocLinks?.[sectionId] || [];
 
-
       assertReplay(!serverLinks.includes(id), `后端未成功取消关联文档：${docName}`, { strict: true });
-
 
       setSectionDocDone((prev) => {
 
-
         const next = { ...prev };
-
 
         if (next[sectionId]) {
 
-
           delete next[sectionId][id];
-
 
           if (!Object.keys(next[sectionId]).length) delete next[sectionId];
 
-
         }
-
 
         return next;
 
-
       });
-
 
       await waitUiTick();
 
@@ -14623,9 +12031,7 @@ ${combinedRequirements}
       const unlinkModeMsg = mode === 'llm' ? `🤖 已取消关联文档：${docName}` : `📜 已取消关联文档：${docName}`;
       return finalizeReplayResult({ status: 'done', message: unlinkModeMsg, replayMode: mode });
 
-
     }
-
 
     if (meta?.type === 'insert_to_summary' || meta?.type === 'insert_to_summary_multi' || action === '添入摘要' || action === '填入摘要' || action === '填入摘要（多选）') {
       // 检查是否是多摘要模式
@@ -14649,6 +12055,11 @@ ${combinedRequirements}
       }
 
       // ========== 大模型模式：基于语义相似性匹配目标章节 ==========
+      // 【重要】多摘要模式下需要保留 summaryIndex 信息
+      let updatedTargetSummaries = Array.isArray(meta?.targetSummaries) ? [...meta.targetSummaries] : [];
+      // 【关键】同时维护更新后的 destinations（保留 summaryIndex）
+      let updatedDestinations = Array.isArray(meta?.destinations) ? [...meta.destinations] : [];
+      
       if (mode === 'llm') {
         const baseTplForMatch = await getServerTemplate(scene?.id);
         if (baseTplForMatch && Array.isArray(baseTplForMatch.sections)) {
@@ -14664,7 +12075,13 @@ ${combinedRequirements}
           // 这样可以找到语义相似的标题位置，而不是要求标题完全相同
           if (recordedTitles.length > 0 && candidateSections.length > 0) {
             const matchedIds = [];
-            for (const targetTitle of recordedTitles) {
+            
+            // 【修复】同时更新 targetSummaries 和 destinations，保留 summaryIndex
+            for (let i = 0; i < recordedDestinations.length; i++) {
+              const dest = recordedDestinations[i];
+              const targetTitle = dest?.sectionTitle || '';
+              if (!targetTitle) continue;
+              
               // 强制使用大模型语义匹配
               try {
                 const matchRes = await api('/api/replay/llm-match', {
@@ -14683,7 +12100,26 @@ ${combinedRequirements}
                 if (matchRes.matchedId) {
                   matchedIds.push(matchRes.matchedId);
                   const matchedSec = candidateSections.find(s => s.id === matchRes.matchedId);
-                  console.log('[Replay] 大模型匹配到大纲位置:', matchedSec?.title);
+                  console.log('[Replay] 大模型匹配到大纲位置:', matchedSec?.title, '摘要索引:', dest.summaryIndex);
+                  
+                  // 【关键】更新 destinations 中的 sectionId，保留 summaryIndex
+                  updatedDestinations[i] = {
+                    ...updatedDestinations[i],
+                    sectionId: matchRes.matchedId,
+                    sectionTitle: matchedSec?.title || targetTitle
+                    // summaryIndex 保持不变
+                  };
+                  console.log('[Replay] 更新 destinations:', updatedDestinations[i]);
+                  
+                  // 同时更新 targetSummaries（如果是多摘要模式）
+                  if (isMultiSummaryInsert && updatedTargetSummaries[i]) {
+                    updatedTargetSummaries[i] = {
+                      ...updatedTargetSummaries[i],
+                      sectionId: matchRes.matchedId,
+                      sectionTitle: matchedSec?.title || targetTitle
+                    };
+                    console.log('[Replay] 更新 targetSummaries:', updatedTargetSummaries[i]);
+                  }
                 }
               } catch (e) {
                 console.warn('[Replay insert_to_summary] 大模型位置匹配失败:', e);
@@ -14693,6 +12129,8 @@ ${combinedRequirements}
             if (matchedIds.length > 0) {
               ids = matchedIds;
               console.log('[Replay insert_to_summary] 大模型语义匹配目标章节:', ids);
+              console.log('[Replay insert_to_summary] 更新后的 targetSummaries:', updatedTargetSummaries);
+              console.log('[Replay insert_to_summary] 更新后的 destinations:', updatedDestinations);
             } else {
               // 大模型模式下未匹配到任何目标章节，返回 pass
               const targetTitleStr = recordedTitles.join('、') || '(未知)';
@@ -14724,8 +12162,204 @@ ${combinedRequirements}
       let usedLLM = false;
       let llmFailReason = '';
       
-      // 修改：只有大模型模式下才尝试 AI 处理
+      // ========== 【关键修复】大模型模式：从源文档中智能提取内容 ==========
       if (mode === 'llm') {
+        showToast('🤖 大模型从源文档中提取内容...');
+        
+        // 获取源文档信息
+        const sourceDocName = selectionInput?.docName || meta?.docName || llmScript?.docName || '';
+        const sourceDocId = meta?.docId || llmScript?.docId || '';
+        
+        console.log('[insert_to_summary] 源文档信息:', { sourceDocName, sourceDocId });
+        
+        // 尝试从场景中获取源文档内容
+        let sourceDocContent = '';
+        
+        // 【增强】源文档匹配辅助函数
+        const matchDocByName = (docList, targetName, targetId) => {
+          if (!docList || !Array.isArray(docList) || docList.length === 0) return null;
+          
+          // 1. 精确 ID 匹配
+          if (targetId) {
+            const byId = docList.find(d => d.id === targetId);
+            if (byId) return byId;
+          }
+          
+          // 2. 精确名称匹配
+          if (targetName) {
+            const exact = docList.find(d => d.name === targetName);
+            if (exact) return exact;
+          }
+          
+          // 3. 双向包含匹配（d.name 包含 targetName，或 targetName 包含 d.name）
+          if (targetName) {
+            const contains = docList.find(d => 
+              d.name?.includes(targetName) || targetName.includes(d.name)
+            );
+            if (contains) return contains;
+          }
+          
+          // 4. 关键词模糊匹配（提取文档名中的关键词进行匹配）
+          if (targetName) {
+            // 提取关键词（去掉常见后缀、日期前缀等）
+            const extractKeywords = (name) => {
+              return (name || '')
+                .replace(/\.(txt|docx?|pdf|xlsx?)$/i, '')
+                .replace(/^\d{6,8}/, '')  // 去掉日期前缀
+                .replace(/[（）()【】\[\]\-_]/g, ' ')
+                .split(/\s+/)
+                .filter(k => k.length >= 2);
+            };
+            
+            const targetKeywords = extractKeywords(targetName);
+            if (targetKeywords.length > 0) {
+              // 找到关键词匹配度最高的文档
+              let bestMatch = null;
+              let bestScore = 0;
+              
+              for (const d of docList) {
+                const docKeywords = extractKeywords(d.name);
+                const matchCount = targetKeywords.filter(tk => 
+                  docKeywords.some(dk => dk.includes(tk) || tk.includes(dk))
+                ).length;
+                const score = matchCount / targetKeywords.length;
+                
+                if (score > bestScore && score >= 0.5) {  // 至少50%关键词匹配
+                  bestScore = score;
+                  bestMatch = d;
+                }
+              }
+              
+              if (bestMatch) {
+                console.log('[insert_to_summary] 关键词匹配成功，匹配度:', bestScore, '文档:', bestMatch.name);
+                return bestMatch;
+              }
+            }
+          }
+          
+          return null;
+        };
+        
+        // 方法1: 通过 docId 或 docName 从 docs 列表中查找
+        if (sourceDocId || sourceDocName) {
+          const matchedDoc = matchDocByName(docs, sourceDocName, sourceDocId);
+          if (matchedDoc) {
+            sourceDocContent = matchedDoc.content || '';
+            console.log('[insert_to_summary] 从 docs 列表找到源文档:', matchedDoc.name, '内容长度:', sourceDocContent.length);
+          }
+        }
+        
+        // 方法2: 如果没找到，尝试从服务器获取
+        if (!sourceDocContent && sourceDocName) {
+          try {
+            const docRes = await api('/api/docs');
+            if (docRes?.docs && Array.isArray(docRes.docs)) {
+              const serverDoc = matchDocByName(docRes.docs, sourceDocName, sourceDocId);
+              if (serverDoc?.content) {
+                sourceDocContent = serverDoc.content;
+                console.log('[insert_to_summary] 从服务器找到源文档:', serverDoc.name);
+              }
+            }
+          } catch (e) {
+            console.warn('[insert_to_summary] 从服务器获取文档失败:', e);
+          }
+        }
+        
+        // 如果找到源文档，使用 LLM 从中提取内容
+        if (sourceDocContent && sourceDocContent.length > 0) {
+          console.log('[insert_to_summary] 使用 LLM 从源文档提取内容，文档长度:', sourceDocContent.length);
+          
+          // 获取目标标题信息
+          const targetTitles = updatedDestinations.map(d => d.sectionTitle).filter(Boolean);
+          const targetTitleStr = targetTitles.join('、') || '未知标题';
+          
+          // 获取录制时的内容特征（用于辅助 LLM 定位）
+          const contentFeatures = selectionInput?.contentFeatures || {};
+          const textHead = contentFeatures.startsWith || selectionInput?.textHead || text.slice(0, 50);
+          const textTail = contentFeatures.endsWith || selectionInput?.textTail || text.slice(-50);
+          const contextBefore = selectionInput?.contextBefore || '';
+          const contextAfter = selectionInput?.contextAfter || '';
+          
+          // 构建 LLM 提取 prompt
+          const extractPrompt = `你是一个智能文档内容提取和处理助手。请从源文档中找到与目标标题相关的内容，并进行必要的处理。
+
+【源文档内容】
+${sourceDocContent.slice(0, 8000)}${sourceDocContent.length > 8000 ? '\n...(文档内容过长，已截断)' : ''}
+
+【目标大纲标题】
+${targetTitleStr}
+
+【参考特征（录制时选中内容的特征，供参考定位）】
+- 内容开头：${textHead || '(无)'}
+- 内容结尾：${textTail || '(无)'}
+- 前文上下文：${contextBefore || '(无)'}
+- 后文上下文：${contextAfter || '(无)'}
+- 字符数：约${contentFeatures.charCount || text.length}字
+- 行数：约${contentFeatures.lineCount || text.split('\n').length}行
+
+${copyAiGuidance ? `【用户的处理指导（必须严格执行！）】\n${copyAiGuidance}` : ''}
+
+【任务要求】
+1. 在源文档中找到与「${targetTitleStr}」最相关的内容段落
+2. 参考【参考特征】中的信息辅助定位正确的内容位置
+3. 提取该段落的完整内容
+${copyAiGuidance ? `4. 【关键】必须严格按照【用户的处理指导】对提取的内容进行处理！
+   - 如果指导中包含计算公式，必须执行数学计算
+   - 如果指导要求格式转换，必须按要求转换
+   - 不要只返回原始内容，必须返回处理后的结果` : 
+`4. 【智能处理】如果提取的内容包含多个数字（如"XX次、YY次、ZZ个"），且目标标题包含"调度检查"等关键词，请自动进行如下处理：
+   - 提取所有数值
+   - 计算总和
+   - 返回格式："[相关描述] 共计 N 次"（或类似的汇总格式）
+   - 例如：如果内容是"预警调度68次、电台调度89次、视频巡检373次、实地检查29个"，应返回"开展调度检查工作共计 559 次"`}
+
+【重要】
+- 必须从【源文档内容】中提取，不要编造内容
+- 如果有用户的处理指导，必须严格按指导执行，不能简单返回原始内容
+- 直接返回处理后的结果，不要包含解释说明
+
+请直接返回处理后的内容：`;
+
+          try {
+            const extractResponse = await fetch('/api/ai/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messages: [{ role: 'user', content: extractPrompt }],
+                maxTokens: 2000
+              })
+            });
+            
+            if (extractResponse.ok) {
+              const extractData = await extractResponse.json();
+              if (extractData?.content) {
+                const extractedText = extractData.content.trim();
+                console.log('[insert_to_summary] LLM 从源文档提取的内容:', extractedText.slice(0, 200));
+                if (extractedText.length > 0) {
+                  text = extractedText;
+                  // 注意：这里不设置 usedLLM = true，因为还需要进行后续的计算处理
+                  showToast('🤖 已从源文档智能提取内容');
+                }
+              }
+            }
+          } catch (extractErr) {
+            console.warn('[insert_to_summary] LLM 提取内容失败:', extractErr);
+            llmFailReason = extractErr?.message || '从源文档提取内容失败';
+          }
+        } else {
+          console.log('[insert_to_summary] 未找到源文档，LLM 模式跳过执行');
+          return finalizeReplayResult({
+            status: 'pass',
+            message: '⏭️ 跳过执行：未找到对应源文档',
+            replayMode: 'skipped',
+            passReason: 'source_doc_not_found'
+          });
+        }
+      }
+      
+      // 【修改】大模型模式下，如果有 aiGuidance，需要对提取的内容进行二次处理（计算等）
+      const hasGuidanceForProcessing = !!(copyAiGuidance || copySpecialRequirements);
+      if (mode === 'llm' && hasGuidanceForProcessing) {
         showToast('🤖 大模型处理中...');
         
         try {
@@ -14860,54 +12494,47 @@ ${text}
         }
       }
 
-
       const baseTpl = await getServerTemplate(scene?.id);
-
 
       assertReplay(!!baseTpl && Array.isArray(baseTpl.sections), '无法获取模板，无法复现填入摘要', { strict: true });
 
-
       ids.forEach((sid) => assertReplay(!!(baseTpl.sections || []).find((s) => s.id === sid), `模板中未找到标题：${sid}`, { strict: true }));
-
 
       const overwritten = Array.isArray(meta?.outputs?.overwrittenSectionIds) ? meta.outputs.overwrittenSectionIds : [];
 
-
       const emptyBefore = Array.isArray(meta?.outputs?.emptyBeforeSectionIds) ? meta.outputs.emptyBeforeSectionIds : [];
-
 
       if (overwritten.length || emptyBefore.length) {
 
-
         overwritten.forEach((sid) => {
 
-
           const sec = (baseTpl.sections || []).find((s) => s.id === sid);
-
 
           assertReplay((sec?.summary || '').toString().trim().length > 0, `该标题摘要原本应为非空，但当前为空：${sid}`);
 
-
         });
-
 
         emptyBefore.forEach((sid) => {
 
-
           const sec = (baseTpl.sections || []).find((s) => s.id === sid);
-
 
           assertReplay((sec?.summary || '').toString().trim().length === 0, `该标题摘要原本应为空，但当前非空：${sid}`);
 
-
         });
-
 
       }
 
-
       // 多摘要模式：获取目标摘要信息
-      const targetSummaries = isMultiSummaryInsert && Array.isArray(meta?.targetSummaries) ? meta.targetSummaries : [];
+      // 【修复】使用更新后的 targetSummaries（大模型匹配后会更新 sectionId，但保留 summaryIndex）
+      const targetSummaries = isMultiSummaryInsert ? updatedTargetSummaries : [];
+      
+      // 【关键修复】从 destinations 中获取 summaryIndex 信息
+      // 即使不是多摘要模式，也需要支持 summaryIndex
+      // 使用更新后的 destinations（大模型匹配后 sectionId 已更新，summaryIndex 保持不变）
+      const destinations = updatedDestinations;
+      console.log('[Replay insert_to_summary] 使用的 destinations:', destinations);
+      console.log('[Replay insert_to_summary] targetSummaries:', targetSummaries);
+      console.log('[Replay insert_to_summary] isMultiSummaryInsert:', isMultiSummaryInsert);
       
       const nextTpl = {
         ...baseTpl,
@@ -14940,8 +12567,31 @@ ${text}
             }
           }
           
-          // 原有逻辑：标题选择模式（已是替换）
+          // 【修复】标题选择模式：也需要支持 summaryIndex
           if (!ids.includes(s.id)) return s;
+          
+          // 从 destinations 中查找此 section 的 summaryIndex
+          const dest = destinations.find(d => d.sectionId === s.id);
+          const summaryIndex = dest?.summaryIndex;
+          
+          console.log(`[Replay] 处理 section ${s.id}，summaryIndex=${summaryIndex}，有 summaries 数组:`, Array.isArray(s.summaries), s.summaries?.length);
+          
+          // 如果有指定 summaryIndex 且有 summaries 数组
+          if (summaryIndex !== undefined && summaryIndex !== null && Array.isArray(s.summaries) && s.summaries.length > 0) {
+            const targetIdx = parseInt(summaryIndex, 10);
+            console.log(`[Replay] 写入到 section ${s.id} 的第 ${targetIdx + 1} 个摘要`);
+            
+            const newSummaries = s.summaries.map((sum, idx) => {
+              if (idx === targetIdx) {
+                return { ...sum, content: text };
+              }
+              return sum;
+            });
+            const mergedSummary = newSummaries.map(sum => sum.content || '').filter(Boolean).join('\n\n');
+            return { ...s, summaries: newSummaries, summary: mergedSummary };
+          }
+          
+          // 默认行为：覆盖主 summary
           return { ...s, summary: text };
         })
       };
@@ -14987,9 +12637,7 @@ ${text}
       
       return finalizeReplayResult({ status: 'done', message: resultMsg, replayMode, llmFailReason });
 
-
     }
-
 
     if (meta?.type === 'delete_outline_section' || action === '删除标题') {
       const baseTpl = await getServerTemplate(scene?.id);
@@ -15053,42 +12701,29 @@ ${text}
       }
       assertReplay(idx !== -1, `模板中未找到标题：${targetSectionId}`, { strict: true });
 
-
       const baseLevel = Math.max(1, Math.min(3, Number(sections[idx]?.level) || 1));
-
 
       const idsToRemove = [sections[idx].id];
 
-
       for (let i = idx + 1; i < sections.length; i += 1) {
-
 
         const lvl = Math.max(1, Math.min(3, Number(sections[i]?.level) || 1));
 
-
         if (lvl <= baseLevel) break;
-
 
         idsToRemove.push(sections[i].id);
 
-
       }
-
 
       const nextTpl = { ...baseTpl, sections: (sections || []).filter((s) => !idsToRemove.includes(s.id)) };
 
-
       const applied = await applyTemplateToServer(nextTpl);
-
 
       idsToRemove.forEach((rid) => {
 
-
         assertReplay(!(applied?.sections || []).some((s) => s.id === rid), `删除后仍存在标题：${rid}`, { strict: true });
 
-
       });
-
 
       await waitUiTick();
 
@@ -15096,27 +12731,19 @@ ${text}
       const deleteModeMsg = mode === 'llm' ? '🤖 已删除标题（含下级）' : '📜 已删除标题（含下级）';
       return finalizeReplayResult({ status: 'done', message: deleteModeMsg, replayMode: mode });
 
-
     }
-
 
     if (meta?.type === 'outline_clear' || action === '清除大纲') {
 
-
       assertReplay(!!scene?.id, 'scene 未初始化，无法清除大纲', { strict: true });
-
 
       await api(`/api/scene/${scene.id}`, { method: 'PATCH', body: { sectionDocLinks: {} } });
 
-
       const emptyTpl = {
-
 
         id: 'template_empty', name: '空模板', sections: []
 
-
       };
-
 
       const applied = await applyTemplateToServer(emptyTpl);
       assertReplay(Array.isArray(applied?.sections) && applied.sections.length === 0, '清除后大纲仍非空', { strict: true });
@@ -15137,7 +12764,6 @@ ${text}
       const outlineId = meta?.outlineId;
       const title = meta?.outlineTitle;
 
-
       const historyItem = outlineHistory.find((h) => h.id === outlineId) ||
         outlineHistory.find((h) => (h.title || h.docName) === title);
 
@@ -15154,7 +12780,6 @@ ${text}
         }
         throw new Error(`未找到匹配的历史大纲存档: ${title || outlineId}`);
       }
-
 
       const applyRes = await api(`/api/scene/${scene.id}/apply-template`, { method: 'POST', body: { template: historyItem.template } });
       setTemplate(applyRes.template);
@@ -15186,27 +12811,20 @@ ${text}
       const aiGuidance = mode === 'llm' ? (llmScript?.aiGuidance || '') : '';
       const specialRequirements = mode === 'llm' ? (llmScript?.specialRequirements || '') : '';
 
-
       let instructions =
-
 
         meta?.instructions ||
 
         // 兼容沉淀记录中使用 promptContent 字段的情况
         meta?.promptContent ||
 
-
         (() => {
-
 
           const m = /指令：?([\\s\\S]*?)(\\n|$)/.exec((section?.content || '').toString());
 
-
           return (m?.[1] || '').trim();
 
-
         })();
-
 
       if (!instructions) throw new Error('未记录指令内容');
 
@@ -15227,16 +12845,12 @@ ${specialRequirements || '无'}`;
         console.log('📜 脚本 Replay - 使用原始指令:', instructions);
       }
 
-
       const dispatchCfg = llmButtons.find((b) => b.kind === 'dispatch');
-
 
       const systemPrompt = meta?.prompt || dispatchCfg?.prompt;
       const m = /指令：?([\\s\\S]*?)(\\n|$)/.exec((section?.content || '').toString());
 
-
       const inputKind = (meta?.inputKind || '').toString();
-
 
       const outlineIds = Array.isArray(meta?.selectedSectionIds) ? meta.selectedSectionIds : [];
 
@@ -15267,21 +12881,15 @@ ${specialRequirements || '无'}`;
 
       let docContent = '';
 
-
       let outlineSegments = [];
-
 
       if (inputKind === 'result' && Array.isArray(meta?.historyInputs) && meta.historyInputs.length) {
 
-
         docContent = meta.historyInputs.
-
 
           map((h, idx) => `【片：${idx + 1}：${(h?.key || '').toString()}】\n${(h?.text || '').toString()}`).
 
-
           join('\n\n');
-
 
       } else if (inputKind.startsWith('outline_')) {
         // 获取用于定位的额外信息
@@ -15491,30 +13099,22 @@ ${specialRequirements || '无'}`;
           label: `片段${idx + 1}`
         }));
 
-
         if (inputKind === 'outline_unprocessed_docs') {
-
 
           const docInputs = Array.isArray(meta?.inputs) ? meta.inputs.filter((x) => x?.kind === 'doc_resource') : [];
 
-
           const names = docInputs.map((d) => (d?.docName || '').toString()).filter(Boolean);
-
 
           const ensuredDocs = [];
           
           // 大模型模式：准备候选文档列表，用于语义匹配
           const candidateDocs = docs.map(d => ({ id: d.id, name: d.name }));
 
-
           // eslint-disable-next-line no-restricted-syntax
-
 
           for (const name of names) {
 
-
             let id = findDocIdByName(name);
-
 
             let docObj = id ? docs.find((x) => x.id === id) : null;
             
@@ -15551,19 +13151,14 @@ ${specialRequirements || '无'}`;
               }
             }
 
-
             if (!docObj && replayDirConfig?.dirPath) {
               // eslint-disable-next-line no-await-in-loop
 
-
               docObj = await uploadDocFromReplayDirByName(name);
-
 
               id = docObj?.id || null;
 
-
             }
-
 
             // 大模型模式：找不到文档时跳过该文档，继续处理其他
             // 脚本模式：严格校验，找不到文档则失败
@@ -15576,58 +13171,40 @@ ${specialRequirements || '无'}`;
               }
             }
 
-
             ensuredDocs.push(docObj);
-
 
           }
 
-
           docContent = ensuredDocs.
-
 
             filter(Boolean).
 
-
             map((d, i) => `【文：${i + 1}：${d.name}\n${d.content}`).
-
 
             join('\n\n---\n\n');
 
-
         } else {
-
 
           docContent = outlineSegments.map((seg) => `【${seg.label} | ID=${seg.sectionId}】\n${seg.content}`).join('\n\n');
 
-
         }
-
 
       } else {
 
-
         const docInputs = Array.isArray(meta?.inputs) ? meta.inputs.filter((x) => x?.kind === 'doc_resource') : [];
-
 
         const preferDocName = (docInputs[0]?.docName || meta?.docName || '').toString();
 
-
         let id = preferDocName ? findDocIdByName(preferDocName) : selectedDocId;
 
-
         let docObj = id ? docs.find((x) => x.id === id) : null;
-
 
         if (!id && preferDocName && replayDirConfig?.dirPath) {
           docObj = await uploadDocFromReplayDirByName(preferDocName);
 
-
           id = docObj?.id || null;
 
-
         }
-
 
         // 未找到文档 - 返回 pass 状态
         if (!docObj) {
@@ -15638,7 +13215,6 @@ ${specialRequirements || '无'}`;
             passReason: 'input_doc_not_found'
           });
         }
-
 
         docContent = (docObj?.content || '').toString();
         
@@ -15651,7 +13227,6 @@ ${specialRequirements || '无'}`;
             passReason: 'input_doc_empty'
           });
         }
-
 
       }
 
@@ -15668,60 +13243,41 @@ ${specialRequirements || '无'}`;
 
       const result = await api('/api/dispatch', {
 
-
         method: 'POST',
-
 
         body: {
 
-
           sceneId: scene?.id,
-
 
           instructions,
 
-
           docContent,
-
 
           outlineSegments,
 
-
           systemPrompt
-
 
         }
 
-
       });
-
 
       if (result?.usedModel === false) {
 
-
         throw new Error('未配置QWEN_API_KEY：本次未调用大模型，Replay 失败');
 
-
       }
-
 
       const detail = extractText(result.detail || '');
 
-
       const expectedDetailLen = Number.isFinite(meta?.outputs?.detailLength) ? Number(meta.outputs.detailLength) : null;
-
 
       const expectedEditsCount = Number.isFinite(meta?.outputs?.editsCount) ? Number(meta.outputs.editsCount) : null;
 
-
       if (expectedDetailLen !== null && expectedDetailLen > 0) {
-
 
         assertReplay(detail.toString().trim().length > 0, 'Replay 返回 detail 为空，无法复现原沉淀输出');
 
-
       }
-
 
       // 检查输出：只要 detail 有内容或 edits 有内容，就视为成功
       // 大模型可能以 detail 或 edits 形式返回结果，两者都可接受
@@ -15730,12 +13286,9 @@ ${specialRequirements || '无'}`;
         assertReplay(hasOutput, 'Replay 未返回有效输出（detail 或 edits 均为空）');
       }
 
-
       const baseTpl = await getServerTemplate(scene?.id);
 
-
       assertReplay(!!baseTpl && Array.isArray(baseTpl.sections), '无法获取模板，无法复现执行指令', { strict: true });
-
 
       const selectedIds = outlineIds.length ? outlineIds : Object.keys(selectedOutlineExec || {}).filter((k) => selectedOutlineExec[k]);
 
@@ -15829,72 +13382,49 @@ ${specialRequirements || '无'}`;
           return patched;
         })
 
-
       };
-
 
       const applied = await applyTemplateToServer(nextTpl);
 
-
       if (selectedIds.length && detail) {
-
 
         selectedIds.forEach((sid) => {
 
-
           const sec = (applied?.sections || []).find((s) => s.id === sid);
-
 
           assertReplay(!!sec, `应用模板后未找到标题：${sid}`, { strict: true });
 
-
           assertReplay((sec.summary || '') === detail, `标题摘要未按 Replay 输出覆盖：${sid}`);
-
 
         });
 
-
       }
-
 
       if (selectedIds.length) {
 
-
         setSectionDocDone((prev) => {
-
 
           const next = { ...prev };
 
-
           selectedIds.forEach((sid) => {
-
 
             const docsInSection = sectionDocLinks[sid] || [];
 
-
             docsInSection.forEach((dId) => {
-
 
               if (!next[sid]) next[sid] = {};
 
-
               next[sid][dId] = true;
-
 
             });
 
-
           });
-
 
           return next;
 
-
         });
 
-
       }
-
 
       await waitUiTick();
       
@@ -15907,9 +13437,10 @@ ${specialRequirements || '无'}`;
     }
 
     if (meta?.type === 'final_generate' || action === '最终文档生成') {
-      return { status: 'pass', message: '最终文档生成不支持自动回放' };
+      // 最终文档生成现在由服务端处理，这里不再返回跳过
+      // 服务端会返回生成的文档内容
+      return { status: 'done', message: '最终文档生成（由服务端处理）' };
     }
-
 
     return {
       status: 'pass',
@@ -15917,44 +13448,52 @@ ${specialRequirements || '无'}`;
     };
   };
 
-
   const replayDeposit = async (depositId) => {
-
 
     const dep = deposits.find((d) => d.id === depositId);
 
-
     if (!dep) return;
-
 
     if (replayState?.[depositId]?.running) return;
 
-
     setExpandedLogs((prev) => ({ ...prev, [depositId]: true }));
-
 
     setReplayState((prev) => ({ ...prev, [depositId]: { running: true, bySection: {} } }));
 
-
     showToast('开始Replay');
-
 
     for (const s of dep.sections || []) {
 
-
       setReplaySectionStatus(depositId, s.id, 'running', '');
-
 
       const snap = captureReplaySnapshot();
 
-
       try {
-
 
         const res = await replayOneDepositSection(dep, s);
 
         // 传递 replayMode（大模型/脚本）
         setReplaySectionStatus(depositId, s.id, res.status, res.message || '', res.replayMode || 'script');
+
+        // 【新增】如果是最终文档生成，显示预览弹窗
+        if (res?.finalDocument?.text) {
+          setFinalDocumentPreview(res.finalDocument);
+          setShowDocPreviewModal(true);
+        }
+        
+        // 【新增】上传文档类型的 section 执行成功后，立即刷新文档列表
+        const sectionMeta = extractReplayMeta(s.content || '') || s.meta || {};
+        const sectionType = sectionMeta.type || s.llmScript?.type || '';
+        const sectionAction = s.action || '';
+        const isAddDocSection = sectionType === 'add_doc' || 
+          sectionType === 'upload_doc' ||
+          sectionAction.includes('上传') ||
+          sectionAction.includes('add_doc');
+        
+        if (res.status === 'done' && isAddDocSection) {
+          console.log(`[Replay] 上传文档步骤完成，刷新文档列表`);
+          await refreshDocsFromServer();
+        }
 
       } catch (err) {
 
@@ -15962,18 +13501,16 @@ ${specialRequirements || '无'}`;
 
         setReplaySectionStatus(depositId, s.id, 'fail', err?.message || 'Replay 失败', null);
 
-
       }
-
 
     }
 
-
     setReplayState((prev) => ({ ...prev, [depositId]: { ...(prev?.[depositId] || {}), running: false } }));
 
-
+    // 刷新文档列表，确保显示最新的文档
+    await refreshDocsFromServer();
+    
     showToast('Replay 完成');
-
 
   };
 
@@ -16018,6 +13555,26 @@ ${specialRequirements || '无'}`;
         const res = await replayOneDepositSection(dep, s);
         setReplaySectionStatus(depositId, s.id, res.status, res.message || '', res.replayMode || 'script');
         console.log(`[批量Replay] 步骤 ${i + 1} 完成，状态: ${res.status}`);
+        
+        // 【新增】如果是最终文档生成，显示预览弹窗
+        if (res?.finalDocument?.text) {
+          setFinalDocumentPreview(res.finalDocument);
+          setShowDocPreviewModal(true);
+        }
+        
+        // 【新增】上传文档类型的 section 执行成功后，立即刷新文档列表
+        const sectionMeta = extractReplayMeta(s.content || '') || s.meta || {};
+        const sectionType = sectionMeta.type || s.llmScript?.type || '';
+        const sectionAction = s.action || '';
+        const isAddDocSection = sectionType === 'add_doc' || 
+          sectionType === 'upload_doc' ||
+          sectionAction.includes('上传') ||
+          sectionAction.includes('add_doc');
+        
+        if (res.status === 'done' && isAddDocSection) {
+          console.log(`[批量Replay] 上传文档步骤完成，刷新文档列表`);
+          await refreshDocsFromServer();
+        }
       } catch (err) {
         await restoreReplaySnapshot(snap);
         setReplaySectionStatus(depositId, s.id, 'fail', err?.message || 'Replay 失败', null);
@@ -16029,7 +13586,6 @@ ${specialRequirements || '无'}`;
     setReplayState((prev) => ({ ...prev, [depositId]: { ...(prev?.[depositId] || {}), running: false } }));
     console.log(`[批量Replay] 沉淀「${dep.name}」全部步骤处理完成`);
   };
-
 
   // 计算某个标题是否有下级标题（用于显示展开/收起按钮）
   const hasChildSections = (sectionId) => {
@@ -16048,40 +13604,39 @@ ${specialRequirements || '无'}`;
     setSectionCollapsed(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
 
-  // 检查标题是否应该被隐藏（因为某个父标题被折叠）
-  // 规则：当一个标题被折叠时，它后面所有级别更低（数字更大）的标题都应该隐藏
-  // 直到遇到同级或更高级别的标题为止
+  // 检查标题是否应该被隐藏（检查直接父标题是否折叠或被隐藏）
+  // 规则：
+  // 1. 如果直接上级标题被折叠，当前标题隐藏
+  // 2. 如果直接上级标题被隐藏（因为更高级别的标题被折叠），当前标题也隐藏
+  // 例如：一级折叠 → 二级隐藏 → 三级也隐藏（因为二级被隐藏了）
   const isSectionHiddenByParent = (idx) => {
     const sections = template?.sections || [];
     const sec = sections[idx];
     if (!sec) return false;
     
     const currentLevel = sec.level || 1;
+    // 一级标题（level=1）永远不会被隐藏
+    if (currentLevel === 1) return false;
     
-    // 向前遍历所有标题，检查是否有任何父级标题被折叠且当前标题在其折叠范围内
+    // 向前遍历，找到直接上级标题（第一个级别更高的标题）
     for (let i = idx - 1; i >= 0; i--) {
       const prevSec = sections[i];
       const prevLevel = prevSec?.level || 1;
       
-      // 如果遇到级别更高或相等的标题（即不是当前标题的子标题）
+      // 找到级别更高（数字更小）的标题 = 这是直接父标题
       if (prevLevel < currentLevel) {
-        // 这是一个可能的父标题，检查它是否被折叠
+        // 检查直接父标题是否被折叠
         if (sectionCollapsed[prevSec.id]) {
-          return true; // 父标题被折叠，当前标题应该隐藏
+          return true;
         }
-        // 即使这个父标题没有被折叠，我们也需要继续向上查找更高级别的祖父标题
-        // 但要注意：我们只需要检查比当前父标题级别更高的标题
-        // 所以不能 break，继续向上查找
+        // 检查直接父标题是否被隐藏（递归检查）
+        // 使用 sections 数组的索引
+        if (isSectionHiddenByParent(i)) {
+          return true;
+        }
+        // 直接父标题既没有被折叠也没有被隐藏，当前标题可以显示
+        return false;
       }
-      
-      // 如果遇到同级标题，说明当前标题已经不在之前遍历过的标题的子树中
-      // 但我们仍然需要继续向上查找更高级别的父标题
-      // 例如：一级A -> 二级B -> 三级C -> 二级D（当前）
-      // 当检查二级D时，向上找到三级C（级别更低，跳过），然后找到二级B（同级）
-      // 此时不能停止，还需要继续向上找一级A
-      
-      // 只有当遇到的标题级别更高或相等时，且它被折叠了，当前标题才需要隐藏
-      // 所以这里不需要特殊处理，继续循环即可
     }
     
     return false;
@@ -16123,67 +13678,45 @@ ${specialRequirements || '无'}`;
     copyPreviewToSummary,
     addSummaryToSection,
     removeSummaryFromSection,
+    deleteSummaryFromSection,
     selectSectionMergeType,
   });
 
-
-  // EditingToolbar 已迁移到 ./sop/SOPToolbar.jsx
-  // 使用方式: <EditingToolbar isEditing={isEditingLayout} onComplete={handleCompleteLayoutEdit} onCancel={handleCancelLayoutEdit} onReset={handleResetLayout} />
-
-
   // 样式编辑
-
 
   const handleStyleEdit = (panelId, buttonId) => {
 
-
     setEditingButtonId(JSON.stringify({ panelId, buttonId }));
-
 
   };
 
-
   const handleWorkbenchButtonClick = (button) => {
-
 
     if (isEditingLayout) return; // 编辑模式下不触发业务逻辑
 
-
     console.log('Workbench button clicked:', button.kind, button.label);
-
 
     const allSelected =
 
-
       deposits.length > 0 &&
-
 
       Object.keys(selectedDepositIds || {}).filter((k) => selectedDepositIds[k]).length === deposits.length;
 
-
     switch (button.kind) {
-
 
       // Input Panel
 
-
       case 'save':
-
 
         handleCreateDoc({ preventDefault: () => { } }); // 模拟表单提交
 
-
         break;
-
 
       case 'upload':
 
-
         uploadInputRef.current?.click();
 
-
         break;
-
 
       case 'pick_dir':
       case 'clear_dir':
@@ -16191,45 +13724,31 @@ ${specialRequirements || '无'}`;
         console.log('目录配置已移至文档列表面板');
         break;
 
-
       // Preview Panel
-
 
       case 'fill_summary':
 
-
         // 需确认是否有对应函数，暂只打印
-
 
         console.log('Fill summary triggered');
 
-
         break;
-
 
       // Processing Panel
 
-
       case 'tab_outline':
-
 
         setProcessingTab('outline');
 
-
         break;
-
 
       case 'tab_records':
 
-
         setProcessingTab('records');
-
 
         break;
 
-
       case 'tab_config':
-
 
         setProcessingTab('config');
         // 切换到应用端按钮配置时，刷新沉淀集列表并清理无效引用
@@ -16251,1059 +13770,745 @@ ${specialRequirements || '无'}`;
           }
         })();
 
-
         break;
-
 
       case 'tab_strategy':
 
-
         setProcessingTab('strategy');
 
-
         break;
-
 
       case 'batch_replay':
 
-
         batchReplaySelectedDeposits();
 
-
         break;
-
 
       case 'select_all':
 
-
         if (allSelected) clearDepositSelection(); else
-
 
           selectAllDeposits();
 
-
         break;
-
 
       case 'delete_selected':
 
-
         deleteSelectedDeposits();
 
-
         break;
-
 
       case 'clear_selection':
 
-
         clearDepositSelection();
 
-
         break;
-
 
       case 'group_new':
 
-
         createDepositGroupFromSelection();
 
-
         break;
-
 
       case 'group_update':
 
-
         updateGroupFromSelection();
-
 
         break;
 
+      case 'category_new':
+
+        setShowNewCategoryModal(true);
+
+        break;
+
+      case 'category_assign':
+
+        setShowAssignCategoryModal(true);
+
+        break;
+
+      case 'category_remove':
+
+        // 解除选中沉淀的归类
+        {
+          const selectedIds = getSelectedDepositIds();
+          if (selectedIds.length === 0) {
+            showToast('请先选中要解除归类的沉淀');
+            break;
+          }
+          // 找出已归类的沉淀
+          const categorizedIds = selectedIds.filter(id => {
+            const dep = deposits.find(d => d.id === id);
+            return dep?.categoryId;
+          });
+          if (categorizedIds.length === 0) {
+            showToast('选中的沉淀都未归类');
+            break;
+          }
+          // 【修复】使用 removeDepositsFromCategory 函数，它会正确处理持久化
+          removeDepositsFromCategory(categorizedIds);
+          showToast(`已解除 ${categorizedIds.length} 个沉淀的归类`);
+          clearDepositSelection();
+        }
+
+        break;
 
       case 'group_rename':
 
-
         renameDepositGroup();
 
-
         break;
-
 
       case 'group_delete':
 
-
         deleteDepositGroup();
 
-
         break;
-
 
       case 'group_replay':
 
-
         replayDepositGroup();
 
-
         break;
-
 
       case 'outline_extract':
 
-
         const llmBtn = llmButtons.find((b) => b.kind === 'outline_extract');
-
 
         if (llmBtn) autoTemplate(llmBtn); else
 
-
           showToast('未找到可用的抽取按钮');
 
-
         break;
-
 
       case 'clear_outline':
 
-
         clearOutlineTemplate();
 
-
         break;
-
 
       case 'add_button':
 
-
         addLlmButton();
-
 
         setProcessingTab('config');
 
-
         break;
-
 
       // Operations Panel
 
-
       case 'start_deposit':
-
 
         startDeposit();
 
-
         break;
-
 
       case 'end_deposit':
 
-
         endDeposit();
 
-
         break;
-
 
       case 'dispatch':
 
-
         runDispatch();
 
-
         break;
-
 
       default:
 
-
         // 尝试作为通用 LLM 按钮处理 (Slot buttons)
-
 
         if (button.kind?.startsWith('slot_') || button.kind === 'custom') {
 
-
           const target = llmButtons.find((b) => b.id === button.id) || button;
-
 
           // 这里可能需要更精确的查找，或者直接传 button
 
-
           // 暂时尝试直接调用
-
 
           runOutlineSlotButton(target);
 
-
         }
-
 
         break;
 
-
     }
 
-
   };
-
 
   // 更新按钮样式
 
-
   const handleButtonUpdate = (panelId, buttonId, { style, label, kind, prompt }) => {
-
 
     console.log('[DEBUG] handleButtonUpdate called:', { panelId, buttonId, style, label, kind, prompt });
 
-
     setButtonPositions((prev) => {
-
 
       const panelButtons = prev[panelId] || [];
 
-
       const newButtons = panelButtons.map((btn) => {
-
 
         if (btn.id === buttonId) {
 
-
           const updated = {
-
 
             ...btn,
 
-
             style: style ? { ...btn.style, ...style } : btn.style,
-
 
             label: label !== undefined ? label : btn.label,
 
-
             kind: kind !== undefined ? kind : btn.kind,
-
 
             prompt: prompt !== undefined ? prompt : btn.prompt
 
-
           };
-
 
           console.log('[DEBUG] Updated button:', updated);
 
-
           return updated;
-
 
         }
 
-
         return btn;
-
 
       });
 
-
       return { ...prev, [panelId]: newButtons };
-
 
     });
 
-
   };
-
 
   // ===== 全局按钮操作函数 =====
 
-
   // 更新全局按钮
-
 
   const updateGlobalButton = (buttonId, updates) => {
 
-
     console.log('[GlobalButton] Update:', buttonId, updates);
-
 
     setGlobalButtons((prev) => prev.map((btn) =>
 
-
       btn.id === buttonId ? { ...btn, ...updates } : btn
-
 
     ));
 
-
   };
-
 
   // 更新全局按钮样式
 
-
   const handleGlobalButtonStyleUpdate = (buttonId, { style, label, kind, prompt }) => {
-
 
     console.log('[GlobalButton] Style update:', buttonId, { style, label, kind, prompt });
 
-
     setGlobalButtons((prev) => prev.map((btn) => {
-
 
       if (btn.id === buttonId) {
 
-
         return {
-
 
           ...btn,
 
-
           style: style ? { ...btn.style, ...style } : btn.style,
-
 
           label: label !== undefined ? label : btn.label,
 
-
           kind: kind !== undefined ? kind : btn.kind,
-
 
           prompt: prompt !== undefined ? prompt : btn.prompt
 
-
         };
-
 
       }
 
-
       return btn;
-
 
     }));
 
-
   };
-
 
   const deleteGlobalButton = (buttonId) => {
 
-
     const button = globalButtons.find((btn) => btn.id === buttonId);
 
-
     if (!button) return;
-
 
     console.log('[GlobalButton] Delete (to recycle):', buttonId);
 
-
     const deletedButton = { ...button, deletedAt: Date.now() };
-
 
     setDeletedButtons((prev) => [...prev, deletedButton]);
 
-
     setGlobalButtons((prev) => prev.filter((btn) => btn.id !== buttonId));
-
 
     // 保存到localStorage
 
-
     setTimeout(() => {
-
 
       const deletedConfig = [...deletedButtons, deletedButton];
 
-
       localStorage.setItem('deleted-buttons-config', JSON.stringify(deletedConfig));
-
 
     }, 0);
 
-
   };
-
 
   // 恢复已删除的按钮
 
-
   const handleRestoreButton = (buttonId) => {
-
 
     const button = deletedButtons.find((btn) => btn.id === buttonId);
 
-
     if (!button) return;
-
 
     // 移除 deletedAt 标记
 
-
     const { deletedAt, ...rest } = button;
-
 
     const restoredButton = { ...rest };
 
-
     setGlobalButtons((prev) => [...prev, restoredButton]);
-
 
     setDeletedButtons((prev) => {
 
-
       const newList = prev.filter((btn) => btn.id !== buttonId);
-
 
       // 更新 localStorage
 
-
       localStorage.setItem('deleted-buttons-config', JSON.stringify(newList));
-
 
       return newList;
 
-
     });
 
-
   };
-
 
   // 永久删除按钮
 
-
   const handlePermanentDelete = (buttonId) => {
-
 
     setDeletedButtons((prev) => {
 
-
       const newList = prev.filter((btn) => btn.id !== buttonId);
-
 
       // 更新 localStorage
 
-
       localStorage.setItem('deleted-buttons-config', JSON.stringify(newList));
-
 
       return newList;
 
-
     });
 
-
   };
-
 
   const handleClearRecycleBin = () => {
 
-
     setDeletedButtons([]);
-
 
     localStorage.removeItem('deleted-buttons-config');
 
-
   };
-
 
   // 全局按钮拖动处理
 
-
   const handleGlobalButtonMouseDown = (e, buttonId, action = 'move') => {
-
 
     if (!isEditingLayout) return;
 
-
     e.preventDefault();
-
 
     e.stopPropagation();
 
-
     const button = globalButtons.find((btn) => btn.id === buttonId);
-
 
     if (!button) return;
 
-
     const startX = e.clientX;
-
 
     const startY = e.clientY;
 
-
     setDraggingButton({
-
 
       buttonId,
 
-
       action,
-
 
       startX,
 
-
       startY,
-
 
       startPos: { x: button.x, y: button.y },
 
-
       startSize: { width: button.width, height: button.height }
-
 
     });
 
-
   };
-
 
   // 全局按钮样式编辑
 
-
   const handleGlobalButtonStyleEdit = (buttonId) => {
-
 
     setEditingButtonId(buttonId);
 
-
   };
-
 
   // 删除按钮
 
-
   const handleDeleteButton = (buttonId) => {
-
 
     // GlobalButton component already handles the confirmation dialog
 
-
     const buttonToDelete = globalButtons.find((b) => b.id === buttonId);
-
 
     if (buttonToDelete) {
 
-
       setDeletedButtons((prev) => [...prev, buttonToDelete]);
-
 
       setGlobalButtons((prev) => prev.filter((b) => b.id !== buttonId));
 
-
     } else {
-
 
       // Fallback for old system if needed, or just ignore
 
-
       console.warn('Button not found in global buttons:', buttonId);
-
 
     }
 
-
   };
-
 
   const renderProcessingPanelContent = () => {
 
-
     // Determine rendering mode based on processingTab
-
 
     // Note: These variables are derived from component state 'processingTab'
 
-
     const showConfig = processingTab === 'config';
-
 
     const showRecords = processingTab === 'records';
 
-
     return (
-
 
       <div className="card fixed processing-card">
 
-
         {/* Topbar removed as buttons are in EditableButtonsContainer */}
-
 
         <div className="processing-topbar" style={{ height: '40px' }} />
 
-
         {showConfig ?
-
 
           <div className="config-panel">
 
-
             <div className="card-head" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-
 
               <div>
 
-
                 <div className="section-title">{UI_TEXT.t37}</div>
-
 
                 <div className="hint">{UI_TEXT.t38}</div>
 
-
               </div>
-
 
               {/* '新增' is likely 'add_button' in config, but if missing, keep here? User screenshot showed '新增按钮'. */}
 
-
             </div>
-
 
             <div className="sections" style={{ gap: 10 }}>
 
-
               {llmButtons.length === 0 ?
-
 
                 <div className="hint">{UI_TEXT.t39}</div> :
 
-
                 llmButtons.map((b, idx) =>
-
 
                   <div key={b.id} className="section" style={{ background: '#fff' }}>
 
-
                     <div className="section-head" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-
 
                       <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
 
-
                         <span className="pill muted">{idx + 1}</span>
-
 
                         <span>{b.label || UI_TEXT.t163}</span>
 
-
                         <span className={`status ${b.enabled ? 'filled' : 'empty'}`}>
-
 
                           {b.enabled ? UI_TEXT.t40 : UI_TEXT.t45}
 
-
                         </span>
 
-
                       </div>
-
 
                       <div className="section-actions" style={{ gap: 8 }}>
 
-
                         <label className="inline-check" style={{ gap: 6 }}>
-
 
                           <input
 
-
                             type="checkbox"
-
 
                             checked={!!b.enabled}
 
-
                             onChange={(e) => toggleLlmButtonEnabled(b.id, e.target.checked)} />
-
 
                           <span className="hint">{UI_TEXT.t40}</span>
 
-
                         </label>
-
 
                         <button className="ghost small" type="button" onClick={() => startEditLlmButton(b)} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t41}
 
-
                         </button>
-
 
                         <button className="ghost small" type="button" onClick={() => deleteLlmButton(b.id)} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t25}
 
-
                         </button>
-
 
                       </div>
 
-
                     </div>
 
-
                   </div>
-
 
                 )
 
-
               }
-
 
             </div>
 
-
             {buttonDraft ?
-
 
               <div className="section" style={{ background: '#fff' }}>
 
-
                 <div className="section-title">{UI_TEXT.t42}{buttonDraft.label || UI_TEXT.t163}</div>
-
 
                 <div className="sections" style={{ gap: 10 }}>
 
-
                   <label className="form-row">{UI_TEXT.t43}
-
 
                     <input
 
-
                       value={buttonDraft.label || ''}
-
 
                       onChange={(e) => setButtonDraft((p) => ({ ...p, label: e.target.value }))} />
 
-
                   </label>
-
 
                   <div className="link-row">
 
-
                     <label className="form-row" style={{ minWidth: 120 }}>{UI_TEXT.t40}
 
-
                       <select
-
 
                         value={buttonDraft.enabled ? 'on' : 'off'}
 
-
                         onChange={(e) => setButtonDraft((p) => ({ ...p, enabled: e.target.value === 'on' }))}>
-
 
                         <option value="on">{UI_TEXT.t44}</option>
 
-
                         <option value="off">{UI_TEXT.t45}</option>
-
 
                       </select>
 
-
                     </label>
-
 
                     <label className="form-row" style={{ minWidth: 160 }}>{UI_TEXT.t46}
 
-
                       <select
-
 
                         value={normalizePrecipitationMode(buttonDraft.precipitationMode)}
 
-
                         onChange={(e) => setButtonDraft((p) => ({ ...p, precipitationMode: e.target.value }))}>
-
 
                         <option value="llm">{UI_TEXT.t11}</option>
 
-
                         <option value="script">{UI_TEXT.t12}</option>
-
 
                       </select>
 
-
                     </label>
 
-
                   </div>
-
 
                   <div className="section" style={{ background: '#fff' }}>
 
-
                     <div className="card-head" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-
 
                       <div>
 
-
                         <div className="section-title">{UI_TEXT.t47}</div>
-
 
                         <div className="hint">{UI_TEXT.t48}</div>
 
-
                       </div>
-
 
                       <button className="ghost small" type="button" onClick={addIoRuleToDraft} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t49}
 
-
                       </button>
 
-
                     </div>
-
 
                     <div className="sections" style={{ gap: 8 }}>
 
-
                       {normalizeIoRows(buttonDraft?.io, {
-
 
                         dataSource: buttonDraft?.dataSource,
 
-
                         outputTarget: buttonDraft?.outputTarget
-
 
                       }).map((r, idx) =>
 
-
                         <div key={r.id} className="link-row io-config-row" style={{ alignItems: 'center' }}>
-
 
                           <span className="pill muted">{idx + 1}</span>
 
-
                           <label className="inline-check" style={{ gap: 6 }}>
-
 
                             <input
 
-
                               type="checkbox"
-
 
                               checked={!!r.enabled}
 
-
                               onChange={(e) => updateIoRuleInDraft(r.id, { enabled: e.target.checked })} />
-
 
                             <span className="hint">{UI_TEXT.t40}</span>
 
-
                           </label>
-
 
                           <label className="form-row" style={{ minWidth: 220 }}>{UI_TEXT.t50}
 
-
                             <select
-
 
                               value={r.dataSource}
 
-
                               onChange={(e) => updateIoRuleInDraft(r.id, { dataSource: e.target.value })}>
-
 
                               <option value="preview">{UI_TEXT.t51}</option>
 
-
                               <option value="selected_doc">{UI_TEXT.t52}</option>
-
 
                             </select>
 
-
                           </label>
-
 
                           <label className="form-row" style={{ minWidth: 140 }}>{UI_TEXT.t53}
 
-
                             <select
-
 
                               value={r.output}
 
-
                               onChange={(e) => updateIoRuleInDraft(r.id, { output: e.target.value })}>
-
 
                               <option value="titles">{UI_TEXT.t54}</option>
 
-
                               <option value="summaries">ժҪ</option>
-
 
                             </select>
 
-
                           </label>
-
 
                           <label className="form-row" style={{ minWidth: 160 }}>{UI_TEXT.t55}
 
-
                             <select
-
 
                               value={r.target}
 
-
                               onChange={(e) => updateIoRuleInDraft(r.id, { target: e.target.value })}>
-
 
                               <option value="title">{UI_TEXT.t54}</option>
 
-
                               <option value="summary">ժҪ</option>
-
 
                             </select>
 
-
                           </label>
-
 
                           <button className="ghost small" type="button" onClick={() => deleteIoRuleFromDraft(r.id)} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t56}
 
-
                           </button>
-
 
                         </div>
 
-
                       )}
-
 
                     </div>
 
-
                   </div>
-
 
                   <label className="form-row">
 
-
                     <div className="link-row" style={{ alignItems: 'center' }}>
-
 
                       <span>{UI_TEXT.t57}<code>{'{{text}}'}</code>{UI_TEXT.t58}</span>
 
-
                       <button
-
 
                         className="ghost small"
 
-
                         type="button"
-
 
                         onClick={optimizePromptDraft}
 
-
                         disabled={isOptimizingPrompt || !(buttonDraft.prompt || '').toString().trim()}
-
 
                         style={{ pointerEvents: 'auto' }}>
 
-
                         {isOptimizingPrompt ? UI_TEXT.t133 : UI_TEXT.t132}
-
 
                       </button>
 
-
                     </div>
-
 
                     <textarea
 
-
                       rows={8}
-
 
                       value={buttonDraft.prompt || ''}
 
-
                       onChange={(e) => setButtonDraft((p) => ({ ...p, prompt: e.target.value }))} />
-
 
                   </label>
 
-
                   <div className="section-actions" style={{ justifyContent: 'flex-end' }}>
-
 
                     <button className="ghost small" type="button" onClick={cancelEditLlmButton} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t22}
 
-
                     </button>
-
 
                     <button className="ghost small" type="button" onClick={saveLlmButtonDraft} style={{ pointerEvents: 'auto' }}>{UI_TEXT.t59}
 
-
                     </button>
-
 
                   </div>
 
-
                 </div>
-
 
               </div> :
 
-
               null}
-
 
           </div> :
 
-
           !showRecords ?
-
 
             <>
 
-
               <div className="sections outline-scroll outline-tree">{outlineTree && outlineTree.map(renderOutlineNode)}</div>
-
 
               {finalGenerateCfg?.enabled ?
 
-
                 <div className="processing-bottombar">
-
 
                   {/* Final button is also likely in EditableButtonsContainer? If so, remove. But 'final_btn' is not standard. Keeping for safety if not in config. */}
 
-
                 </div> :
-
 
                 null}
 
-
             </> :
-
 
             <div className="sections history-scroll">
               {/* 沉淀列表/沉淀集列表切换标签 */}
@@ -17370,225 +14575,174 @@ ${specialRequirements || '无'}`;
                   replayState={replayState}
                   getDepositReplayStatus={getDepositReplayStatus}
                   getDepositReplayReason={getDepositReplayReason}
+                  removeDepositFromGroup={removeDepositFromGroup}
+                  moveDepositInGroup={moveDepositInGroup}
                 />
               )}
 
-              {depositViewMode === 'deposits' && deposits.length === 0 && <p className="hint">{UI_TEXT.t63}</p>}
+              {/* 沉淀列表面板 */}
+              {depositViewMode === 'deposits' && renderDepositListPanel(false)}
 
-              {depositViewMode === 'deposits' && deposits.map((dep, idx) => {
+              {/* 保留旧代码用于兼容（已由 DepositListPanel 替代，后续可删除） */}
+              {false && depositViewMode === 'deposits' && (!depositCategories || depositCategories.length === 0) && deposits.map((dep, idx) => {
 
                 const orderKey = `${dep.id}||order`;
 
-
                 const orderEditing = depositEditing[orderKey] !== undefined;
-
 
                 const depositStatus = getDepositReplayStatus(dep);
 
-
                 const depositReason = getDepositReplayReason(dep);
-
 
                 const statusClass = depositStatus ? depositStatus.replace(' ', '-') : '';
 
-
                 return (
-
 
                   <div
 
-
                     key={`${dep.id}-${idx}`}
-
 
                     className="section"
 
-
                     onDragOver={handleDepositDragOver(dep.id)}
-
 
                     onDrop={handleDepositDrop(dep.id)}
 
-
                     style={dragOverDepositId === dep.id ? { outline: '2px dashed #3b82f6', outlineOffset: 2 } : undefined}>
-
 
                     <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
 
-
                       <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
-
 
                         <label className="inline-check" style={{ gap: 6 }}>
 
-
                           <input
-
 
                             type="checkbox"
 
-
                             checked={!!selectedDepositIds?.[dep.id]}
-
 
                             onChange={(e) => toggleDepositSelected(dep.id, e.target.checked)} />
 
-
                         </label>
-
 
                         <button
 
-
                           className="icon-btn tiny deposit-drag-handle"
-
 
                           type="button"
 
-
                           draggable
-
 
                           onDragStart={handleDepositDragStart(dep.id)}
 
-
                           onDragEnd={handleDepositDragEnd}
-
 
                           title={UI_TEXT.t64}>
 
-
                           <GripVertical size={12} />
-
 
                         </button>
 
-
                         {orderEditing ?
-
 
                           <input
 
-
                             className="deposit-order-input"
-
 
                             type="number"
 
-
                             min={1}
-
 
                             max={deposits.length}
 
-
                             value={depositEditing[orderKey]}
-
 
                             onChange={(e) => startEditDeposit(dep.id, 'order', e.target.value)}
 
-
                             onBlur={() => applyDepositOrder(dep.id)}
-
 
                             onKeyDown={(e) => handleDepositOrderKeyDown(e, dep.id)} /> :
 
-
                           <button
-
 
                             className="pill muted deposit-order-pill"
 
-
                             type="button"
-
 
                             onClick={() => startEditDepositOrder(dep.id, idx + 1)}
 
-
                             title={UI_TEXT.t65}>
-
 
                             {idx + 1}
 
-
                           </button>
 
-
                         }
-
 
                         {depositEditing[`${dep.id}||name`] !== undefined ?
 
-
                           <>
-
 
                             <input
 
-
                               className="deposit-name-input"
-
 
                               value={depositEditing[`${dep.id}||name`]}
 
-
                               onChange={(e) => startEditDeposit(dep.id, 'name', e.target.value)}
-
 
                               onKeyDown={(e) => handleDepositNameKeyDown(e, dep.id)}
 
-
                               style={{ minWidth: 180 }} />
-
 
                             <button className="ghost xsmall" type="button" onClick={() => void applyDepositName(dep.id)}>{UI_TEXT.t66}
 
-
                             </button>
-
 
                             <button className="ghost xsmall" type="button" onClick={() => cancelEditDeposit(dep.id, 'name')}>{UI_TEXT.t22}
 
-
                             </button>
-
 
                           </> :
 
-
                           <>
-
 
                             <span className="deposit-name">{dep.name || UI_TEXT.t144}</span>
 
+                            {/* 显示归类标签 */}
+                            {dep.categoryId && depositCategories.find(c => c.id === dep.categoryId) && (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  background: '#e0f2fe',
+                                  color: '#0369a1',
+                                  marginLeft: '6px',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                {depositCategories.find(c => c.id === dep.categoryId)?.name}
+                              </span>
+                            )}
 
                             <button
 
-
                               className="ghost xsmall"
-
 
                               type="button"
 
-
                               onClick={() => startEditDeposit(dep.id, 'name', dep.name || dep.id)}>{UI_TEXT.t67}
-
 
                             </button>
 
-
                           </>
-
 
                         }
 
-
                       </div>
 
-
                       <div className="section-actions" style={{ gap: 6 }}>
-
 
                         {/* 只有当所有 section 都完成时才显示 DONE，其他状态正常显示 */}
                         {depositStatus && (depositStatus === 'done' || depositStatus !== 'done') && (
@@ -17605,129 +14759,81 @@ ${specialRequirements || '无'}`;
 
                         {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
-
                         <button
-
 
                           className="ghost xsmall"
 
-
                           type="button"
-
 
                           onClick={() => editDeposit(dep.id)}
 
-
                           title="编辑沉淀内容">
-
 
                           ✏️ 编辑
 
-
                         </button>
-
 
                         <button
 
-
                           className="ghost xsmall"
 
-
                           type="button"
-
 
                           onClick={() => void replayDeposit(dep.id)}
 
-
                           disabled={!!replayState?.[dep.id]?.running}>
-
 
                           Replay
 
-
                         </button>
 
-
-                        {expandedLogs[dep.id] ?
-
-
-                          <>
-
-
-                            <button className="ghost xsmall" type="button" onClick={() => setAllDepositSectionsExpanded(dep.id, false)}>{UI_TEXT.t68}
-
-
-                            </button>
-
-
-                            <button className="ghost xsmall" type="button" onClick={() => setAllDepositSectionsExpanded(dep.id, true)}>{UI_TEXT.t69}
-
-
-                            </button>
-
-
-                          </> :
-
-
-                          null}
-
+                        {expandedLogs[dep.id] && (dep.sections?.length > 0) && (
+                          <button 
+                            className="ghost xsmall" 
+                            type="button" 
+                            onClick={() => toggleAllDepositSectionsExpanded(dep.id)}
+                          >
+                            {areAllSectionsExpanded(dep.id) ? UI_TEXT.t68 : UI_TEXT.t69}
+                          </button>
+                        )}
 
                         <button className="ghost xsmall" type="button" onClick={() => deleteDepositsByIds([dep.id])}>{UI_TEXT.t25}
 
-
                         </button>
-
 
                         <button
 
-
                           className="ghost xsmall"
-
 
                           type="button"
 
-
                           onClick={() => setExpandedLogs((prev) => ({ ...prev, [dep.id]: !prev[dep.id] }))}>
-
 
                           {expandedLogs[dep.id] ? UI_TEXT.t142 : UI_TEXT.t143}
 
-
                         </button>
-
 
                       </div>
 
-
                     </div>
-
 
                     {depositStatus && depositStatus !== 'done' && depositReason ?
 
-
                       <div className="hint" style={{ marginTop: 6, color: '#92400e' }}>{UI_TEXT.t70}
-
 
                         {depositReason}
 
-
                       </div> :
-
 
                       null}
 
-
                     {expandedLogs[dep.id] &&
-
 
                       <div className="sections" style={{ gap: 6 }}>
 
-
                         {(dep.sections || []).length === 0 && <div className="hint">{UI_TEXT.t71}</div>}
 
-
                         {(dep.sections || []).map((s, i) => {
-
 
                           // section 状态
                           const replay = replayState?.[dep.id]?.bySection?.[s.id];
@@ -17735,24 +14841,17 @@ ${specialRequirements || '无'}`;
                           const canFlexUpload = sectionMeta?.type === 'add_doc' && (
                             sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
 
-
                           return (
-
 
                             <div key={s.id} className="section" style={{ background: '#fff' }}>
 
-
                               <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-
 
                                 <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
 
-
                                   <span className="pill muted">{i + 1}</span>
 
-
                                   <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
-
 
                                   {/* 校验模式标记 */}
                                   <span 
@@ -17770,7 +14869,6 @@ ${specialRequirements || '无'}`;
                                   >
                                     {dep.validationMode === 'strict' ? '🔒' : '🔓'}
                                   </span>
-
 
                                   {replay?.status ? (
                                     <span 
@@ -17803,12 +14901,10 @@ ${specialRequirements || '无'}`;
                                     </span>
                                   ) : null}
 
-
                                 </div>
 
-
                                 <div className="section-actions" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                                  {/* Replay 模式下拉框 */}
+                                  {/* 1. Replay 模式下拉框 - 最左边 */}
                                   <select
                                     value={s.sectionReplayMode || dep.precipitationMode || 'llm'}
                                     onChange={(e) => updateSectionReplayMode(dep.id, s.id, e.target.value)}
@@ -17828,7 +14924,7 @@ ${specialRequirements || '无'}`;
                                     <option value="script">📜 脚本</option>
                                   </select>
 
-                                  {/* 单独 Replay 按钮 */}
+                                  {/* 2. Replay 按钮 */}
                                   <button 
                                     className="ghost xsmall" 
                                     type="button"
@@ -17840,7 +14936,18 @@ ${specialRequirements || '无'}`;
                                     Replay
                                   </button>
 
-                                  {/* 展开/收起详情按钮 */}
+                                  {/* 3. 编辑按钮 - 打开编辑弹窗 */}
+                                  <button 
+                                    className="ghost xsmall" 
+                                    type="button"
+                                    title="编辑此步骤的详细信息"
+                                    onClick={() => editDepositSection(dep.id, s.id)}
+                                    style={{ fontSize: 10, padding: '2px 6px' }}
+                                  >
+                                    编辑
+                                  </button>
+
+                                  {/* 4. 展开/收起 - 倒数第二 */}
                                   <button 
                                     className="ghost xsmall" 
                                     type="button"
@@ -17850,17 +14957,22 @@ ${specialRequirements || '无'}`;
                                     {sectionExpanded[`${dep.id}_${s.id}`] ? '收起' : '展开'}
                                   </button>
 
-                                  {canFlexUpload && (
-                                    <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)} style={{ fontSize: 10 }}>{UI_TEXT.t73}</button>
-                                  )}
-
-                                  <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)} style={{ fontSize: 10, color: '#b91c1c' }}>✕</button>
+                                  {/* 5. 删除 - 最右边 */}
+                                  <button className="ghost xsmall" type="button" onClick={() => {
+                                    if (window.confirm(`确定要删除这条记录吗？`)) {
+                                      deleteDepositSection(dep.id, s.id);
+                                    }
+                                  }} style={{ fontSize: 10 }}>删除</button>
                                 </div>
                               </div>
 
                               {/* 脚本记录和大模型记录 - 可展开/收起 */}
-                              {sectionExpanded[`${dep.id}_${s.id}`] !== false && (
+                              {sectionExpanded[`${dep.id}_${s.id}`] === true && (
                               <>
+                              {/* ===== 最顶部测试标记 - 沉淀列表 ===== */}
+                              <div style={{ background: '#ff00ff', color: '#fff', padding: 8, marginTop: 4, marginBottom: 4, fontSize: 12, fontWeight: 'bold', border: '3px solid #000' }}>
+                                💜 测试标记 TOP - 沉淀列表 V20260201 - 如果看到此消息说明展开条件成立
+                              </div>
                               {/* 脚本记录内容显示 */}
                               {(() => {
                                 // 获取脚本内容：优先 structuredScriptContent，其次 rawContent，最后 content
@@ -17900,7 +15012,7 @@ ${specialRequirements || '无'}`;
                                     {scriptContent && (
                                       <details style={{ marginTop: 6 }}>
                                         <summary style={{ fontSize: 10, color: '#a16207', cursor: 'pointer', userSelect: 'none' }}>展开完整脚本...</summary>
-                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflow: 'auto' }}>
+                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                                           {scriptContent}
                                         </pre>
                                       </details>
@@ -17909,11 +15021,21 @@ ${specialRequirements || '无'}`;
                                 );
                               })()}
                               
-                              {/* 大模型记录 - 始终显示 */}
-                              {/* 大模型记录 - 始终显示 */}
+                              {/* 大模型记录 - 显示完整的 structuredScriptContent 或 llmScript 字段 */}
+                              {/* ===== 测试标记 V1 ===== */}
+                              <div style={{ background: '#ff0000', color: '#fff', padding: 4, marginTop: 4, fontSize: 10 }}>
+                                🔴 测试代码块 V1 - 如果看到此消息说明代码已加载
+                              </div>
                               {(() => {
                                 const llm = s.llmScript || {};
                                 const meta = sectionMeta || s.meta || {};
+                                
+                                // 【关键修复】优先显示完整的结构化内容，与编辑弹窗保持一致
+                                const fullContent = llm.structuredScriptContent
+                                  || extractFullStepContent(dep?.llmRecordContent || '', i + 1)
+                                  || llm.rawContent
+                                  || '';
+                                
                                 // 灵活上传的关键词
                                 const flexKeywords = meta?.docSelector?.description || llm?.docSelector?.description || llm?.flexKeywords || '';
                                 // 输入来源描述
@@ -17923,22 +15045,99 @@ ${specialRequirements || '无'}`;
                                 // 特殊要求
                                 const specialReqs = llm.specialRequirements || meta?.specialRequirements || '';
                                 
+                                // 【关键修复】从多个来源提取输出格式和计算公式 - 与 DepositConfirmModal 保持一致
+                                // 优先从 s.content（包含完整信息）提取
+                                const sectionContent = (s.content || '').split('__REPLAY_META__')[0].trim();
+                                const structuredContent = llm.structuredScriptContent || '';
+                                
+                                // 提取输出格式和计算公式 - 从多个来源尝试
+                                let outputFormat = llm.outputFormat || meta?.outputFormat || '';
+                                let calculationFormula = llm.calculationFormula || meta?.calculationFormula || '';
+                                
+                                // 【调试】打印原始数据
+                                console.log('[ListDisplay] 提取前:', {
+                                  depId: dep?.id,
+                                  sectionId: s?.id,
+                                  llmOutputFormat: llm.outputFormat,
+                                  metaOutputFormat: meta?.outputFormat,
+                                  sectionContentLength: sectionContent?.length,
+                                  structuredContentLength: structuredContent?.length,
+                                  fullContentLength: fullContent?.length,
+                                  hasSectionContent: sectionContent?.includes('输出格式'),
+                                  hasStructuredContent: structuredContent?.includes('输出格式'),
+                                  hasFullContent: fullContent?.includes('输出格式')
+                                });
+                                
+                                // 如果没有在 llm/meta 中找到，尝试从 content 中提取（与 DepositConfirmModal.jsx 完全一致的正则）
+                                const contentSources = [sectionContent, structuredContent, fullContent];
+                                for (const contentText of contentSources) {
+                                  if (!outputFormat && contentText) {
+                                    const outputMatch = contentText.match(/【输出格式】\s*([\s\S]*?)(?=【[^输]|\n\n\n|===|$)/);
+                                    if (outputMatch) {
+                                      outputFormat = outputMatch[1].trim();
+                                      console.log('[ListDisplay] 从 content 提取到 outputFormat:', outputFormat?.substring(0, 50));
+                                    }
+                                  }
+                                  if (!calculationFormula && contentText) {
+                                    const calcMatch = contentText.match(/【计算公式】\s*([\s\S]*?)(?=【[^计]|\n\n\n|===|$)/);
+                                    if (calcMatch) {
+                                      calculationFormula = calcMatch[1].trim();
+                                      console.log('[ListDisplay] 从 content 提取到 calculationFormula:', calculationFormula?.substring(0, 50));
+                                    }
+                                  }
+                                  if (outputFormat && calculationFormula) break;
+                                }
+                                
+                                // 【调试】打印提取结果
+                                console.log('[ListDisplay] 提取结果:', { outputFormat: outputFormat?.substring(0, 50), calculationFormula: calculationFormula?.substring(0, 50) });
+                                
                                 return (
                                   <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                                       <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
                                       {llm.type && <span style={{ fontSize: 11, color: '#0369a1', background: '#e0f2fe', padding: '1px 4px', borderRadius: 3 }}>{llm.type}</span>}
                                     </div>
-                                    {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
-                                    {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
-                                    {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
-                                    {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
-                                    {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
-                                    {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
-                                    {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
-                                    {/* 如果没有任何具体内容，显示提示 */}
-                                    {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && (
-                                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                    
+                                    {/* 【关键字段】输出格式和计算公式 - 高亮显示，优先展示 */}
+                                    {outputFormat ? (
+                                      <div style={{ fontSize: 11, color: '#7c3aed', background: '#f5f3ff', padding: '4px 8px', borderRadius: 4, marginBottom: 4, border: '1px solid #c4b5fd' }}>
+                                        📤 <strong>输出格式：</strong>{outputFormat}
+                                      </div>
+                                    ) : (
+                                      <div style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic', marginBottom: 2 }}>
+                                        (未提取到输出格式，数据检查: sectionContent有值={!!sectionContent}, fullContent有值={!!fullContent})
+                                      </div>
+                                    )}
+                                    {calculationFormula ? (
+                                      <div style={{ fontSize: 11, color: '#059669', background: '#ecfdf5', padding: '4px 8px', borderRadius: 4, marginBottom: 4, border: '1px solid #6ee7b7' }}>
+                                        🔢 <strong>计算公式：</strong>{calculationFormula}
+                                      </div>
+                                    ) : (
+                                      <div style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic', marginBottom: 2 }}>
+                                        (未提取到计算公式)
+                                      </div>
+                                    )}
+                                    
+                                    {/* 【修复】如果有完整的结构化内容，直接显示（与编辑弹窗一致） */}
+                                    {fullContent ? (
+                                      <pre style={{ fontSize: 11, color: '#0c4a6e', background: '#f0f9ff', padding: 8, borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, maxHeight: 300, overflowY: 'auto' }}>
+                                        {fullContent}
+                                      </pre>
+                                    ) : (
+                                      <>
+                                        {/* 兜底：显示字段级别的信息 */}
+                                        {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
+                                        {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
+                                        {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
+                                        {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
+                                        {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
+                                        {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
+                                        {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
+                                        {/* 如果没有任何具体内容，显示提示 */}
+                                        {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && !outputFormat && !calculationFormula && (
+                                          <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 );
@@ -17959,69 +15158,47 @@ ${specialRequirements || '无'}`;
                                 </div>
                               )}
 
-
                             </div>);
-
 
                         })}
 
-
                       </div>
-
 
                     }
 
-
                   </div>);
-
 
               })}
 
-
             </div>
-
 
         }
 
-
       </div>);
-
 
   };
 
-
   return (
-
 
     <>
 
-
       {showBackofficeConfig &&
-
 
         <div className="modal-backdrop" onClick={() => setShowBackofficeConfig(false)}>
 
-
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-
 
             <div className="modal-head">
 
-
               <h3>{UI_TEXT.t80}</h3>
-
 
               <button className="ghost xsmall" type="button" onClick={() => setShowBackofficeConfig(false)}>{UI_TEXT.t45}
 
-
               </button>
-
 
             </div>
 
-
             <div className="modal-body">
-
 
               {<GlobalButtonsConfigPanel
                 globalButtons={globalButtons}
@@ -18030,33 +15207,23 @@ ${specialRequirements || '无'}`;
                 showToast={showToast}
               />}
 
-
             </div>
-
 
             <div className="modal-foot">
 
-
               <button className="ghost small" type="button" onClick={() => setShowBackofficeConfig(false)}>{UI_TEXT.t22}
 
-
               </button>
-
 
               <button className="ghost small" type="button" onClick={saveBackofficeButtonsConfig}>{UI_TEXT.t59}
 
-
               </button>
-
 
             </div>
 
-
           </div>
 
-
         </div>
-
 
       }
 
@@ -18074,6 +15241,9 @@ ${specialRequirements || '无'}`;
           getScriptForSection={getScriptForSection}
           updateScriptForSection={updateScriptForSection}
           isEditMode={!!editingDepositId}
+          // 【新增】灵活上传所需的 API 和 Toast 函数
+          api={api}
+          showToast={showToast}
         />
       )}
 
@@ -18088,976 +15258,826 @@ ${specialRequirements || '无'}`;
         onConfirm={confirmUpdateGroups}
       />
 
-      {isEditingLayout && showRecycleBin &&
+      {/* 新建归类弹窗 */}
+      {showNewCategoryModal && (
+        <div className="modal-overlay" onClick={() => setShowNewCategoryModal(false)} style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.5)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          zIndex: 9999 
+        }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ 
+            maxWidth: '400px', 
+            padding: '24px', 
+            margin: 0, 
+            backgroundColor: '#fff', 
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>{UI_TEXT.t165}</h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#64748b' }}>{UI_TEXT.t171}</label>
+              <select
+                value={newCategoryData.level}
+                onChange={(e) => setNewCategoryData(prev => ({ ...prev, level: parseInt(e.target.value, 10), parentId: null }))}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '14px' }}>
+                <option value={1}>{UI_TEXT.t167}</option>
+                <option value={2}>{UI_TEXT.t168}</option>
+                <option value={3}>{UI_TEXT.t169}</option>
+              </select>
+            </div>
+            
+            {newCategoryData.level > 1 && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#64748b' }}>父级归类</label>
+                <select
+                  value={newCategoryData.parentId || ''}
+                  onChange={(e) => setNewCategoryData(prev => ({ ...prev, parentId: e.target.value || null }))}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '14px' }}>
+                  <option value="">（无父级）</option>
+                  {depositCategories
+                    .filter(cat => cat.level < newCategoryData.level)
+                    .map(cat => (
+                      <option key={cat.id} value={cat.id}>
+                        {'　'.repeat(cat.level - 1)}{cat.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#64748b' }}>{UI_TEXT.t170}</label>
+              <input
+                type="text"
+                value={newCategoryData.name}
+                onChange={(e) => setNewCategoryData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="输入归类名称"
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+                autoFocus
+              />
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setShowNewCategoryModal(false)}
+                style={{ padding: '8px 16px' }}>
+                取消
+              </button>
+              <button
+                type="button"
+                className="primary"
+                disabled={!newCategoryData.name.trim()}
+                onClick={() => {
+                  if (newCategoryData.name.trim()) {
+                    createCategory(newCategoryData.name.trim(), newCategoryData.level, newCategoryData.parentId);
+                    showToast(`已创建${newCategoryData.level === 1 ? '一级' : newCategoryData.level === 2 ? '二级' : '三级'}归类：${newCategoryData.name}`);
+                    setShowNewCategoryModal(false);
+                    setNewCategoryData({ name: '', level: 1, parentId: null });
+                  }
+                }}
+                style={{ padding: '8px 16px' }}>
+                确认创建
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* 沉淀归类弹窗 */}
+      {showAssignCategoryModal && (
+        <div className="modal-overlay" onClick={() => setShowAssignCategoryModal(false)} style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.5)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          zIndex: 9999 
+        }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ 
+            maxWidth: '400px', 
+            padding: '24px', 
+            margin: 0, 
+            backgroundColor: '#fff', 
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>{UI_TEXT.t166}</h3>
+            
+            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
+              已选中 <strong>{getSelectedDepositIds().length}</strong> 个沉淀，选择要归类到的目标：
+            </p>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#64748b' }}>{UI_TEXT.t172}</label>
+              <select
+                value={assignCategoryTargetId || ''}
+                onChange={(e) => setAssignCategoryTargetId(e.target.value || null)}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '14px' }}>
+                <option value="">{UI_TEXT.t173}</option>
+                {depositCategories
+                  .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
+                  .map(cat => {
+                    const levelLabel = cat.level === 1 ? '【一级】' : cat.level === 2 ? '　【二级】' : '　　【三级】';
+                    return (
+                      <option key={cat.id} value={cat.id}>
+                        {levelLabel} {cat.name}
+                      </option>
+                    );
+                  })}
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setShowAssignCategoryModal(false)}
+                style={{ padding: '8px 16px' }}>
+                取消
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  const selectedIds = getSelectedDepositIds();
+                  assignDepositsToCategory(selectedIds, assignCategoryTargetId);
+                  const categoryName = assignCategoryTargetId 
+                    ? depositCategories.find(c => c.id === assignCategoryTargetId)?.name || '未知归类'
+                    : '未分类';
+                  showToast(`已将 ${selectedIds.length} 个沉淀归类到「${categoryName}」`);
+                  setShowAssignCategoryModal(false);
+                  setAssignCategoryTargetId(null);
+                  clearDepositSelection();
+                }}
+                style={{ padding: '8px 16px' }}>
+                确认归类
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEditingLayout && showRecycleBin &&
 
         <EditConsole
 
-
           deletedButtons={deletedButtons}
-
 
           deletedBlocks={deletedBlocks}
 
-
           onRestore={handleRestoreButton}
-
 
           onPermanentDelete={handlePermanentDelete}
 
-
           onRestoreBlock={handleRestoreBlock}
-
 
           onPermanentDeleteBlock={handlePermanentDeleteBlock}
 
-
           onClearAll={handleClearRecycleBin}
-
 
           onClose={() => setShowRecycleBin(false)}
 
-
           onSave={() => {
 
-
             setIsEditingLayout(false);
-
 
             saveButtonConfig(globalButtons);
 
-
             localStorage.setItem('layout_panel_positions', JSON.stringify(panelPositions));
-
 
             localStorage.setItem('layout_content_blocks', JSON.stringify(contentBlockPositions));
 
-
             localStorage.setItem('layout_deleted_blocks', JSON.stringify(deletedBlocks));
 
-
             localStorage.setItem('layout_size', JSON.stringify(layoutSize));
-
 
             // Persist to backend
 
-
             api('/api/config/save', {
-
 
               method: 'POST',
 
-
               body: {
-
 
                 layout: panelPositions,
 
-
                 globalButtons: {
-
 
                   activeButtons: globalButtons,
 
-
                   deletedButtons,
-
 
                   version: '2.0',
 
-
                   savedAt: Date.now()
-
 
                 },
 
-
                 contentBlocks: contentBlockPositions,
-
 
                 deletedBlocks: deletedBlocks,
 
-
                 headerTitles,
-
 
                 layoutSize
 
-
               }
-
 
             }).then(() => {
 
-
               console.log('Saved config to backend');
-
 
             }).catch((e) => {
 
-
               console.error('Failed to save to backend', e);
-
 
               alert(UI_TEXT.t154);
 
-
             });
 
-
           }}
-
 
           onCancel={() => {
 
-
             if (confirm(UI_TEXT.t155)) {
-
 
               setIsEditingLayout(false);
 
-
               window.location.reload();
-
 
             }
 
-
           }}
-
 
           onReset={() => {
 
-
             if (confirm(UI_TEXT.t156)) {
-
 
               localStorage.removeItem('layout_panel_positions');
 
-
               localStorage.removeItem('layout_content_blocks');
-
 
               localStorage.removeItem('button_config_v2');
 
-
               window.location.reload();
-
 
             }
 
-
           }} />
 
-
       }
-
 
       {isEditingLayout && !showRecycleBin &&
 
-
         <button
-
 
           onClick={() => setShowRecycleBin(true)}
 
-
           style={{
 
-
             position: 'fixed',
-
 
             right: 0,
 
-
             top: '50%',
-
 
             transform: 'translateY(-50%)',
 
-
             zIndex: 10000,
-
 
             background: '#fff',
 
-
             border: '1px solid #e2e8f0',
-
 
             borderRight: 'none',
 
-
             borderRadius: '8px 0 0 8px',
-
 
             padding: '8px',
 
-
             boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
-
 
             cursor: 'pointer',
 
-
             display: 'flex',
 
-
             alignItems: 'center',
-
 
             gap: '4px'
 
-
           }}
-
 
           title={UI_TEXT.t130}>
 
-
           <ChevronLeft size={20} color="#64748b" />
-
 
         </button>
 
-
       }
-
 
       {isEditingLayout &&
 
-
         <button
-
 
           onClick={() => {
 
-
             setIsEditingLayout(false);
-
 
             localStorage.setItem('global-buttons-config', JSON.stringify({
 
-
               activeButtons: globalButtons,
-
 
               deletedButtons,
 
-
               version: '2.0',
-
 
               savedAt: Date.now()
 
-
             }));
-
 
             localStorage.setItem('layout_panel_positions', JSON.stringify(panelPositions));
 
-
             localStorage.setItem('layout_content_blocks', JSON.stringify(contentBlockPositions));
-
 
             localStorage.setItem('layout_deleted_blocks', JSON.stringify(deletedBlocks));
 
-
             localStorage.setItem('layout_size', JSON.stringify(layoutSize));
-
 
             api('/api/config/save', {
 
-
               method: 'POST',
-
 
               body: {
 
-
                 layout: panelPositions,
-
 
                 globalButtons: {
 
-
                   activeButtons: globalButtons,
-
 
                   deletedButtons,
 
-
                   version: '2.0',
-
 
                   savedAt: Date.now()
 
-
                 },
-
 
                 contentBlocks: contentBlockPositions,
 
-
                 deletedBlocks: deletedBlocks,
-
 
                 headerTitles,
 
-
                 layoutSize
-
 
               }
 
-
             }).then(() => {
-
 
               console.log('Saved config to backend');
 
-
             }).catch((e) => {
-
 
               console.error('Failed to save to backend', e);
 
-
               alert(UI_TEXT.t154);
-
 
             });
 
-
           }}
-
 
           style={{
 
-
             position: 'fixed',
-
 
             right: '20px',
 
-
             top: '20px',
-
 
             zIndex: 10001, // Higher than console toggle
 
-
             background: '#000', // Black background like in design
-
 
             color: '#fff',
 
-
             border: 'none',
-
 
             borderRadius: '999px',
 
-
             padding: '10px 24px',
-
 
             cursor: 'pointer',
 
-
             display: 'flex',
-
 
             alignItems: 'center',
 
-
             gap: '8px',
-
 
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
 
-
             fontSize: '14px',
-
 
             fontWeight: 500
 
-
           }}>
-
 
           <Save size={16} />{UI_TEXT.t81}
 
-
         </button>
-
 
       }
 
-
       <main className={`layout-multi ${isEditingLayout ? 'editing-mode' : ''}`} style={{ position: 'relative' }}>
 
-
         {/* <EditingToolbar /> Removed in favor of EditConsole */}
-
 
         <header className="hero" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
-
             <LayoutIcon size={22} style={{ color: 'var(--primary-accent)', marginTop: '4px' }} />
-
 
             <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '4px' }}>
 
-
               {/* Eyebrow Title */}
-
 
               {isEditingLayout ?
 
-
                 <div
-
 
                   style={{
 
-
                     position: 'relative',
-
 
                     display: 'inline-flex',
 
-
                     alignItems: 'center',
-
 
                     width: `${headerTitles.eyebrow.width || 200}px`,
 
-
                     height: `${headerTitles.eyebrow.height || 30}px`,
-
 
                     border: '2px dashed #cbd5e1',
 
-
                     borderRadius: '4px',
 
-
                     background: 'transparent',
-
 
                     cursor: draggingHeaderTitle?.titleKey === 'eyebrow' ? 'grabbing' : 'grab',
 
-
                     zIndex: draggingHeaderTitle?.titleKey === 'eyebrow' ? 200 : 100,
-
 
                     transform: `translate(${headerTitles.eyebrow.position?.left || 0}px, ${headerTitles.eyebrow.position?.top || 0}px)`
 
-
                   }}
-
 
                   onMouseDown={(e) => handleHeaderTitleMouseDown(e, 'eyebrow')}>
 
-
                   <p
-
 
                     className="eyebrow"
 
-
                     style={{
-
 
                       margin: 0,
 
-
                       flex: 1,
-
 
                       display: 'flex',
 
-
                       alignItems: 'center',
-
 
                       justifyContent: headerTitles.eyebrow.style?.textAlign === 'left' ? 'flex-start' : headerTitles.eyebrow.style?.textAlign === 'right' ? 'flex-end' : 'center',
 
-
                       textAlign: headerTitles.eyebrow.style?.textAlign || 'center',
-
 
                       ...headerTitles.eyebrow.style
 
-
                     }}>
-
 
                     {headerTitles.eyebrow.text}
 
-
                   </p>
-
 
                   {/* 编辑按钮 */}
 
-
                   <button
-
 
                     onClick={(e) => {
 
-
                       e.stopPropagation();
-
 
                       setEditingHeaderTitle('eyebrow');
 
-
                     }}
-
 
                     onMouseDown={(e) => e.stopPropagation()}
 
-
                     style={{
-
 
                       width: '20px',
 
-
                       height: '20px',
-
 
                       borderRadius: '50%',
 
-
                       background: '#3b82f6',
-
 
                       color: '#fff',
 
-
                       border: 'none',
-
 
                       cursor: 'pointer',
 
-
                       display: 'flex',
-
 
                       alignItems: 'center',
 
-
                       justifyContent: 'center',
-
 
                       fontSize: '10px',
 
-
                       fontWeight: 'bold',
-
 
                       boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)',
 
-
                       padding: 0,
-
 
                       flexShrink: 0
 
-
                     }}
-
 
                     title={UI_TEXT.t82}>
 
-
                     <Type size={12} />
-
 
                   </button>
 
-
                   {/* Resize手柄 */}
 
-
                   <div
-
 
                     onMouseDown={(e) => handleHeaderTitleResizeMouseDown(e, 'eyebrow', 'se')}
 
-
                     style={{
-
 
                       position: 'absolute',
 
-
                       right: '-4px',
-
 
                       bottom: '-4px',
 
-
                       width: '12px',
-
 
                       height: '12px',
 
-
                       background: '#3b82f6',
-
 
                       border: '2px solid #fff',
 
-
                       borderRadius: '50%',
-
 
                       cursor: 'nwse-resize',
 
-
                       zIndex: 120,
-
 
                       boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
 
-
                     }} />
 
-
                 </div> :
-
 
                 <p
 
-
                   className="eyebrow"
 
-
                   style={{
-
 
                     ...headerTitles.eyebrow.style,
 
-
                     transform: `translate(${headerTitles.eyebrow.position?.left || 0}px, ${headerTitles.eyebrow.position?.top || 0}px)`,
 
-
                     position: 'relative',
-
 
                     width: `${headerTitles.eyebrow.width || 200}px`,
 
-
                     height: `${headerTitles.eyebrow.height || 30}px`,
-
 
                     display: 'flex',
 
-
                     alignItems: 'center',
-
 
                     justifyContent: headerTitles.eyebrow.style?.textAlign === 'left' ? 'flex-start' : headerTitles.eyebrow.style?.textAlign === 'right' ? 'flex-end' : 'center',
 
-
                     textAlign: headerTitles.eyebrow.style?.textAlign || 'center',
-
 
                     margin: 0
 
-
                   }}>
-
 
                   {headerTitles.eyebrow.text}
 
-
                 </p>
 
-
               }
-
 
               {/* Main Title */}
 
-
               {isEditingLayout ?
-
 
                 <div
 
-
                   style={{
 
-
                     position: 'relative',
-
 
                     display: 'inline-flex',
 
-
                     alignItems: 'center',
-
 
                     width: `${headerTitles.title.width || 200}px`,
 
-
                     height: `${headerTitles.title.height || 40}px`,
-
 
                     border: '2px dashed #cbd5e1',
 
-
                     borderRadius: '4px',
-
 
                     background: 'transparent',
 
-
                     cursor: draggingHeaderTitle?.titleKey === 'title' ? 'grabbing' : 'grab',
-
 
                     zIndex: draggingHeaderTitle?.titleKey === 'title' ? 200 : 100,
 
-
                     transform: `translate(${headerTitles.title.position?.left || 0}px, ${headerTitles.title.position?.top || 0}px)`
-
 
                   }}
 
-
                   onMouseDown={(e) => handleHeaderTitleMouseDown(e, 'title')}>
-
 
                   <h1
 
-
                     style={{
-
 
                       margin: 0,
 
-
                       flex: 1,
-
 
                       display: 'flex',
 
-
                       alignItems: 'center',
-
 
                       justifyContent: headerTitles.title.style?.textAlign === 'left' ? 'flex-start' : headerTitles.title.style?.textAlign === 'right' ? 'flex-end' : 'center',
 
-
                       textAlign: headerTitles.title.style?.textAlign || 'center',
-
 
                       ...headerTitles.title.style
 
-
                     }}>
-
 
                     {headerTitles.title.text}
 
-
                   </h1>
-
 
                   {/* 编辑按钮 */}
 
-
                   <button
-
 
                     onClick={(e) => {
 
-
                       e.stopPropagation();
-
 
                       setEditingHeaderTitle('title');
 
-
                     }}
-
 
                     onMouseDown={(e) => e.stopPropagation()}
 
-
                     style={{
-
 
                       width: '24px',
 
-
                       height: '24px',
-
 
                       borderRadius: '50%',
 
-
                       background: '#3b82f6',
-
 
                       color: '#fff',
 
-
                       border: 'none',
-
 
                       cursor: 'pointer',
 
-
                       display: 'flex',
-
 
                       alignItems: 'center',
 
-
                       justifyContent: 'center',
-
 
                       fontSize: '12px',
 
-
                       fontWeight: 'bold',
-
 
                       boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)',
 
-
                       padding: 0,
-
 
                       flexShrink: 0
 
-
                     }}
-
 
                     title={UI_TEXT.t82}>
 
-
                     <Type size={12} />
-
 
                   </button>
 
-
                   {/* Resize手柄 */}
-
 
                   <div
 
-
                     onMouseDown={(e) => handleHeaderTitleResizeMouseDown(e, 'title', 'se')}
-
 
                     style={{
 
-
                       position: 'absolute',
-
 
                       right: '-4px',
 
-
                       bottom: '-4px',
-
 
                       width: '12px',
 
-
                       height: '12px',
-
 
                       background: '#3b82f6',
 
-
                       border: '2px solid #fff',
-
 
                       borderRadius: '50%',
 
-
                       cursor: 'nwse-resize',
-
 
                       zIndex: 120,
 
-
                       boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
-
 
                     }} />
 
-
                 </div> :
-
 
                 <h1
 
-
                   style={{
-
 
                     ...headerTitles.title.style,
 
-
                     transform: `translate(${headerTitles.title.position?.left || 0}px, ${headerTitles.title.position?.top || 0}px)`,
-
 
                     position: 'relative',
 
-
                     width: `${headerTitles.title.width || 200}px`,
-
 
                     height: `${headerTitles.title.height || 40}px`,
 
-
                     display: 'flex',
-
 
                     alignItems: 'center',
 
-
                     justifyContent: headerTitles.title.style?.textAlign === 'left' ? 'flex-start' : headerTitles.title.style?.textAlign === 'right' ? 'flex-end' : 'center',
-
 
                     textAlign: headerTitles.title.style?.textAlign || 'center',
 
-
                     margin: 0
-
 
                   }}>
 
-
                   {headerTitles.title.text}
-
 
                 </h1>
 
-
               }
-
 
             </div>
 
-
           </div>
-
 
           <div className="actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
             {/* 第一行：切换应用端工作台按钮（字体更大），编辑模式下向左移动避免被工具栏遮挡 */}
@@ -19119,99 +16139,67 @@ ${specialRequirements || '无'}`;
           )}
         </header>
 
-
         {isEditingLayout ?
-
 
           <LayoutEditContainer
 
-
             isEditing={true}
-
 
             size={layoutSize}
 
-
             onSizeChange={setLayoutSize}
-
 
             style={{ position: 'relative' }}>
 
-
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-
 
               {/* 输入表单面板 */}
 
-
               {/* 文档列表面板 */}
-
 
               <EditableLayoutPanel
 
-
                 panelId="document-list-panel"
-
 
                 panelName={getPanelTitle('document-list-panel')}
 
-
                 isEditing={isEditingLayout}
-
 
                 onTitleEdit={() => setEditingTitleId('document-list-panel')}
 
-
                 titleStyle={panelPositions['document-list-panel']?.titleStyle}
-
 
                 className="document-list-panel"
 
-
                 position={panelPositions['document-list-panel']}
-
 
                 onPositionChange={(newPos) =>
 
-
                   setPanelPositions((prev) => ({ ...prev, 'document-list-panel': newPos }))
-
 
                 }>
 
-
                 <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-
 
                   <EditableContentBlock
 
-
                     blockId="document-list-content"
-
 
                     panelId="document-list-panel"
 
-
                     isEditing={isEditingLayout}
-
 
                     position={contentBlockPositions['document-list-panel']}
 
-
                     onPositionChange={(newPos) =>
-
 
                       setContentBlockPositions((prev) => ({ ...prev, 'document-list-panel': newPos }))
 
-
                     }
-
 
                     hidden={deletedBlocks.includes('document-list-panel')}
 
-
                     onDelete={() => handleDeleteBlock('document-list-panel')}>
-
 
                     <DocumentListPanelContent
                       docs={docs}
@@ -19226,342 +16214,278 @@ ${specialRequirements || '无'}`;
                       saveReplayDirConfig={saveReplayDirConfig}
                       replayDirConfigSaving={replayDirConfigSaving} />
 
-
                   </EditableContentBlock>
-
 
                   {/* 回放目录配置已合并到文档列表面板中 */}
 
-
                   {/* 旧按钮系统已移除 */}
-
 
                 </div>
 
-
               </EditableLayoutPanel>
-
 
               {/* 内容预览面板 */}
 
-
               <EditableLayoutPanel
-
 
                 panelId="preview-panel"
 
-
                 panelName={getPanelTitle('preview-panel')}
 
-
                 isEditing={isEditingLayout}
-
 
                 onTitleEdit={() => setEditingTitleId('preview-panel')}
 
-
                 titleStyle={panelPositions['preview-panel']?.titleStyle}
-
 
                 className="preview-panel"
 
-
                 position={panelPositions['preview-panel']}
 
-
                 onPositionChange={(newPos) =>
-
 
                   setPanelPositions((prev) => ({ ...prev, 'preview-panel': newPos }))
 
-
                 }>
-
 
                 <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
-
                   <EditableContentBlock
-
 
                     blockId="preview-textarea"
 
-
                     panelId="preview-panel"
 
-
                     isEditing={isEditingLayout}
-
 
                     position={contentBlockPositions['preview-textarea']}
 
-
                     onPositionChange={(newPos) =>
-
 
                       setContentBlockPositions((prev) => ({ ...prev, 'preview-textarea': newPos }))
 
-
                     }
-
 
                     hidden={deletedBlocks.includes('preview-textarea')}
 
-
                     onDelete={() => handleDeleteBlock('preview-textarea')}>
-
 
                     <div className="card" style={{ width: '100%', height: '100%', padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
-
-                      <div style={{ position: 'absolute', top: 8, right: 24, zIndex: 10 }}>
-
+                      <div style={{ position: 'absolute', top: 8, right: 24, zIndex: 10, display: 'flex', gap: '8px' }}>
 
                         <button
 
-
                           type="button"
 
+                          onClick={saveDocDraft}
 
-                          onClick={insertSelectionToCheckedSummaries}
+                          disabled={!selectedDocId}
 
+                          style={{ backgroundColor: '#ffffff', color: selectedDocId ? '#1e293b' : '#94a3b8', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: selectedDocId ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
 
-                          style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-
-
-                          <Copy size={14} />{UI_TEXT.t89}
-
+                          <Save size={14} />保存
 
                         </button>
 
+                        <button
+
+                          type="button"
+
+                          onClick={insertSelectionToCheckedSummaries}
+
+                          style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+
+                          <Copy size={14} />{UI_TEXT.t89}
+
+                        </button>
 
                       </div>
 
-
-                      <textarea
-
-
+                      {/* 【统一】可编辑的富文本区域，直接显示加粗效果 */}
+                      <div
                         ref={previewTextRef}
-
-
-                        className="preview full"
-
-
-                        value={docDraft}
-
-
-                        onChange={(e) => setDocDraft(e.target.value)}
-
-
-                        onMouseUp={updatePreviewSelection}
-
-
-                        onKeyUp={updatePreviewSelection}
-
-
-                        onSelect={updatePreviewSelection}
-
-
-                        onBlur={saveDocDraft}
-
-
-                        placeholder={UI_TEXT.t90}
-
-
-                        style={{ border: 'none', width: '100%', height: '100%', resize: 'none', padding: '48px 12px 12px', boxSizing: 'border-box' }} />
-
+                        className="preview-rich-content preview full"
+                        contentEditable
+                        suppressContentEditableWarning
+                        style={{ 
+                          border: 'none', 
+                          width: '100%', 
+                          height: '100%', 
+                          padding: '48px 12px 12px', 
+                          boxSizing: 'border-box',
+                          overflow: 'auto',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          fontFamily: 'inherit',
+                          fontSize: '14px',
+                          lineHeight: '1.6',
+                          color: '#334155',
+                          outline: 'none',
+                          cursor: 'text'
+                        }}
+                        onMouseUp={() => {
+                          const sel = window.getSelection();
+                          if (sel && sel.toString().trim()) {
+                            const text = sel.toString();
+                            const fullText = docDraft || '';
+                            // 【关键】使用 findTextPositionInMarkdown 正确处理带 ** 标记的文本
+                            const pos = findTextPositionInMarkdown(fullText, text);
+                            if (pos) {
+                              setPreviewSelection({ text, start: pos.start, end: pos.end });
+                            } else {
+                              const plainText = stripBoldMarkers(fullText);
+                              const plainStart = plainText.indexOf(text);
+                              setPreviewSelection({ text, start: plainStart >= 0 ? plainStart : 0, end: plainStart >= 0 ? plainStart + text.length : text.length });
+                            }
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // 保存时将 HTML 转换回 Markdown 格式
+                          const newText = htmlToMarkdownText(e.currentTarget.innerHTML);
+                          if (newText !== docDraft) {
+                            setDocDraft(newText);
+                            saveDocDraft();
+                          }
+                        }}
+                        dangerouslySetInnerHTML={{ __html: renderBoldMarkdown(docDraft) || '<span style="color:#94a3b8">暂无内容，请选择或上传文档</span>' }}
+                      />
 
                     </div>
 
-
                   </EditableContentBlock>
-
 
                 </div>
 
-
               </EditableLayoutPanel>
-
 
               {/* 文档处理面板 */}
 
-
               <EditableLayoutPanel
-
 
                 panelId="processing-panel"
 
-
                 panelName={getPanelTitle('processing-panel')}
-
 
                 isEditing={isEditingLayout}
 
-
                 onTitleEdit={() => setEditingTitleId('processing-panel')}
-
 
                 titleStyle={panelPositions['processing-panel']?.titleStyle}
 
-
                 className="processing-panel"
 
-
-                position={panelPositions['processing-panel']}
-
+                position={processingTab === 'outline' 
+                  ? panelPositions['processing-panel']
+                  : {
+                      ...panelPositions['processing-panel'],
+                      // 非大纲模式：扩展高度占据整个垂直空间
+                      height: (panelPositions['processing-panel']?.height || 376) + 
+                              (panelPositions['operations-panel']?.height || 360) + 16
+                    }
+                }
 
                 onPositionChange={(newPos) =>
 
-
                   setPanelPositions((prev) => ({ ...prev, 'processing-panel': newPos }))
-
 
                 }>
 
-
                 <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-
 
                   <EditableContentBlock
 
-
                     blockId="processing-tabs"
-
 
                     panelId="processing-panel"
 
-
                     isEditing={isEditingLayout}
-
 
                     position={contentBlockPositions['processing-tabs']}
 
-
                     onPositionChange={(newPos) =>
-
 
                       setContentBlockPositions((prev) => ({ ...prev, 'processing-tabs': newPos }))
 
-
                     }
-
 
                     allowChildPointerEvents>
 
-
                     <div className="editable-button-group processing-tabs-bar">
-
 
                       {getProcessingTabButtons().map((btn) =>
 
-
                         <EditableButton
-
 
                           key={btn.id}
 
-
                           button={btn}
-
 
                           isEditing={isEditingLayout}
 
-
                           panelId="processing-tabs"
-
 
                           onMouseDown={handleButtonMouseDown}
 
-
                           onStyleEdit={handleStyleEdit}
-
 
                           onClick={handleWorkbenchButtonClick} />
 
-
                       )}
-
 
                       {renderProcessingTabArrows()}
 
-
                     </div>
-
 
                   </EditableContentBlock>
 
-
                   {processingTab !== 'records' &&
-
 
                     <EditableContentBlock
 
-
                       blockId="processing-content"
-
 
                       panelId="processing-panel"
 
-
                       isEditing={isEditingLayout}
-
 
                       position={contentBlockPositions['processing-panel']}
 
-
                       onPositionChange={(newPos) =>
-
 
                         setContentBlockPositions((prev) => ({ ...prev, 'processing-panel': newPos }))
 
-
                       }
-
 
                       hidden={deletedBlocks.includes('processing-panel')}
 
-
                       onDelete={() => handleDeleteBlock('processing-panel')}>
-
 
                       <div
 
-
                         style={{
-
 
                           fontSize: '12px',
 
-
                           color: '#666',
-
 
                           minHeight: '100%',
 
-
                           boxSizing: 'border-box',
-
 
                           display: 'flex',
 
-
                           flexDirection: 'column'
-
 
                         }}>
 
-
                         {/* 内容区域 */}
-
 
                         <div style={{ padding: '0 12px 12px', overflowY: 'auto', flex: 1 }}>
 
-
                           {processingTab === 'outline' &&
 
-
                             <div>
-
 
                               <div style={{ 
                                 display: 'flex', 
@@ -19581,56 +16505,39 @@ ${specialRequirements || '无'}`;
 
                                   className="ghost small"
 
-                                  onClick={() => setShowDocPreviewModal(true)}
-
+                                  onClick={openFinalPreview}
 
                                   disabled={!template?.sections?.length}
 
-
                                   style={{ background: '#3b82f6', color: '#fff', border: 'none' }}>{UI_TEXT.t91}
 
-
                                 </button>
-
 
                                 {/* 清除按钮 - 也可以配置化，但由硬编码逻辑支持 */}
 
-
                                 <button
-
 
                                   className="ghost small"
 
-
                                   onClick={clearOutlineTemplate}
 
-
-                                  style={{ color: '#ef4444', borderColor: '#ef4444' }}>{UI_TEXT.t92}
-
+                                  style={{}}>{UI_TEXT.t92}
 
                                 </button>
 
-
                               </div>
-
 
                               {!template || !template.sections || template.sections.length === 0 ?
 
-
                                 <p style={{ fontSize: '13px', color: '#94a3b8', padding: '20px', textAlign: 'center' }}>{UI_TEXT.t93}</p> :
-
 
                                 template.sections.map((sec, idx) => renderOutlineNode({ section: sec, index: idx }))
 
-
                               }
-
 
                             </div>
 
-
                           }
-
 
                           {processingTab === 'config' && (
                             <AppButtonsConfigPanel
@@ -19642,54 +16549,40 @@ ${specialRequirements || '无'}`;
                               toggleAppButtonGroup={toggleAppButtonGroup}
                               saveAppButtonsConfig={saveAppButtonsConfig}
                               appButtonsSaving={appButtonsSaving}
+                              replayAppButton={replayAppButton}
+                              appButtonReplaying={appButtonReplaying}
                             />
                           )}
 
-
                         </div>
-
 
                       </div>
 
-
                     </EditableContentBlock>
-
 
                   }
 
-
                   {processingTab === 'records' &&
-
 
                     <>
 
-
                       <EditableContentBlock
-
 
                         blockId="processing-records-toolbar"
 
-
                         panelId="processing-panel"
-
 
                         isEditing={isEditingLayout}
 
-
                         position={{ ...contentBlockPositions['processing-records-toolbar'], height: 70 }}
-
 
                         onPositionChange={(newPos) =>
 
-
                           setContentBlockPositions((prev) => ({ ...prev, 'processing-records-toolbar': newPos }))
-
 
                         }
 
-
                         allowChildPointerEvents>
-
 
                         {/* 沉淀列表/沉淀集列表切换标签 */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
@@ -19733,24 +16626,17 @@ ${specialRequirements || '无'}`;
                       <EditableContentBlock
                         blockId="processing-records-list"
 
-
                         panelId="processing-panel"
-
 
                         isEditing={isEditingLayout}
 
-
                         position={contentBlockPositions['processing-records-list']}
-
 
                         onPositionChange={(newPos) =>
 
-
                           setContentBlockPositions((prev) => ({ ...prev, 'processing-records-list': newPos }))
 
-
                         }>
-
 
                         <div className="sections history-scroll" style={{ height: '100%', overflow: 'auto' }}>
 
@@ -19758,168 +16644,129 @@ ${specialRequirements || '无'}`;
                           {depositViewMode === 'groups' && renderDepositGroupsList()}
                           {depositViewMode === 'groups' && renderSelectedDepositGroupPanel()}
 
-                          {/* 沉淀列表模式 */}
-                          {depositViewMode === 'deposits' && deposits.length === 0 &&
+                          {/* 沉淀列表面板 */}
+                          {depositViewMode === 'deposits' && renderDepositListPanel(isEditingLayout)}
 
-                            <p className="hint" style={{ padding: '20px', textAlign: 'center' }}>{UI_TEXT.t63}</p>
-
-                          }
-
-                          {depositViewMode === 'deposits' && deposits.length > 0 &&
-
+                          {/* 旧代码已由 DepositListPanel 替代 */}
+                          {false && depositViewMode === 'deposits' && deposits.length > 0 &&
                             <>
-
                               {deposits.map((dep, idx) => {
 
                                 const orderKey = `${dep.id}||order`;
 
-
                                 const orderEditing = depositEditing[orderKey] !== undefined;
-
 
                                 const depositStatus = getDepositReplayStatus(dep);
 
-
                                 const depositReason = getDepositReplayReason(dep);
-
 
                                 const statusClass = depositStatus ? depositStatus.replace(' ', '-') : '';
 
-
                                 return (
-
 
                                   <div
 
-
                                     key={`${dep.id}-${idx}`}
-
 
                                     className="section"
 
-
                                     onDragOver={handleDepositDragOver(dep.id)}
-
 
                                     onDrop={handleDepositDrop(dep.id)}
 
-
                                     style={dragOverDepositId === dep.id ? { outline: '2px dashed #3b82f6', outlineOffset: 2 } : undefined}>
-
 
                                     <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
 
-
                                       <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
-
 
                                         <label className="inline-check" style={{ gap: 6 }}>
 
-
                                           <input
-
 
                                             type="checkbox"
 
-
                                             checked={!!selectedDepositIds?.[dep.id]}
-
 
                                             onChange={(e) => toggleDepositSelected(dep.id, e.target.checked)} />
 
-
                                         </label>
-
 
                                         <button
 
-
                                           className="icon-btn tiny deposit-drag-handle"
-
 
                                           type="button"
 
-
                                           draggable
-
 
                                           onDragStart={handleDepositDragStart(dep.id)}
 
-
                                           onDragEnd={handleDepositDragEnd}
-
 
                                           title={UI_TEXT.t64}>
 
-
                                           <GripVertical size={12} />
-
 
                                         </button>
 
-
                                         {orderEditing ?
-
 
                                           <input
 
-
                                             className="deposit-order-input"
-
 
                                             type="number"
 
-
                                             min={1}
-
 
                                             max={deposits.length}
 
-
                                             value={depositEditing[orderKey]}
-
 
                                             onChange={(e) => startEditDeposit(dep.id, 'order', e.target.value)}
 
-
                                             onBlur={() => applyDepositOrder(dep.id)}
-
 
                                             onKeyDown={(e) => handleDepositOrderKeyDown(e, dep.id)} /> :
 
-
                                           <button
-
 
                                             className="pill muted deposit-order-pill"
 
-
                                             type="button"
-
 
                                             onClick={() => startEditDepositOrder(dep.id, idx + 1)}
 
-
                                             title={UI_TEXT.t65}>
-
 
                                             {idx + 1}
 
-
                                           </button>
-
 
                                         }
 
-
                                         <span className="deposit-name">{dep.name || UI_TEXT.t144}</span>
 
+                                        {/* 显示归类标签 */}
+                                        {dep.categoryId && depositCategories.find(c => c.id === dep.categoryId) && (
+                                          <span
+                                            style={{
+                                              fontSize: '11px',
+                                              padding: '2px 6px',
+                                              borderRadius: '4px',
+                                              background: '#e0f2fe',
+                                              color: '#0369a1',
+                                              marginLeft: '6px',
+                                              whiteSpace: 'nowrap'
+                                            }}>
+                                            {depositCategories.find(c => c.id === dep.categoryId)?.name}
+                                          </span>
+                                        )}
 
                                       </div>
 
-
                                       <div className="section-actions" style={{ gap: 6 }}>
-
 
                                         {/* 只有当所有 section 都完成时才显示 DONE，其他状态正常显示 */}
                                         {depositStatus && (depositStatus === 'done' || depositStatus !== 'done') && (
@@ -19934,102 +16781,69 @@ ${specialRequirements || '无'}`;
 
                                         {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
-
                                         <button
-
 
                                           className="ghost xsmall"
 
-
                                           type="button"
-
 
                                           onClick={() => editDeposit(dep.id)}
 
-
                                           title="编辑沉淀内容">
-
 
                                           ✏️ 编辑
 
-
                                         </button>
-
 
                                         <button
 
-
                                           className="ghost xsmall"
 
-
                                           type="button"
-
 
                                           onClick={() => void replayDeposit(dep.id)}
 
-
                                           disabled={!!replayState?.[dep.id]?.running}>
-
 
                                           Replay
 
-
                                         </button>
-
 
                                         <button className="ghost xsmall" type="button" onClick={() => deleteDepositsByIds([dep.id])}>{UI_TEXT.t25}
 
-
                                         </button>
-
 
                                         <button
 
-
                                           className="ghost xsmall"
-
 
                                           type="button"
 
-
                                           onClick={() => setExpandedLogs((prev) => ({ ...prev, [dep.id]: !prev[dep.id] }))}>
-
 
                                           {expandedLogs[dep.id] ? UI_TEXT.t142 : UI_TEXT.t143}
 
-
                                         </button>
-
 
                                       </div>
 
-
                                     </div>
-
 
                                     {depositStatus && depositStatus !== 'done' && depositReason ?
 
-
                                       <div className="hint" style={{ marginTop: 6, color: '#92400e' }}>{UI_TEXT.t70}
-
 
                                         {depositReason}
 
-
                                       </div> :
-
 
                                       null}
 
-
                                     {expandedLogs[dep.id] &&
-
 
                                       <div className="sections" style={{ gap: 6, marginTop: '8px' }}>
 
-
                                         {(dep.sections || []).length === 0 && <div className="hint">{UI_TEXT.t71}</div>}
-
 
                                         {(dep.sections || []).map((s, i) => {
                                           // section 状态（只读）
@@ -20038,24 +16852,17 @@ ${specialRequirements || '无'}`;
                                           const canFlexUpload = sectionMeta?.type === 'add_doc' && (
                                             sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
 
-
                                           return (
-
 
                                             <div key={s.id} className="section" style={{ background: '#fff' }}>
 
-
                                               <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-
 
                                                 <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
 
-
                                                   <span className="pill muted">{i + 1}</span>
 
-
                                                   <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
-
 
                                   {/* 校验模式标记 */}
                                   <span 
@@ -20073,7 +16880,6 @@ ${specialRequirements || '无'}`;
                                   >
                                     {dep.validationMode === 'strict' ? '🔒' : '🔓'}
                                   </span>
-
 
                                                   {replay?.status ? (
                                                     <span 
@@ -20109,7 +16915,7 @@ ${specialRequirements || '无'}`;
                                                 </div>
 
                                                 <div className="section-actions" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                                                  {/* Replay 模式下拉框 */}
+                                                  {/* 1. Replay 模式下拉框 - 最左边 */}
                                                   <select
                                                     value={s.sectionReplayMode || dep.precipitationMode || 'llm'}
                                                     onChange={(e) => updateSectionReplayMode(dep.id, s.id, e.target.value)}
@@ -20129,7 +16935,7 @@ ${specialRequirements || '无'}`;
                                                     <option value="script">📜 脚本</option>
                                                   </select>
 
-                                                  {/* 单独 Replay 按钮 */}
+                                                  {/* 2. Replay 按钮 */}
                                                   <button 
                                                     className="ghost xsmall" 
                                                     type="button"
@@ -20141,7 +16947,18 @@ ${specialRequirements || '无'}`;
                                                     Replay
                                                   </button>
 
-                                                  {/* 展开/收起详情按钮 */}
+                                                  {/* 3. 编辑按钮 - 打开编辑弹窗 */}
+                                                  <button 
+                                                    className="ghost xsmall" 
+                                                    type="button"
+                                                    title="编辑此步骤的详细信息"
+                                                    onClick={() => editDepositSection(dep.id, s.id)}
+                                                    style={{ fontSize: 10, padding: '2px 6px' }}
+                                                  >
+                                                    编辑
+                                                  </button>
+
+                                                  {/* 4. 展开/收起 - 倒数第二 */}
                                                   <button 
                                                     className="ghost xsmall" 
                                                     type="button"
@@ -20151,17 +16968,18 @@ ${specialRequirements || '无'}`;
                                                     {sectionExpanded[`${dep.id}_${s.id}`] ? '收起' : '展开'}
                                                   </button>
 
-                                                  {canFlexUpload && (
-                                                    <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)} style={{ fontSize: 10 }}>{UI_TEXT.t73}</button>
-                                                  )}
-
+                                                  {/* 5. 删除 - 最右边 */}
                                                   <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)} style={{ fontSize: 10, color: '#b91c1c' }}>✕</button>
                                                 </div>
                                               </div>
 
                               {/* 脚本记录和大模型记录 - 可展开/收起 */}
-                              {sectionExpanded[`${dep.id}_${s.id}`] !== false && (
+                              {sectionExpanded[`${dep.id}_${s.id}`] === true && (
                               <>
+                              {/* ===== 最顶部测试标记 - 布局模式 ===== */}
+                              <div style={{ background: '#00ff00', color: '#000', padding: 8, marginTop: 4, marginBottom: 4, fontSize: 12, fontWeight: 'bold', border: '3px solid #000' }}>
+                                💚 测试标记 TOP - 布局模式 V20260201 - 如果看到此消息说明展开条件成立
+                              </div>
                               {/* 脚本记录内容显示 */}
                               {(() => {
                                 const scriptContent = s.llmScript?.structuredScriptContent 
@@ -20197,7 +17015,7 @@ ${specialRequirements || '无'}`;
                                     {scriptContent && (
                                       <details style={{ marginTop: 6 }}>
                                         <summary style={{ fontSize: 10, color: '#a16207', cursor: 'pointer', userSelect: 'none' }}>展开完整脚本...</summary>
-                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflow: 'auto' }}>
+                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                                           {scriptContent}
                                         </pre>
                                       </details>
@@ -20206,14 +17024,43 @@ ${specialRequirements || '无'}`;
                                 );
                               })()}
                               
-                              {/* 大模型记录 - 始终显示 */}
+                              {/* 大模型记录 - 显示完整的 structuredScriptContent */}
+                              {/* ===== 测试标记 V2/V3 ===== */}
+                              <div style={{ background: '#00ff00', color: '#000', padding: 4, marginTop: 4, fontSize: 10, fontWeight: 'bold' }}>
+                                🟢 测试代码块 V2/V3 - 沉淀集列表视图
+                              </div>
                               {(() => {
                                 const llm = s.llmScript || {};
                                 const meta = sectionMeta || s.meta || {};
+                                
+                                // 【修复】优先显示完整的结构化内容，与编辑弹窗保持一致
+                                const fullContent = llm.structuredScriptContent
+                                  || extractFullStepContent(dep?.llmRecordContent || '', i + 1)
+                                  || llm.rawContent
+                                  || '';
+                                
                                 const flexKeywords = meta?.docSelector?.description || llm?.docSelector?.description || '';
                                 const inputDesc = llm.inputSourceDesc || meta?.inputs?.[0]?.contextSummary || '';
                                 const aiGuidance = llm.aiGuidance || meta?.aiGuidance || '';
                                 const specialReqs = llm.specialRequirements || meta?.specialRequirements || '';
+                                
+                                // 【关键修复】从多个来源提取输出格式和计算公式 - 与 DepositConfirmModal 保持一致
+                                const sectionContent = (s.content || '').split('__REPLAY_META__')[0].trim();
+                                const structuredContent = llm.structuredScriptContent || '';
+                                let outputFormat = llm.outputFormat || meta?.outputFormat || '';
+                                let calculationFormula = llm.calculationFormula || meta?.calculationFormula || '';
+                                const contentSources = [sectionContent, structuredContent, fullContent];
+                                for (const contentText of contentSources) {
+                                  if (!outputFormat && contentText) {
+                                    const outputMatch = contentText.match(/【输出格式】\s*([\s\S]*?)(?=【[^输]|\n\n\n|===|$)/);
+                                    if (outputMatch) outputFormat = outputMatch[1].trim();
+                                  }
+                                  if (!calculationFormula && contentText) {
+                                    const calcMatch = contentText.match(/【计算公式】\s*([\s\S]*?)(?=【[^计]|\n\n\n|===|$)/);
+                                    if (calcMatch) calculationFormula = calcMatch[1].trim();
+                                  }
+                                  if (outputFormat && calculationFormula) break;
+                                }
                                 
                                 return (
                                   <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
@@ -20221,15 +17068,37 @@ ${specialRequirements || '无'}`;
                                       <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
                                       {llm.type && <span style={{ fontSize: 11, color: '#0369a1', background: '#e0f2fe', padding: '1px 4px', borderRadius: 3 }}>{llm.type}</span>}
                                     </div>
-                                    {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
-                                    {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
-                                    {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
-                                    {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
-                                    {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
-                                    {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
-                                    {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
-                                    {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && (
-                                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                    
+                                    {/* 【关键字段】输出格式和计算公式 - 高亮显示 */}
+                                    {outputFormat && (
+                                      <div style={{ fontSize: 11, color: '#7c3aed', background: '#f5f3ff', padding: '4px 8px', borderRadius: 4, marginBottom: 4, border: '1px solid #c4b5fd' }}>
+                                        📤 <strong>输出格式：</strong>{outputFormat}
+                                      </div>
+                                    )}
+                                    {calculationFormula && (
+                                      <div style={{ fontSize: 11, color: '#059669', background: '#ecfdf5', padding: '4px 8px', borderRadius: 4, marginBottom: 4, border: '1px solid #6ee7b7' }}>
+                                        🔢 <strong>计算公式：</strong>{calculationFormula}
+                                      </div>
+                                    )}
+                                    
+                                    {/* 【修复】如果有完整的结构化内容，直接显示 */}
+                                    {fullContent ? (
+                                      <pre style={{ fontSize: 11, color: '#0c4a6e', background: '#f0f9ff', padding: 8, borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, maxHeight: 300, overflowY: 'auto' }}>
+                                        {fullContent}
+                                      </pre>
+                                    ) : (
+                                      <>
+                                        {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
+                                        {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
+                                        {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
+                                        {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
+                                        {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
+                                        {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
+                                        {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
+                                        {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && !outputFormat && !calculationFormula && (
+                                          <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 );
@@ -20250,90 +17119,63 @@ ${specialRequirements || '无'}`;
                                 </div>
                               )}
 
-
                                             </div>);
-
 
                                         })}
 
-
                                       </div>
-
 
                                     }
 
-
                                   </div>);
-
 
                               })}
 
-
                             </>
-
 
                           }
 
-
                         </div>
-
 
                       </EditableContentBlock>
 
-
                     </>
-
 
                   }
 
-
                   {/* 旧按钮系统已移除 */}
-
 
                 </div>
 
-
               </EditableLayoutPanel>
 
+              {/* 操作调度面板 - 只在大纲配置模式显示 */}
 
-              {/* 操作调度面板 */}
-
+              {processingTab === 'outline' && (
 
               <EditableLayoutPanel
 
-
                 panelId="operations-panel"
-
 
                 panelName={getPanelTitle('operations-panel')}
 
-
                 isEditing={isEditingLayout}
-
 
                 onTitleEdit={() => setEditingTitleId('operations-panel')}
 
-
                 titleStyle={panelPositions['operations-panel']?.titleStyle}
-
 
                 className="operations-panel"
 
-
                 position={panelPositions['operations-panel']}
-
 
                 onPositionChange={(newPos) =>
 
-
                   setPanelPositions((prev) => ({ ...prev, 'operations-panel': newPos }))
-
 
                 }>
 
-
                 {/* 旧按钮系统已移除 */}
-
 
                 {/* <EditableButtonsContainer
                 panelId="operations-panel"
@@ -20358,129 +17200,87 @@ ${specialRequirements || '无'}`;
                 }}
                 /> */
 
-
                 }
-
 
                 <EditableContentBlock
 
-
                   blockId="operations-content"
-
 
                   panelId="operations-panel"
 
-
                   isEditing={isEditingLayout}
-
 
                   position={contentBlockPositions['operations-panel']}
 
-
                   onPositionChange={(newPos) =>
-
 
                     setContentBlockPositions((prev) => ({ ...prev, 'operations-panel': newPos }))
 
-
                   }
-
 
                   hidden={deletedBlocks.includes('operations-panel')}
 
-
                   onDelete={() => handleDeleteBlock('operations-panel')}>
-
 
                   <div className="card">
 
-
                     <div className="card-head">
-
 
                       <div className="actions" style={{ gap: '6px' }}>
 
-
                         {!showOutlineMode ?
-
 
                           <>
 
-
                             <button
 
-
                               type="button"
-
 
                               className={`ghost small ${dispatchMode === 'doc' ? 'active' : ''}`}
 
-
                               onClick={() => setDispatchMode('doc')}>
-
 
                               <FileText size={14} />{UI_TEXT.t95}
 
-
                             </button>
-
 
                             <button
 
-
                               type="button"
-
 
                               className={`ghost small ${dispatchMode === 'result' ? 'active' : ''}`}
 
-
                               onClick={() => setDispatchMode('result')}>
-
 
                               <Sparkles size={14} />{UI_TEXT.t96}
 
-
                             </button>
-
 
                           </> :
 
-
                           <button
-
 
                             type="button"
 
-
                             className={`ghost small ${dispatchMode === 'batch_outline' ? 'active' : ''}`}
-
 
                             onClick={() => setDispatchMode('batch_outline')}>
 
-
                             <Edit3 size={14} />{UI_TEXT.t97}
-
 
                           </button>
 
-
                         }
-
 
                       </div>
 
-
                     </div>
-
 
                     <textarea
 
-
                       ref={dispatchInputRef}
 
-
                       className="dispatch-input"
-
 
                       style={{ 
                         height: `${dispatchInputHeight}px`, 
@@ -20488,234 +17288,161 @@ ${specialRequirements || '无'}`;
                         minHeight: '40px'
                       }}
 
-
                       placeholder={UI_TEXT.t98}
-
 
                       onMouseUp={(e) => {
                         // 保存调整后的高度
                         const newHeight = e.target.offsetHeight;
                         if (newHeight && newHeight !== dispatchInputHeight) {
-                          setDispatchInputHeight(newHeight);
+                          updateDispatchInputHeight(newHeight);
                         }
                       }}>
 
-
                     </textarea>
-
 
                     {dispatchButtonCfg?.enabled ?
 
-
                       <button className="ghost" onClick={runDispatch} disabled={dispatching || loading}>
-
 
                         <Play size={16} /> {(dispatchButtonCfg.label || UI_TEXT.t145).toString()}
 
-
                       </button> :
-
 
                       <div className="hint">{UI_TEXT.t99}</div>
 
-
                     }
-
 
                   </div>
 
-
                 </EditableContentBlock>
-
 
               </EditableLayoutPanel>
 
+              )}
 
               <GlobalButtonsContainer
 
-
                 buttons={globalButtons.filter((b) => b.kind !== 'outline_extract' && b.kind !== 'upload_file' && b.kind !== 'fill_summary')}
-
 
                 isEditing={isEditingLayout}
 
-
                 onMouseDown={handleGlobalButtonMouseDown}
-
 
                 onStyleEdit={handleGlobalButtonStyleEdit}
 
-
                 onClick={(btn) => {
-
 
                   if (btn.action === 'run_block') runOutlineBlock(btn.targetId);
 
-
                   if (btn.action === 'toggle_section') toggleSection(btn.targetId);
-
 
                   if (btn.kind === 'dispatch') runDispatch();
 
-
-                  if (btn.kind === 'final_generate') runFinalGenerate();
-
+                  if (btn.kind === 'final_generate') openFinalPreview();
 
                 }}
 
-
                 onDelete={handleDeleteButton} />
-
 
             </div>
 
-
           </LayoutEditContainer> :
-
 
           <div style={{
 
-
             flex: 1,
-
 
             position: 'relative',
 
-
             minHeight: '600px',
-
 
             overflow: 'visible'
 
-
           }}>
-
 
             {/* 输入表单面板 */}
 
-
             {/* 输入表单面板已移除，功能合并至文档列?*/}
-
 
             {/* 文档列表面板 */}
 
-
             <EditableLayoutPanel
-
 
               panelId="document-list-panel"
 
-
               panelName={getPanelTitle('document-list-panel')}
-
 
               isEditing={false}
 
-
               titleStyle={panelPositions['document-list-panel']?.titleStyle}
-
 
               className="document-list-panel"
 
-
               position={panelPositions['document-list-panel']}
-
 
               onPositionChange={() => { }}
 
-
               headerActions={
-
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 
-
                   {globalButtons.find((b) => b.kind === 'upload_file')?.enabled !== false &&
-
 
                     <button
 
-
                       type="button"
-
 
                       onClick={() => {
 
-
                         console.log('Upload button clicked', uploadInputRef.current);
-
 
                         uploadInputRef.current?.click();
 
-
                       }}
-
 
                       title={globalButtons.find((b) => b.kind === 'upload_file')?.label || UI_TEXT.t146}
 
-
                       style={{ pointerEvents: 'auto', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-
 
                       <Upload size={14} /> {globalButtons.find((b) => b.kind === 'upload_file')?.label || UI_TEXT.t146}
 
-
                     </button>
-
 
                   }
 
-
                   <button
-
 
                     type="button"
 
-
                     onClick={() => void clearAllDocs()}
-
 
                     disabled={docs.length === 0}
 
-
                     title={UI_TEXT.t100}
-
 
                     style={{ pointerEvents: 'auto', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: docs.length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', opacity: docs.length === 0 ? 0.6 : 1 }}>{UI_TEXT.t92}
 
-
                   </button>
-
 
                 </div>
 
-
               }>
-
 
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
-
                 <EditableContentBlock
-
 
                   blockId="document-list-content"
 
-
                   panelId="document-list-panel"
-
 
                   isEditing={false}
 
-
                   position={contentBlockPositions['document-list-panel']}
-
 
                   onPositionChange={() => { }}
 
-
                   hidden={deletedBlocks.includes('document-list-panel')}>
-
 
                   <DocumentListPanelContent
                     docs={docs}
@@ -20730,300 +17457,240 @@ ${specialRequirements || '无'}`;
                     saveReplayDirConfig={saveReplayDirConfig}
                     replayDirConfigSaving={replayDirConfigSaving} />
 
-
                 </EditableContentBlock>
-
 
                 {/* 回放目录配置已合并到文档列表面板中 */}
 
-
               </div>
 
-
             </EditableLayoutPanel>
-
 
             {/* 内容预览面板 */}
 
-
             <EditableLayoutPanel
-
 
               panelId="preview-panel"
 
-
               panelName={getPanelTitle('preview-panel')}
 
-
               isEditing={false}
-
 
               titleStyle={panelPositions['preview-panel']?.titleStyle}
 
-
               className="preview-panel"
-
 
               position={panelPositions['preview-panel']}
 
-
               onPositionChange={() => { }}>
-
 
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
-
                 <EditableContentBlock
-
 
                   blockId="preview-textarea"
 
-
                   panelId="preview-panel"
 
-
                   isEditing={false}
-
 
                   position={contentBlockPositions['preview-textarea']}
 
-
                   onPositionChange={() => { }}
-
 
                   hidden={deletedBlocks.includes('preview-textarea')}>
 
-
                   <div className="card" style={{ width: '100%', height: '100%', padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
-
-                    <div style={{ position: 'absolute', top: 8, right: 24, zIndex: 10 }}>
-
+                    <div style={{ position: 'absolute', top: 8, right: 24, zIndex: 10, display: 'flex', gap: '8px' }}>
 
                       <button
 
-
                         type="button"
 
+                        onClick={saveDocDraft}
 
-                        onClick={insertSelectionToCheckedSummaries}
+                        disabled={!selectedDocId}
 
+                        style={{ backgroundColor: '#ffffff', color: selectedDocId ? '#1e293b' : '#94a3b8', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: selectedDocId ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
 
-                        style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-
-
-                        <Copy size={14} />{UI_TEXT.t89}
-
+                        <Save size={14} />保存
 
                       </button>
 
+                      <button
+
+                        type="button"
+
+                        onClick={insertSelectionToCheckedSummaries}
+
+                        style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+
+                        <Copy size={14} />{UI_TEXT.t89}
+
+                      </button>
 
                     </div>
 
-
-                    <textarea
-
-
+                    {/* 【统一】可编辑的富文本区域，直接显示加粗效果 */}
+                    <div
                       ref={previewTextRef}
-
-
-                      className="preview full"
-
-
-                      value={docDraft}
-
-
-                      onChange={(e) => setDocDraft(e.target.value)}
-
-
-                      onMouseUp={updatePreviewSelection}
-
-
-                      onKeyUp={updatePreviewSelection}
-
-
-                      onSelect={updatePreviewSelection}
-
-
-                      onBlur={saveDocDraft}
-
-
-                      placeholder={UI_TEXT.t90}
-
-
-                      style={{ border: 'none', width: '100%', height: '100%', resize: 'none', padding: '48px 12px 12px', boxSizing: 'border-box' }} />
-
+                      className="preview-rich-content preview full"
+                      contentEditable
+                      suppressContentEditableWarning
+                      style={{ 
+                        border: 'none', 
+                        width: '100%', 
+                        height: '100%', 
+                        padding: '48px 12px 12px', 
+                        boxSizing: 'border-box',
+                        overflow: 'auto',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        fontFamily: 'inherit',
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                        color: '#334155',
+                        outline: 'none',
+                        cursor: 'text'
+                      }}
+                      onMouseUp={() => {
+                        const sel = window.getSelection();
+                        if (sel && sel.toString().trim()) {
+                          setPreviewSelection(sel.toString());
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // 保存时将 HTML 转换回 Markdown 格式
+                        const newText = htmlToMarkdownText(e.currentTarget.innerHTML);
+                        if (newText !== docDraft) {
+                          setDocDraft(newText);
+                          saveDocDraft();
+                        }
+                      }}
+                      dangerouslySetInnerHTML={{ __html: renderBoldMarkdown(docDraft) || '<span style="color:#94a3b8">暂无内容，请选择或上传文档</span>' }}
+                    />
 
                   </div>
 
-
                 </EditableContentBlock>
-
 
                 {/* 旧按钮系统已移除 */}
 
-
               </div>
-
 
             </EditableLayoutPanel>
 
-
             {/* 文档处理面板 */}
-
 
             <EditableLayoutPanel
 
-
               panelId="processing-panel"
-
 
               panelName={getPanelTitle('processing-panel')}
 
-
               isEditing={false}
-
 
               titleStyle={panelPositions['processing-panel']?.titleStyle}
 
-
               className="processing-panel"
 
-
-              position={panelPositions['processing-panel']}
-
+              position={processingTab === 'outline' 
+                ? panelPositions['processing-panel']
+                : {
+                    ...panelPositions['processing-panel'],
+                    // 非大纲模式：扩展高度占据整个垂直空间
+                    height: (panelPositions['processing-panel']?.height || 376) + 
+                            (panelPositions['operations-panel']?.height || 360) + 16
+                  }
+              }
 
               onPositionChange={() => { }}>
 
-
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-
 
                 <EditableContentBlock
 
-
                   blockId="processing-tabs"
-
 
                   panelId="processing-panel"
 
-
                   isEditing={false}
-
 
                   position={contentBlockPositions['processing-tabs']}
 
-
                   onPositionChange={() => { }}
-
 
                   allowChildPointerEvents>
 
-
                   <div className="editable-button-group processing-tabs-bar">
-
 
                     {getProcessingTabButtons().map((btn) =>
 
-
                       <EditableButton
-
 
                         key={btn.id}
 
-
                         button={btn}
-
 
                         isEditing={false}
 
-
                         panelId="processing-tabs"
-
 
                         onMouseDown={handleButtonMouseDown}
 
-
                         onStyleEdit={handleStyleEdit}
-
 
                         onClick={handleWorkbenchButtonClick} />
 
-
                     )}
-
 
                     {renderProcessingTabArrows()}
 
-
                   </div>
-
 
                 </EditableContentBlock>
 
-
                 {processingTab !== 'records' &&
-
 
                   <EditableContentBlock
 
-
                     blockId="processing-content"
-
 
                     panelId="processing-panel"
 
-
                     isEditing={false}
-
 
                     position={contentBlockPositions['processing-panel']}
 
-
                     onPositionChange={() => { }}
-
 
                     hidden={deletedBlocks.includes('processing-panel')}>
 
-
                     <div
-
 
                       style={{
 
-
                         fontSize: '12px',
-
 
                         color: '#666',
 
-
                         minHeight: '100%',
-
 
                         boxSizing: 'border-box',
 
-
                         display: 'flex',
-
 
                         flexDirection: 'column'
 
-
                       }}>
-
 
                       {/* 内容区域 */}
 
-
                       <div style={{ padding: '0 12px 12px', overflowY: 'auto', flex: 1 }}>
-
 
                         {processingTab === 'outline' &&
 
-
                           <div>
-
 
                             <div style={{ 
                               display: 'flex', 
@@ -21043,108 +17710,74 @@ ${specialRequirements || '无'}`;
 
                                 onClick={handleOpenHistory}
 
-
                                 style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-
 
                                 <History size={14} />{UI_TEXT.t101}
 
-
                               </button>
-
 
                               <div style={{ display: 'flex', gap: '8px' }}>
 
-
                                 {globalButtons.
 
-
                                   filter((b) => b.kind === 'outline_extract' && b.enabled !== false).
-
 
                                   slice(0, 1) // Force single button
                                   .
 
                                   map((btn) =>
 
-
                                     <button
-
 
                                       key={btn.id}
 
-
                                       onClick={() => autoTemplate(btn)}
-
 
                                       title={btn.prompt ? `Prompt: ${btn.prompt.slice(0, 50)}...` : UI_TEXT.t147}
 
-
                                       style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-
 
                                       {btn.label}
 
-
                                     </button>
-
 
                                   )
 
-
                                 }
 
-
                                 <button
-
 
                                   onClick={clearOutlineTemplate}
 
-
                                   style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>{UI_TEXT.t92}
 
-
                                 </button>
-
 
                                 <button
 
-
-                                  onClick={() => setShowDocPreviewModal(true)}
-
+                                  onClick={openFinalPreview}
 
                                   disabled={!template?.sections?.length}
 
-
                                   style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', height: '32px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', opacity: template?.sections?.length ? 1 : 0.5 }}>{UI_TEXT.t91}
-
 
                                 </button>
 
-
                               </div>
-
 
                             </div>
 
-
                             {!template || !template.sections || template.sections.length === 0 ?
-
 
                               <p style={{ fontSize: '13px', color: '#94a3b8', padding: '20px', textAlign: 'center' }}>{UI_TEXT.t93}</p> :
 
-
                               template.sections.map((sec, idx) => renderOutlineNode({ section: sec, index: idx }))
-
 
                             }
 
-
                           </div>
 
-
                         }
-
 
                         {processingTab === 'config' && (
                             <AppButtonsConfigPanel
@@ -21156,234 +17789,160 @@ ${specialRequirements || '无'}`;
                               toggleAppButtonGroup={toggleAppButtonGroup}
                               saveAppButtonsConfig={saveAppButtonsConfig}
                               appButtonsSaving={appButtonsSaving}
+                              replayAppButton={replayAppButton}
+                              appButtonReplaying={appButtonReplaying}
                             />
                           )}
 
-
                         {processingTab === 'strategy' &&
-
 
                           <div style={{ height: '100%', overflow: 'auto' }}>
 
-
                             <div style={{ padding: '12px', borderBottom: '1px solid #f0f0f0', background: '#fafafa' }}>
-
 
                               <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600 }}>{UI_TEXT.t138}</h4>
 
-
                               <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>{UI_TEXT.t139}</p>
 
-
                             </div>
-
 
                             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-
                               {/* 模块1: 用户行为采集配置 */}
 
-
                               <div className="card" style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', background: '#fff' }}>
-
 
                                 <h5 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 600, borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', color: '#334155' }}>{UI_TEXT.t102}</h5>
 
-
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-
                                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', color: '#475569', cursor: 'pointer' }}>
-
 
                                     <span>{UI_TEXT.t103}</span>
 
-
                                     <input type="checkbox" defaultChecked style={{ width: '16px', height: '16px' }} />
-
 
                                   </label>
 
-
                                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', color: '#475569' }}>
-
 
                                     <span>{UI_TEXT.t104}</span>
 
-
                                     <input type="number" defaultValue={5} style={{ width: '80px', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px' }} />
-
 
                                   </label>
 
-
                                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', color: '#475569' }}>
-
 
                                     <span>{UI_TEXT.t105}</span>
 
-
                                     <input type="number" defaultValue={100} style={{ width: '80px', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px' }} />
-
 
                                   </label>
 
-
                                 </div>
-
 
                               </div>
 
-
                               <div className="card" style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', background: '#fff' }}>
-
 
                                 <h5 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 600, borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', color: '#334155' }}>{UI_TEXT.t140}</h5>
 
-
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-
                                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', color: '#475569', cursor: 'pointer' }}>
-
 
                                     <span>{UI_TEXT.t106}</span>
 
-
                                     <input type="checkbox" defaultChecked style={{ width: '16px', height: '16px' }} />
-
 
                                   </label>
 
-
                                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', color: '#475569' }}>
-
 
                                     <span>{UI_TEXT.t107}</span>
 
-
                                     <select style={{ width: '80px', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', background: '#fff' }}>
 
+                                      <option></option>
 
                                       <option></option>
 
-
                                       <option></option>
-
-
-                                      <option></option>
-
 
                                     </select>
 
-
                                   </label>
-
 
                                 </div>
 
-
                               </div>
-
 
                               <div className="card" style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', background: '#fff' }}>
 
-
                                 <h5 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 600, borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', color: '#334155' }}>{UI_TEXT.t108}</h5>
-
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-
                                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', color: '#475569', cursor: 'pointer' }}>
-
 
                                     <span>{UI_TEXT.t109}</span>
 
-
                                     <input type="checkbox" style={{ width: '16px', height: '16px' }} />
-
 
                                   </label>
 
-
                                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', color: '#475569' }}>
-
 
                                     <span>{UI_TEXT.t110}</span>
 
-
                                     <input type="number" defaultValue={10} style={{ width: '80px', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px' }} />
 
-
                                   </label>
-
 
                                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', color: '#475569' }}>
 
-
                                     <span>{UI_TEXT.t137}</span>
-
 
                                     <input type="number" defaultValue={0.8} step={0.1} style={{ width: '80px', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px' }} />
 
-
                                   </label>
-
 
                                 </div>
 
-
                               </div>
-
 
                             </div>
 
-
                           </div>
-
 
                         }
 
-
                       </div>
-
 
                     </div>
 
-
                   </EditableContentBlock>
-
 
                 }
 
-
                 {processingTab === 'records' &&
-
 
                   <>
 
-
                     <EditableContentBlock
-
 
                       blockId="processing-records-toolbar"
 
-
                       panelId="processing-panel"
-
 
                       isEditing={false}
 
-
                       position={contentBlockPositions['processing-records-toolbar']}
-
 
                       onPositionChange={() => { }}
 
-
                       allowChildPointerEvents>
-
 
                       {/* 沉淀列表/沉淀集列表切换标签 */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
@@ -21425,268 +17984,182 @@ ${specialRequirements || '无'}`;
                       </div>
                     </EditableContentBlock>
 
-
                     <EditableContentBlock
-
 
                       blockId="processing-records-list"
 
-
                       panelId="processing-panel"
-
 
                       isEditing={false}
 
-
                       position={contentBlockPositions['processing-records-list']}
 
-
                       onPositionChange={() => { }}>
-
 
                       <div className="sections history-scroll" style={{ height: '100%', overflow: 'auto' }}>
                         {/* 沉淀集列表模式 */}
                         {depositViewMode === 'groups' && renderDepositGroupsList()}
                         {depositViewMode === 'groups' && renderSelectedDepositGroupPanel()}
 
-                        {/* 沉淀列表模式 */}
-                        {depositViewMode === 'deposits' && deposits.length === 0 &&
-                          <p className="hint" style={{ padding: '20px', textAlign: 'center' }}>{UI_TEXT.t63}</p>
-                        }
+                        {/* 沉淀列表面板 */}
+                        {depositViewMode === 'deposits' && renderDepositListPanel(false)}
 
-                        {depositViewMode === 'deposits' && deposits.length > 0 &&
-
+                        {/* 旧代码已由 DepositListPanel 替代 */}
+                        {false && depositViewMode === 'deposits' && deposits.length > 0 &&
                           <>
-
                             {deposits.map((dep, idx) => {
 
                               const orderKey = `${dep.id}||order`;
 
-
                               const orderEditing = depositEditing[orderKey] !== undefined;
-
 
                               const depositStatus = getDepositReplayStatus(dep);
 
-
                               const depositReason = getDepositReplayReason(dep);
-
 
                               const statusClass = depositStatus ? depositStatus.replace(' ', '-') : '';
 
-
                               return (
-
 
                                 <div
 
-
                                   key={`${dep.id}-${idx}`}
-
 
                                   className="section"
 
-
                                   onDragOver={handleDepositDragOver(dep.id)}
-
 
                                   onDrop={handleDepositDrop(dep.id)}
 
-
                                   style={dragOverDepositId === dep.id ? { outline: '2px dashed #3b82f6', outlineOffset: 2 } : undefined}>
-
 
                                   <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
 
-
                                     <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
-
 
                                       <label className="inline-check" style={{ gap: 6 }}>
 
-
                                         <input
-
 
                                           type="checkbox"
 
-
                                           checked={!!selectedDepositIds?.[dep.id]}
-
 
                                           onChange={(e) => toggleDepositSelected(dep.id, e.target.checked)} />
 
-
                                       </label>
 
-
                                       <button
-
 
                                         className="icon-btn tiny deposit-drag-handle"
 
-
                                         type="button"
-
 
                                         draggable
 
-
                                         onDragStart={handleDepositDragStart(dep.id)}
-
 
                                         onDragEnd={handleDepositDragEnd}
 
-
                                         title={UI_TEXT.t64}>
-
 
                                         <GripVertical size={12} />
 
-
                                       </button>
-
 
                                       {orderEditing ?
 
-
                                         <input
-
 
                                           className="deposit-order-input"
 
-
                                           type="number"
-
 
                                           min={1}
 
-
                                           max={deposits.length}
-
 
                                           value={depositEditing[orderKey]}
 
-
                                           onChange={(e) => startEditDeposit(dep.id, 'order', e.target.value)}
-
 
                                           onBlur={() => applyDepositOrder(dep.id)}
 
-
                                           onKeyDown={(e) => handleDepositOrderKeyDown(e, dep.id)} /> :
-
 
                                         <button
 
-
                                           className="pill muted deposit-order-pill"
-
 
                                           type="button"
 
-
                                           onClick={() => startEditDepositOrder(dep.id, idx + 1)}
-
 
                                           title={UI_TEXT.t65}>
 
-
                                           {idx + 1}
-
 
                                         </button>
 
-
                                       }
-
 
                                       {/* Editable Deposit Name */}
 
-
                                       {depositEditing[`${dep.id}||name`] !== undefined ?
-
 
                                         <input
 
-
                                           className="deposit-name-input"
-
 
                                           value={depositEditing[`${dep.id}||name`]}
 
-
                                           onChange={(e) => startEditDeposit(dep.id, 'name', e.target.value)}
-
 
                                           onBlur={() => void applyDepositName(dep.id)}
 
-
                                           onKeyDown={(e) => handleDepositNameKeyDown(e, dep.id)}
-
 
                                           autoFocus
 
-
                                           onClick={(e) => e.stopPropagation()}
-
 
                                           style={{ border: '1px solid #1a73e8', padding: '2px 6px', borderRadius: '4px', fontSize: '16px', width: '200px' }} /> :
 
-
                                         <span
-
 
                                           className="deposit-name"
 
-
                                           onDoubleClick={(e) => { e.stopPropagation(); startEditDeposit(dep.id, 'name', dep.name || dep.id); }}
-
 
                                           title={UI_TEXT.t120}
 
-
                                           style={{ cursor: 'text', fontWeight: 500 }}>
-
 
                                           {dep.name || UI_TEXT.t144}
 
-
                                         </span>
-
 
                                       }
 
-
                                       <button
-
 
                                         className="icon-btn tiny"
 
-
                                         type="button"
-
 
                                         onClick={(e) => { e.stopPropagation(); startEditDeposit(dep.id, 'name', dep.name || dep.id); }}
 
-
                                         title={UI_TEXT.t67}
-
 
                                         style={{ width: 20, height: 20, padding: 2, opacity: 0.5 }}>
 
-
                                         <Edit3 size={12} />
-
 
                                       </button>
 
-
                                     </div>
 
-
                                     <div className="section-actions" style={{ gap: 6 }}>
-
 
                                       {/* 只有当所有 section 都完成时才显示 DONE，其他状态正常显示 */}
                                       {depositStatus && (depositStatus === 'done' || depositStatus !== 'done') && (
@@ -21701,102 +18174,69 @@ ${specialRequirements || '无'}`;
 
                                       {<DepositModeSelect deposit={dep} updateDepositMode={updateDepositMode} />}
 
-
                                       <button
-
 
                                         className="ghost xsmall"
 
-
                                         type="button"
-
 
                                         onClick={() => editDeposit(dep.id)}
 
-
                                         title="编辑沉淀内容">
-
 
                                         ✏️ 编辑
 
-
                                       </button>
-
 
                                       <button
 
-
                                         className="ghost xsmall"
 
-
                                         type="button"
-
 
                                         onClick={() => void replayDeposit(dep.id)}
 
-
                                         disabled={!!replayState?.[dep.id]?.running}>
-
 
                                         Replay
 
-
                                       </button>
-
 
                                       <button className="ghost xsmall" type="button" onClick={() => deleteDepositsByIds([dep.id])}>{UI_TEXT.t25}
 
-
                                       </button>
-
 
                                       <button
 
-
                                         className="ghost xsmall"
-
 
                                         type="button"
 
-
                                         onClick={() => setExpandedLogs((prev) => ({ ...prev, [dep.id]: !prev[dep.id] }))}>
-
 
                                         {expandedLogs[dep.id] ? UI_TEXT.t142 : UI_TEXT.t143}
 
-
                                       </button>
-
 
                                     </div>
 
-
                                   </div>
-
 
                                   {depositStatus && depositStatus !== 'done' && depositReason ?
 
-
                                     <div className="hint" style={{ marginTop: 6, color: '#92400e' }}>{UI_TEXT.t70}
-
 
                                       {depositReason}
 
-
                                     </div> :
-
 
                                     null}
 
-
                                   {expandedLogs[dep.id] &&
-
 
                                     <div className="sections" style={{ gap: 6, marginTop: '8px' }}>
 
-
                                       {(dep.sections || []).length === 0 && <div className="hint">{UI_TEXT.t71}</div>}
-
 
                                       {(dep.sections || []).map((s, i) => {
                                         // section 状态（只读）
@@ -21805,24 +18245,17 @@ ${specialRequirements || '无'}`;
                                         const canFlexUpload = sectionMeta?.type === 'add_doc' && (
                                           sectionMeta?.source === 'upload' || (s?.content || '').toString().includes(UI_TEXT.t162));
 
-
                                         return (
-
 
                                           <div key={s.id} className="section" style={{ background: '#fff' }}>
 
-
                                             <div className="section-head" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-
 
                                               <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', flex: 1, minWidth: 0 }}>
 
-
                                                 <span className="pill muted">{i + 1}</span>
 
-
                                                 <span className="section-action-name">{s.action || UI_TEXT.t123}</span>
-
 
                                   {/* 校验模式标记 */}
                                   <span 
@@ -21840,7 +18273,6 @@ ${specialRequirements || '无'}`;
                                   >
                                     {dep.validationMode === 'strict' ? '🔒' : '🔓'}
                                   </span>
-
 
                                                 {replay?.status ? (
                                                   <span 
@@ -21876,7 +18308,7 @@ ${specialRequirements || '无'}`;
                                               </div>
 
                                               <div className="section-actions" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                                                {/* Replay 模式下拉框 */}
+                                                {/* 1. Replay 模式下拉框 - 最左边 */}
                                                 <select
                                                   value={s.sectionReplayMode || dep.precipitationMode || 'llm'}
                                                   onChange={(e) => updateSectionReplayMode(dep.id, s.id, e.target.value)}
@@ -21896,7 +18328,7 @@ ${specialRequirements || '无'}`;
                                                   <option value="script">📜 脚本</option>
                                                 </select>
 
-                                                {/* 单独 Replay 按钮 */}
+                                                {/* 2. Replay 按钮 */}
                                                 <button 
                                                   className="ghost xsmall" 
                                                   type="button"
@@ -21908,7 +18340,18 @@ ${specialRequirements || '无'}`;
                                                   Replay
                                                 </button>
 
-                                                {/* 展开/收起详情按钮 */}
+                                                {/* 3. 编辑按钮 - 打开编辑弹窗 */}
+                                                <button 
+                                                  className="ghost xsmall" 
+                                                  type="button"
+                                                  title="编辑此步骤的详细信息"
+                                                  onClick={() => editDepositSection(dep.id, s.id)}
+                                                  style={{ fontSize: 10, padding: '2px 6px' }}
+                                                >
+                                                  编辑
+                                                </button>
+
+                                                {/* 4. 展开/收起 - 倒数第二 */}
                                                 <button 
                                                   className="ghost xsmall" 
                                                   type="button"
@@ -21918,17 +18361,18 @@ ${specialRequirements || '无'}`;
                                                   {sectionExpanded[`${dep.id}_${s.id}`] ? '收起' : '展开'}
                                                 </button>
 
-                                                {canFlexUpload && (
-                                                  <button className="ghost xsmall" type="button" onClick={() => void flexEditUploadDepositSection(dep.id, s)} style={{ fontSize: 10 }}>{UI_TEXT.t73}</button>
-                                                )}
-
+                                                {/* 5. 删除 - 最右边 */}
                                                 <button className="ghost xsmall" type="button" onClick={() => deleteDepositSection(dep.id, s.id)} style={{ fontSize: 10, color: '#b91c1c' }}>✕</button>
                                               </div>
                                             </div>
 
                               {/* 脚本记录和大模型记录 - 可展开/收起 */}
-                              {sectionExpanded[`${dep.id}_${s.id}`] !== false && (
+                              {sectionExpanded[`${dep.id}_${s.id}`] === true && (
                               <>
+                              {/* ===== 最顶部测试标记 - 第三视图 ===== */}
+                              <div style={{ background: '#0000ff', color: '#fff', padding: 8, marginTop: 4, marginBottom: 4, fontSize: 12, fontWeight: 'bold', border: '3px solid #ff0' }}>
+                                💙 测试标记 TOP - 第三视图 V20260201 - 如果看到此消息说明展开条件成立
+                              </div>
                               {/* 脚本记录内容显示 */}
                               {(() => {
                                 const scriptContent = s.llmScript?.structuredScriptContent 
@@ -21964,7 +18408,7 @@ ${specialRequirements || '无'}`;
                                     {scriptContent && (
                                       <details style={{ marginTop: 6 }}>
                                         <summary style={{ fontSize: 10, color: '#a16207', cursor: 'pointer', userSelect: 'none' }}>展开完整脚本...</summary>
-                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflow: 'auto' }}>
+                                        <pre style={{ fontSize: 10, color: '#713f12', background: '#fffbeb', padding: 6, borderRadius: 4, marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                                           {scriptContent}
                                         </pre>
                                       </details>
@@ -21973,14 +18417,43 @@ ${specialRequirements || '无'}`;
                                 );
                               })()}
                               
-                              {/* 大模型记录 - 始终显示 */}
+                              {/* 大模型记录 - 显示完整的 structuredScriptContent */}
+                              {/* ===== 测试标记 V2/V3 ===== */}
+                              <div style={{ background: '#00ff00', color: '#000', padding: 4, marginTop: 4, fontSize: 10, fontWeight: 'bold' }}>
+                                🟢 测试代码块 V2/V3 - 沉淀集列表视图
+                              </div>
                               {(() => {
                                 const llm = s.llmScript || {};
                                 const meta = sectionMeta || s.meta || {};
+                                
+                                // 【修复】优先显示完整的结构化内容，与编辑弹窗保持一致
+                                const fullContent = llm.structuredScriptContent
+                                  || extractFullStepContent(dep?.llmRecordContent || '', i + 1)
+                                  || llm.rawContent
+                                  || '';
+                                
                                 const flexKeywords = meta?.docSelector?.description || llm?.docSelector?.description || '';
                                 const inputDesc = llm.inputSourceDesc || meta?.inputs?.[0]?.contextSummary || '';
                                 const aiGuidance = llm.aiGuidance || meta?.aiGuidance || '';
                                 const specialReqs = llm.specialRequirements || meta?.specialRequirements || '';
+                                
+                                // 【关键修复】从多个来源提取输出格式和计算公式 - 与 DepositConfirmModal 保持一致
+                                const sectionContent = (s.content || '').split('__REPLAY_META__')[0].trim();
+                                const structuredContent = llm.structuredScriptContent || '';
+                                let outputFormat = llm.outputFormat || meta?.outputFormat || '';
+                                let calculationFormula = llm.calculationFormula || meta?.calculationFormula || '';
+                                const contentSources = [sectionContent, structuredContent, fullContent];
+                                for (const contentText of contentSources) {
+                                  if (!outputFormat && contentText) {
+                                    const outputMatch = contentText.match(/【输出格式】\s*([\s\S]*?)(?=【[^输]|\n\n\n|===|$)/);
+                                    if (outputMatch) outputFormat = outputMatch[1].trim();
+                                  }
+                                  if (!calculationFormula && contentText) {
+                                    const calcMatch = contentText.match(/【计算公式】\s*([\s\S]*?)(?=【[^计]|\n\n\n|===|$)/);
+                                    if (calcMatch) calculationFormula = calcMatch[1].trim();
+                                  }
+                                  if (outputFormat && calculationFormula) break;
+                                }
                                 
                                 return (
                                   <div style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #7dd3fc', borderRadius: 6, padding: 8, marginTop: 8 }}>
@@ -21988,15 +18461,37 @@ ${specialRequirements || '无'}`;
                                       <span style={{ background: '#0ea5e9', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>🤖 大模型记录</span>
                                       {llm.type && <span style={{ fontSize: 11, color: '#0369a1', background: '#e0f2fe', padding: '1px 4px', borderRadius: 3 }}>{llm.type}</span>}
                                     </div>
-                                    {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
-                                    {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
-                                    {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
-                                    {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
-                                    {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
-                                    {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
-                                    {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
-                                    {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && (
-                                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                    
+                                    {/* 【关键字段】输出格式和计算公式 - 高亮显示 */}
+                                    {outputFormat && (
+                                      <div style={{ fontSize: 11, color: '#7c3aed', background: '#f5f3ff', padding: '4px 8px', borderRadius: 4, marginBottom: 4, border: '1px solid #c4b5fd' }}>
+                                        📤 <strong>输出格式：</strong>{outputFormat}
+                                      </div>
+                                    )}
+                                    {calculationFormula && (
+                                      <div style={{ fontSize: 11, color: '#059669', background: '#ecfdf5', padding: '4px 8px', borderRadius: 4, marginBottom: 4, border: '1px solid #6ee7b7' }}>
+                                        🔢 <strong>计算公式：</strong>{calculationFormula}
+                                      </div>
+                                    )}
+                                    
+                                    {/* 【修复】如果有完整的结构化内容，直接显示 */}
+                                    {fullContent ? (
+                                      <pre style={{ fontSize: 11, color: '#0c4a6e', background: '#f0f9ff', padding: 8, borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, maxHeight: 300, overflowY: 'auto' }}>
+                                        {fullContent}
+                                      </pre>
+                                    ) : (
+                                      <>
+                                        {llm.description && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>📝 描述: {llm.description}</div>}
+                                        {flexKeywords && <div style={{ fontSize: 11, color: '#0c4a6e', marginBottom: 2 }}>🔍 灵活匹配关键词: <span style={{ color: '#0369a1', fontWeight: 500 }}>{flexKeywords}</span></div>}
+                                        {(llm.instructions || llm.promptContent) && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>💬 指令: {(llm.instructions || llm.promptContent).substring(0, 80)}{(llm.instructions || llm.promptContent).length > 80 ? '...' : ''}</div>}
+                                        {inputDesc && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>📥 输入: {inputDesc}</div>}
+                                        {llm.targetTitle && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🎯 目标: {llm.targetTitle}</div>}
+                                        {aiGuidance && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>🧠 AI指导: {aiGuidance.substring(0, 100)}{aiGuidance.length > 100 ? '...' : ''}</div>}
+                                        {specialReqs && specialReqs !== '无' && <div style={{ fontSize: 11, color: '#64748b' }}>📌 特殊要求: {specialReqs}</div>}
+                                        {!llm.description && !flexKeywords && !(llm.instructions || llm.promptContent) && !inputDesc && !llm.targetTitle && !aiGuidance && (!specialReqs || specialReqs === '无') && !outputFormat && !calculationFormula && (
+                                          <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>暂无大模型处理记录（可通过灵活上传或AI分析添加）</div>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 );
@@ -22017,45 +18512,31 @@ ${specialRequirements || '无'}`;
                                 </div>
                               )}
 
-
                                           </div>);
-
 
                                       })}
 
-
                                     </div>
-
 
                                   }
 
-
                                 </div>);
-
 
                             })}
 
-
                           </>
-
 
                         }
 
-
                       </div>
-
 
                     </EditableContentBlock>
 
-
                   </>
-
 
                 }
 
-
                 {/* 旧按钮系统已移除 */}
-
 
                 {/* <EditableButtonsContainer
                 panelId="processing-panel"
@@ -22080,57 +18561,41 @@ ${specialRequirements || '无'}`;
                 }}
                 /> */
 
-
                 }
-
 
               </div>
 
-
             </EditableLayoutPanel>
 
+            {/* 操作调度面板 - 只在大纲配置模式显示 */}
 
-            {/* 操作调度面板 */}
-
+            {processingTab === 'outline' && (
 
             <EditableLayoutPanel
 
-
               panelId="operations-panel"
-
 
               panelName={getPanelTitle('operations-panel')}
 
-
               isEditing={false}
-
 
               titleStyle={panelPositions['operations-panel']?.titleStyle}
 
-
               className="operations-panel"
-
 
               position={panelPositions['operations-panel']}
 
-
               onPositionChange={() => { }}>
-
 
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
-
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
 
                   <textarea
 
-
                     ref={dispatchInputRef}
 
-
                     className="dispatch-input"
-
 
                     style={{ 
                       height: `${dispatchInputHeight}px`, 
@@ -22138,45 +18603,33 @@ ${specialRequirements || '无'}`;
                       minHeight: '40px'
                     }}
 
-
                     placeholder={UI_TEXT.t98}
-
 
                     onMouseUp={(e) => {
                       // 保存调整后的高度
                       const newHeight = e.target.offsetHeight;
                       if (newHeight && newHeight !== dispatchInputHeight) {
-                        setDispatchInputHeight(newHeight);
+                        updateDispatchInputHeight(newHeight);
                       }
                     }}>
 
-
                   </textarea>
-
 
                   {dispatchButtonCfg?.enabled ?
 
-
                     <button className="ghost" onClick={runDispatch} disabled={dispatching || loading}>
-
 
                       <Play size={16} /> {(dispatchButtonCfg.label || UI_TEXT.t145).toString()}
 
-
                     </button> :
-
 
                     <div className="hint">{UI_TEXT.t99}</div>
 
-
                   }
-
 
                 </div>
 
-
                 {/* 旧按钮系统已移除 */}
-
 
                 {/* <EditableButtonsContainer
                 panelId="operations-panel"
@@ -22201,603 +18654,405 @@ ${specialRequirements || '无'}`;
                 }}
                 /> */
 
-
                 }
-
 
               </div>
 
-
             </EditableLayoutPanel>
 
+            )}
 
             <GlobalButtonsContainer
 
-
               buttons={globalButtons.filter((b) => b.kind !== 'outline_extract' && b.kind !== 'upload_file' && b.kind !== 'fill_summary')}
-
 
               isEditing={false}
 
-
               onMouseDown={() => { }}
-
 
               onStyleEdit={() => { }}
 
-
               onClick={(btn) => {
-
 
                 if (btn.action === 'run_block') runOutlineBlock(btn.targetId);
 
-
                 if (btn.action === 'toggle_section') toggleSection(btn.targetId);
-
 
                 if (btn.kind === 'dispatch') runDispatch();
 
-
-                if (btn.kind === 'final_generate') runFinalGenerate();
-
+                if (btn.kind === 'final_generate') openFinalPreview();
 
                 if (btn.kind === 'outline_extract') autoTemplate(btn);
 
-
                 if (btn.kind === 'upload_file') uploadInputRef.current?.click();
-
 
               }}
 
-
               onDelete={undefined} />
-
 
           </div>
 
-
         }
 
-
         {
-
 
           editingButtonId && (() => {
 
-
             // 先尝试作为全局按钮 ID
-
 
             const globalButton = globalButtons.find((btn) => btn.id === editingButtonId);
 
-
             if (globalButton) {
-
 
               // 全局按钮编辑
 
-
               return (
-
 
                 <>
 
-
                   <div
-
 
                     style={{
 
-
                       position: 'fixed',
-
 
                       top: 0, left: 0, right: 0, bottom: 0,
 
-
                       background: 'rgba(0,0,0,0.2)',
-
 
                       zIndex: 9999
 
-
                     }}
-
 
                     onClick={() => setEditingButtonId(null)} />
 
-
                   <div style={{ position: 'fixed', right: 20, top: 60, zIndex: 10000 }}>
-
 
                     <StyleEditor
 
-
                       button={globalButton}
-
 
                       label={globalButton.label}
 
-
                       onStyleChange={handleGlobalButtonStyleUpdate.bind(null, editingButtonId)}
-
 
                       onLogicChange={(newConfig) => {
 
-
                         handleGlobalButtonStyleUpdate(editingButtonId, {
-
 
                           ...globalButton,
 
-
                           kind: newConfig.kind,
-
 
                           prompt: newConfig.prompt
 
-
                         });
 
-
                       }}
-
 
                       onDelete={() => {
 
-
                         if (confirm(UI_TEXT.t148)) {
-
 
                           deleteGlobalButton(editingButtonId);
 
-
                           setEditingButtonId(null);
-
 
                         }
 
-
                       }}
-
 
                       onClose={() => setEditingButtonId(null)} />
 
-
                   </div>
-
 
                 </>);
 
-
             }
-
 
             // 如果不是全局按钮，尝试作为旧格式面板按钮
 
-
             try {
-
 
               const { panelId, buttonId } = JSON.parse(editingButtonId);
 
-
               const button = buttonPositions[panelId]?.find((b) => b.id === buttonId);
-
 
               if (button) {
 
-
                 return (
-
 
                   <>
 
-
                     <div
-
 
                       style={{
 
-
                         position: 'fixed',
-
 
                         top: 0, left: 0, right: 0, bottom: 0,
 
-
                         background: 'rgba(0,0,0,0.2)',
-
 
                         zIndex: 9999
 
-
                       }}
-
 
                       onClick={() => setEditingButtonId(null)} />
 
-
                     <div style={{ position: 'fixed', right: 20, top: 60, zIndex: 10000 }}>
-
 
                       <StyleEditor
 
-
                         button={button}
-
 
                         label={button.label}
 
-
                         onStyleChange={(newStyle) => handleButtonUpdate(panelId, buttonId, newStyle)}
-
 
                         onLogicChange={(newConfig) => {
 
-
                           handleButtonUpdate(panelId, buttonId, {
-
 
                             style: button.style,
 
-
                             label: button.label,
-
 
                             kind: newConfig.kind,
 
-
                             prompt: newConfig.prompt
-
 
                           });
 
-
                         }}
-
 
                         onDelete={() => handleDeleteButton()}
 
-
                         onClose={() => setEditingButtonId(null)} />
-
 
                     </div>
 
-
                   </>);
-
 
               }
 
-
             } catch (e) {
-
 
               console.error(e);
 
-
             }
-
 
             return null;
 
-
           })()
-
 
         }
 
-
         {
-
 
           editingTitleId && (() => {
 
-
             const panelName = {
-
 
               'input-form-panel': UI_TEXT.t149,
 
-
               'document-list-panel': UI_TEXT.t150,
-
 
               'processing-panel': UI_TEXT.t151,
 
-
               'preview-panel': UI_TEXT.t152,
-
 
               'operations-panel': UI_TEXT.t153
 
-
             }[editingTitleId] || editingTitleId;
-
 
             const currentStyle = panelPositions[editingTitleId]?.titleStyle || {};
 
-
             return (
-
 
               <>
 
-
                 <div
-
 
                   style={{
 
-
                     position: 'fixed',
-
 
                     top: 0, left: 0, right: 0, bottom: 0,
 
-
                     background: 'rgba(0,0,0,0.2)',
-
 
                     zIndex: 9999
 
-
                   }}
-
 
                   onClick={() => setEditingTitleId(null)} />
 
-
                 <div style={{ position: 'fixed', right: 20, top: 60, zIndex: 10000 }}>
-
 
                   <StyleEditor
 
-
                     button={{
-
 
                       id: 'title',
 
-
                       label: panelPositions[editingTitleId]?.customTitle || panelName,
-
 
                       style: currentStyle
 
-
                     }}
-
 
                     onStyleChange={({ style, label }) => {
 
-
                       setPanelPositions((prev) => ({
-
 
                         ...prev,
 
-
                         [editingTitleId]: {
-
 
                           ...prev[editingTitleId],
 
-
                           titleStyle: style,
-
 
                           customTitle: label // Save custom title text
 
-
                         }
-
 
                       }));
 
-
                     }}
 
-
                     onClose={() => setEditingTitleId(null)}
-
 
                     onDelete={undefined} // Hide delete for panel title
                   />
 
-
                 </div>
-
 
               </>);
 
-
           })()
-
 
         }
 
-
         {/* 主标题样式编辑器 */}
-
 
         {
 
-
           editingHeaderTitle && (() => {
-
 
             const titleConfig = headerTitles[editingHeaderTitle];
 
-
             return (
-
 
               <>
 
-
                 <div
-
 
                   style={{
 
-
                     position: 'fixed',
-
 
                     top: 0, left: 0, right: 0, bottom: 0,
 
-
                     background: 'rgba(0,0,0,0.2)',
-
 
                     zIndex: 9999
 
-
                   }}
-
 
                   onClick={() => setEditingHeaderTitle(null)} />
 
-
                 <div style={{ position: 'fixed', right: 20, top: 60, zIndex: 10000 }}>
-
 
                   <StyleEditor
 
-
                     button={{
-
 
                       id: editingHeaderTitle,
 
-
                       label: titleConfig.text,
-
 
                       style: titleConfig.style || {}
 
-
                     }}
-
 
                     onStyleChange={({ style, label }) => {
 
-
                       setHeaderTitles((prev) => ({
-
 
                         ...prev,
 
-
                         [editingHeaderTitle]: {
-
 
                           ...prev[editingHeaderTitle], // 保留 position, width, height
 
-
                           text: label,
-
 
                           style: style
 
-
                         }
-
 
                       }));
 
-
                     }}
 
-
                     onClose={() => setEditingHeaderTitle(null)}
-
 
                     onDelete={undefined} // 不允许删除主标题
                   />
 
-
                 </div>
-
 
               </>);
 
-
           })()
 
-
         }
-
 
         {toast && <div className="toast">{toast}</div>}
 
-
         {
-
 
           showHistoryModal &&
 
-
           <HistoryModal
-
 
             onClose={() => setShowHistoryModal(false)}
 
-
             onSave={saveHistory}
-
 
             onUse={useHistory}
 
-
             onDelete={deleteHistory}
-
 
             onRename={updateHistoryTitle}
 
-
             historyList={outlineHistory}
-
 
             loading={historyLoading} />
 
-
         }
-
 
         {/* 最终文档预览Modal */}
 
-
         <DocumentPreviewModal
-
-
           isOpen={showDocPreviewModal}
-
-
-          onClose={() => setShowDocPreviewModal(false)}
-
-
-          sections={template?.sections || []}
-
-
-          docName={docs.find((d) => d.id === selectedDocId)?.name || UI_TEXT.t135} />
-
+          onClose={() => {
+            setShowDocPreviewModal(false);
+            setFinalDocumentPreview(null); // 关闭时清除预览内容
+          }}
+          sections={finalDocumentPreview?.sections || template?.sections || []}
+          docName={docs.find((d) => d.id === selectedDocId)?.name || UI_TEXT.t135}
+          previewText={finalDocumentPreview?.text || null}
+          isGenerating={finalDocumentPreview?.isGenerating || false} />
 
         {/* GlobalButtonsContainer 移到最后，利用 DOM 顺序保证不被遮挡 */}
 
-
         {/* GlobalButtonsContainer moved inside */}
-
 
       </main>
 
-
     </>);
 
-
 }
-
-// HistoryModal 和 HistoryList 已迁移到 ./sop/SOPHistory.jsx

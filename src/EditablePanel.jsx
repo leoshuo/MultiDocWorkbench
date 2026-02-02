@@ -148,11 +148,12 @@ export function EditableLayoutPanel({
         padding: '12px',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'auto',
+        overflow: 'hidden', // 改为 hidden，让子组件自己控制滚动
         zIndex: style.zIndex || 1
       }}>
         {/* Panel title in View Mode - Refactored for headerActions */}
         <div style={{
+          flexShrink: 0, // 确保标题区域不被压缩
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -175,7 +176,10 @@ export function EditableLayoutPanel({
             </div>
           }
         </div>
-        {children}
+        {/* Children wrapper - overflow hidden 让子组件自己控制滚动 */}
+        <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+          {children}
+        </div>
       </div>);
 
   }
@@ -307,7 +311,8 @@ export function EditableLayoutPanel({
       }
 
       {/* Children wrapper - pointerEvents auto to allow button interaction */}
-      <div style={{ flex: 1, overflow: 'auto', minHeight: 0, position: 'relative', zIndex: 1 }}>
+      {/* overflow: hidden 让子组件自己控制滚动，避免外层出现滚动条 */}
+      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, position: 'relative', zIndex: 1 }}>
         {children}
       </div>
 

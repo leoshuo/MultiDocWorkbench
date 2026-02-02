@@ -80,6 +80,7 @@ export const OutlineNode = ({
   copyPreviewToSummary,
   addSummaryToSection,
   removeSummaryFromSection,
+  deleteSummaryFromSection,
   copyPreviewToSummaryAtIndex,
   selectSectionMergeType,
   renderOutlineNode,
@@ -105,9 +106,11 @@ export const OutlineNode = ({
       return sec.summaries;
     }
     // 向后兼容：如果有单个 summary，转换为数组
-    if (sec.summary || sec.hint) {
-      return [{ id: `${sec.id}_sum_0`, content: sec.summary || sec.hint || '' }];
+    // 【修复】只有 summary 有实际内容时才显示，hint 不作为摘要内容（hint 是占位提示，不是实际内容）
+    if (sec.summary && sec.summary.trim()) {
+      return [{ id: `${sec.id}_sum_0`, content: sec.summary }];
     }
+    // 没有实际摘要内容，返回空数组，界面会显示"暂无摘要"
     return [];
   };
   const summaries = getSummaries();
@@ -192,7 +195,11 @@ export const OutlineNode = ({
           <button 
             className="ghost xsmall" 
             type="button" 
-            onClick={() => removeSectionById(sec.id)}
+            onClick={() => {
+              if (window.confirm(`确定要删除「${sec.title || sec.id}」及其下级内容吗？`)) {
+                removeSectionById(sec.id);
+              }
+            }}
             style={{ width: '20px', height: '20px', padding: 0, fontSize: '14px', lineHeight: '18px', fontWeight: 'bold' }}
             title="删除此标题及其下级">
             −
@@ -342,9 +349,24 @@ export const OutlineNode = ({
                       style={{ fontSize: '11px', padding: '2px 6px', color: '#ef4444' }}
                       type="button"
                       onClick={() => removeSummaryFromSection && removeSummaryFromSection(sec.id, sumIdx)}
-                      title="删除此摘要">
-                      {UI_TEXT.t25}
+                      title="清空此摘要内容">
+                      清空
                     </button>
+                    {/* 删除按钮 - 只有多个摘要时显示 */}
+                    {summaries.length > 1 && (
+                      <button
+                        className="ghost xsmall"
+                        style={{ fontSize: '11px', padding: '2px 6px', color: '#dc2626' }}
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('确定要删除此摘要吗？')) {
+                            deleteSummaryFromSection && deleteSummaryFromSection(sec.id, sumIdx);
+                          }
+                        }}
+                        title="删除此摘要条目">
+                        删除
+                      </button>
+                    )}
                     <button
                       className="ghost xsmall"
                       style={{ fontSize: '11px', padding: '2px 6px' }}

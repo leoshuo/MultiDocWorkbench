@@ -3,6 +3,7 @@
  * 从 SOPWorkbench.jsx 提取的独立组件
  */
 import React from 'react';
+import { Play } from 'lucide-react';
 import { UI_TEXT } from '../SOPConstants';
 
 /**
@@ -16,6 +17,8 @@ import { UI_TEXT } from '../SOPConstants';
  * @param {Function} props.toggleAppButtonGroup - 切换按钮关联的沉淀集
  * @param {Function} props.saveAppButtonsConfig - 保存配置的函数
  * @param {boolean} props.appButtonsSaving - 是否正在保存中
+ * @param {Function} props.replayAppButton - 测试按钮配置的函数
+ * @param {Object} props.appButtonReplaying - 按钮测试中状态 { buttonId: bool }
  */
 export const AppButtonsConfigPanel = ({
   appButtonsConfig,
@@ -26,6 +29,8 @@ export const AppButtonsConfigPanel = ({
   toggleAppButtonGroup,
   saveAppButtonsConfig,
   appButtonsSaving,
+  replayAppButton,
+  appButtonReplaying = {},
 }) => (
   <div className="app-buttons-config">
     <div className="card-head" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
@@ -67,6 +72,22 @@ export const AppButtonsConfigPanel = ({
                     onClick={(e) => e.stopPropagation()}
                     placeholder={UI_TEXT.t43}
                   />
+                  {/* Replay 测试按钮 */}
+                  {replayAppButton && (
+                    <button
+                      type="button"
+                      className={`ghost small replay-test-btn ${appButtonReplaying[btn.id] ? 'running' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        replayAppButton(btn.id);
+                      }}
+                      disabled={appButtonReplaying[btn.id] || (btn.groupIds || []).length === 0}
+                      title={appButtonReplaying[btn.id] ? '测试中...' : '测试按钮配置'}
+                      style={{ marginLeft: 8, padding: '4px 8px', minWidth: 'auto' }}>
+                      <Play size={14} style={{ marginRight: 4 }} />
+                      {appButtonReplaying[btn.id] ? '测试中' : '测试'}
+                    </button>
+                  )}
                 </div>
                 <div className="app-button-selected-groups">
                   {groupNames.length === 0 ? (

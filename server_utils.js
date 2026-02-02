@@ -39,6 +39,7 @@ export const DEFAULT_PROMPTS = {
 
 export const logger = {
     info: (tag, msg, data) => console.log(`[${new Date().toISOString()}] [INFO] ${tag}: ${msg}`, data || ''),
+    warn: (tag, msg, data) => console.warn(`[${new Date().toISOString()}] [WARN] ${tag}: ${msg}`, data || ''),
     error: (tag, msg, err) => console.error(`[${new Date().toISOString()}] [ERROR] ${tag}: ${msg}`, err || ''),
     debug: (tag, msg, data) => process.env.DEBUG && console.log(`[${new Date().toISOString()}] [DEBUG] ${tag}: ${msg}`, data || ''),
 };

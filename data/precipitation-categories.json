@@ -1,0 +1,44 @@
+[
+  {
+    "id": "cat_1769959883081_g79w12",
+    "name": "通用Replay",
+    "level": 1,
+    "parentId": null,
+    "createdAt": 1769959883081
+  },
+  {
+    "id": "cat_1769964258229_zficnv",
+    "name": "一、警务要素“ 勤”方面",
+    "level": 1,
+    "parentId": null,
+    "createdAt": 1769964258229
+  },
+  {
+    "id": "cat_1769966257434_fd826f",
+    "name": "二、勤务要素“情”方面",
+    "level": 1,
+    "parentId": null,
+    "createdAt": 1769966257434
+  },
+  {
+    "id": "cat_1769966429381_l5ohlq",
+    "name": "（七）区域警务流转调度情况",
+    "level": 2,
+    "parentId": "cat_1769966257434_fd826f",
+    "createdAt": 1769966429381
+  },
+  {
+    "id": "cat_1769960199907_qlhsds",
+    "name": "【工作情况及调度检查问题】",
+    "level": 2,
+    "parentId": "cat_1769964258229_zficnv",
+    "createdAt": 1769960199907
+  },
+  {
+    "id": "cat_1769964306059_4sb1uv",
+    "name": "（一）政治中心区防控工作情况",
+    "level": 2,
+    "parentId": "cat_1769964258229_zficnv",
+    "createdAt": 1769964306059
+  }
+]

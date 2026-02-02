@@ -1279,6 +1279,42 @@ const PRECIPITATION_RECORDS_PATH = path.join(DATA_DIR, "precipitation-records.js
 
 const PRECIPITATION_GROUPS_PATH = path.join(DATA_DIR, "precipitation-groups.json");
 
+const PRECIPITATION_CATEGORIES_PATH = path.join(DATA_DIR, "precipitation-categories.json");
+
+// ========== 沉淀类别 API ==========
+router.get("/precipitation/categories", (req, res) => {
+    try {
+        const data = readJsonFile(PRECIPITATION_CATEGORIES_PATH);
+        res.json(data || []);
+    } catch (error) {
+        logger.error('PRECIPITATION', '获取沉淀类别失败', error);
+        res.status(500).json({ error: '获取沉淀类别失败' });
+    }
+});
+
+router.put("/precipitation/categories", (req, res) => {
+    logger.info('PRECIPITATION', '收到保存类别请求', { bodyType: typeof req.body, bodyLength: Array.isArray(req.body) ? req.body.length : 'N/A' });
+    try {
+        const categories = req.body;
+        if (!Array.isArray(categories)) {
+            logger.warn('PRECIPITATION', '无效的类别数据', { body: req.body });
+            return res.status(400).json({ error: "无效的沉淀类别数据，应为数组" });
+        }
+        
+        const success = writeJsonFile(PRECIPITATION_CATEGORIES_PATH, categories);
+        if (success) {
+            logger.info('PRECIPITATION', `保存沉淀类别成功，共 ${categories.length} 个类别`);
+            res.json({ ok: true, count: categories.length });
+        } else {
+            logger.error('PRECIPITATION', '写入文件失败');
+            res.status(500).json({ error: "保存沉淀类别失败" });
+        }
+    } catch (error) {
+        logger.error('PRECIPITATION', '保存沉淀类别失败', error);
+        res.status(500).json({ error: '保存沉淀类别失败' });
+    }
+});
+
 
 
 const normalizePrecipitationGroup = (group) => {
@@ -1485,7 +1521,15 @@ router.patch("/precipitation/records/:id", (req, res) => {
 
         const { id } = req.params;
 
-        const { name, precipitationMode } = req.body || {};
+        const { 
+            name, 
+            precipitationMode,
+            // 【新增】支持更新 replay 状态字段（供应用端同步状态）
+            lastReplayStatus,
+            lastReplayMode,
+            lastReplayTime,
+            lastReplayError
+        } = req.body || {};
 
 
 
@@ -1512,8 +1556,21 @@ router.patch("/precipitation/records/:id", (req, res) => {
             name: typeof name === "string" ? name : current.name,
 
             precipitationMode: typeof precipitationMode === "string" ? nextMode : current.precipitationMode
-
         };
+        
+        // 【新增】更新 replay 状态字段（如果提供了）
+        if (typeof lastReplayStatus === "string") {
+            next.lastReplayStatus = lastReplayStatus;
+        }
+        if (typeof lastReplayMode === "string") {
+            next.lastReplayMode = lastReplayMode;
+        }
+        if (typeof lastReplayTime === "number") {
+            next.lastReplayTime = lastReplayTime;
+        }
+        if (typeof lastReplayError === "string") {
+            next.lastReplayError = lastReplayError;
+        }
 
 
 

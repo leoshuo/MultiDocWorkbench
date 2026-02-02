@@ -39,6 +39,9 @@ export const DEFAULT_BUTTON_CONFIG = {
     { id: 'btn_records_clear_selection', label: '清空选择', left: 294, top: 8, width: 88, height: 28, enabled: true, kind: 'clear_selection', style: { fontSize: 12 } },
     { id: 'btn_group_new', label: '新建沉淀集', left: 392, top: 8, width: 100, height: 28, enabled: true, kind: 'group_new', style: { fontSize: 12 } },
     { id: 'btn_group_update', label: '更新沉淀集', left: 502, top: 8, width: 100, height: 28, enabled: true, kind: 'group_update', style: { fontSize: 12 } },
+    { id: 'btn_category_new', label: '新建归类', left: 612, top: 8, width: 88, height: 28, enabled: true, kind: 'category_new', style: { fontSize: 12 } },
+    { id: 'btn_category_assign', label: '更新沉淀归类', left: 710, top: 8, width: 100, height: 28, enabled: true, kind: 'category_assign', style: { fontSize: 12 } },
+    { id: 'btn_category_remove', label: '解除已有归类', left: 820, top: 8, width: 100, height: 28, enabled: true, kind: 'category_remove', style: { fontSize: 12 } },
     // 沉淀集列表模式 - 沉淀集管理
     { id: 'btn_group_rename', label: '重命名', left: 12, top: 8, width: 80, height: 28, enabled: true, kind: 'group_rename', style: { fontSize: 12 } },
     { id: 'btn_group_delete', label: '删除', left: 102, top: 8, width: 72, height: 28, enabled: true, kind: 'group_delete', style: { fontSize: 12 } },

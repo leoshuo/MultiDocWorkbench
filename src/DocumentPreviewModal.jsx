@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
-import { X, Download, FileText, Edit3, Check } from 'lucide-react';
+import { X, Download, FileText, Edit3, Check, Loader2 } from 'lucide-react';
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
-import jsPDF from 'jspdf';const UI_TEXT = { t1: "最终文档预览", t2: "下载 Word", t3: "下载 PDF", t4: "编辑内容", t5: "完成编辑", t6: "暂无内容" };
+import jsPDF from 'jspdf';const UI_TEXT = { t1: "最终文档预览", t2: "下载 Word", t3: "下载 PDF", t4: "编辑内容", t5: "完成编辑", t6: "暂无内容", t7: "正在使用大模型优化文档内容..." };
 
 const levelLabel = {
   1: '一级标题',
@@ -18,21 +18,26 @@ const levelHeading = {
   4: HeadingLevel.HEADING_4
 };
 
-export function DocumentPreviewModal({ isOpen, onClose, sections, docName }) {
+export function DocumentPreviewModal({ isOpen, onClose, sections, docName, previewText, isGenerating = false }) {
   const [content, setContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const textareaRef = useRef(null);
 
   // 生成初始文档内容
   const generateContent = () => {
+    // 如果有直接传入的预览文本，优先使用
+    if (previewText) return previewText;
+    
     if (!sections || sections.length === 0) return '';
     let result = '';
     sections.forEach((sec) => {
       const level = sec.level || 1;
       const prefix = levelLabel[level] || levelLabel[1];
       result += `${prefix}：${sec.title || '未命名章节'}\n`;
-      if (sec.summary) {
-        result += `${sec.summary}\n`;
+      // 支持 summary 字符串或 summaries 数组
+      const summaryText = sec.summary || (Array.isArray(sec.summaries) ? sec.summaries.map(s => s.content || '').filter(Boolean).join('\n') : '');
+      if (summaryText) {
+        result += `${summaryText}\n`;
       }
       result += '\n';
     });
@@ -46,12 +51,17 @@ export function DocumentPreviewModal({ isOpen, onClose, sections, docName }) {
     }
   });
 
-  // 当sections变化时更新内容
+  // 当sections变化或previewText变化时更新内容
   if (isOpen && !content) {
     const newContent = generateContent();
     if (newContent !== content) {
       setContent(newContent);
     }
+  }
+  
+  // 当previewText变化时重置内容
+  if (isOpen && previewText && content !== previewText) {
+    setContent(previewText);
   }
 
   // 下载为Word文档
@@ -309,8 +319,32 @@ export function DocumentPreviewModal({ isOpen, onClose, sections, docName }) {
                 <div style={{
           flex: 1,
           overflow: 'auto',
-          padding: '20px'
+          padding: '20px',
+          position: 'relative'
         }}>
+                    {/* 加载中提示 */}
+                    {isGenerating && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '20px',
+                        right: '20px',
+                        padding: '12px 16px',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                        zIndex: 10
+                      }}>
+                        <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                        {UI_TEXT.t7}
+                      </div>
+                    )}
                     {isEditing ?
           <textarea
             ref={textareaRef}
@@ -321,6 +355,7 @@ export function DocumentPreviewModal({ isOpen, onClose, sections, docName }) {
               height: '100%',
               minHeight: '400px',
               padding: '16px',
+              paddingTop: isGenerating ? '60px' : '16px',
               border: '1px solid #e2e8f0',
               borderRadius: '8px',
               fontSize: '14px',
@@ -336,6 +371,7 @@ export function DocumentPreviewModal({ isOpen, onClose, sections, docName }) {
             lineHeight: '1.8',
             color: '#333',
             padding: '16px',
+            paddingTop: isGenerating ? '60px' : '16px',
             background: '#f8fafc',
             borderRadius: '8px',
             minHeight: '400px'

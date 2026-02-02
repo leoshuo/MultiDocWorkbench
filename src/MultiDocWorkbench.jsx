@@ -13,6 +13,9 @@ import { EditableLayoutPanel, LayoutEditContainer } from './EditablePanel';
 import { StyleEditor, StyleEditorOverlay } from './StyleEditor';
 
 
+import { DocumentPreviewModal } from './DocumentPreviewModal';
+
+
 import { GalleryVerticalEnd, Layout as LayoutIcon, Save, X, RotateCcw, Pencil, MousePointer2, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 
 
@@ -144,6 +147,10 @@ function MultiDocWorkbench({ onSwitch }) {
 
 
   const [depositGroups, setDepositGroups] = useState([]);
+
+  // 最终文档预览状态
+  const [finalDocumentPreview, setFinalDocumentPreview] = useState(null);
+  const [showDocPreviewModal, setShowDocPreviewModal] = useState(false);
 
 
   const sources = docs.map((doc) => {
@@ -511,6 +518,102 @@ function MultiDocWorkbench({ onSwitch }) {
 
 
   // =====================================================
+  // 【新增】最终文档生成功能 - 继承自后管端
+  // =====================================================
+  
+  /**
+   * 从指定的 template 构建最终文档文本
+   * 使用 Markdown 格式，与版面显示和服务器端 replay 保持一致
+   * @param {Object} tpl - 大纲模板
+   * @param {Object} mergeTypeMap - 各章节的合并方式配置 { sectionId: 'sentence'|'paragraph' }
+   */
+  const buildFinalTextFromTemplate = (tpl, mergeTypeMap = {}) => {
+    if (!tpl || !Array.isArray(tpl.sections)) return '';
+    
+    const contentParts = [];
+    for (const sec of tpl.sections) {
+      if (!sec.title) continue;
+      // 使用 Markdown 格式的标题（# 前缀）
+      const levelPrefix = '#'.repeat(sec.level || 1);
+      contentParts.push(`${levelPrefix} ${sec.title}`);
+      
+      // 收集摘要
+      let summaries = [];
+      if (Array.isArray(sec.summaries) && sec.summaries.length > 0) {
+        summaries = sec.summaries;
+      } else if (sec.summary && sec.summary.trim()) {
+        // 向后兼容：将单个 summary 字段转换为数组（不使用 hint）
+        summaries = [{ id: `${sec.id}_sum_0`, content: sec.summary }];
+      }
+      
+      // 获取该章节的合并方式，默认使用句子拼接
+      const mergeType = mergeTypeMap[sec.id] || 'sentence';
+      const summaryTexts = summaries.map(sum => (sum.content || '').toString().trim()).filter(Boolean);
+      
+      if (summaryTexts.length > 0) {
+        if (mergeType === 'sentence') {
+          // 句子拼接：首尾相连，不换行，直接连接成一个句子
+          contentParts.push(summaryTexts.join(''));
+        } else if (mergeType === 'paragraph') {
+          // 段落拼接：每个摘要之间换行
+          contentParts.push(summaryTexts.join('\n'));
+        } else {
+          // 默认：句子拼接
+          contentParts.push(summaryTexts.join(''));
+        }
+      }
+      contentParts.push(''); // 空行分隔
+    }
+    return contentParts.join('\n').trim();
+  };
+
+  /**
+   * 打开最终文档预览
+   * 继承自后管端的 openFinalPreview 函数
+   */
+  const openFinalPreview = async () => {
+    console.log('[应用端] openFinalPreview 开始执行');
+    
+    try {
+      // 【关键简化】直接调用服务端 API，使用与后管端完全相同的逻辑
+      // 这确保应用端和后管端的最终文档生成结果完全一致
+      const res = await fetch('/api/final-document/generate');
+      if (!res.ok) {
+        throw new Error('服务端生成失败');
+      }
+      
+      const data = await res.json();
+      console.log('[应用端] 服务端生成结果:', { success: data.success, textLength: data.text?.length });
+      
+      if (!data.success) {
+        appendAssistantMessage(`❌ ${data.error || '生成失败'}`);
+        return;
+      }
+      
+      if (!data.text?.trim()) {
+        appendAssistantMessage('❌ 暂无可生成的内容，请先填写大纲摘要');
+        return;
+      }
+      
+      // 弹出预览窗口
+      setFinalDocumentPreview({
+        text: data.text,
+        usedModel: false,
+        sections: data.sections || [],
+        isGenerating: false
+      });
+      setShowDocPreviewModal(true);
+      
+      // 添加消息提示
+      appendAssistantMessage(`✅ 最终文档已生成，共 ${data.text.length} 字`);
+      
+    } catch (e) {
+      console.error('[应用端] 最终文档生成失败:', e);
+      appendAssistantMessage('❌ 最终文档生成失败，请稍后重试');
+    }
+  };
+
+  // =====================================================
   // 【重要】应用端 Replay 统一调用服务端 API
   // 确保与后管端逻辑完全一致，不存在任何差别
   // =====================================================
@@ -545,18 +648,81 @@ function MultiDocWorkbench({ onSwitch }) {
       const section = sections[i];
       const actionTitle = section.action || section.content?.split('\n')[0]?.substring(0, 20) || `步骤 ${i + 1}`;
       
-      setReplayStatus(`${title} [${i + 1}/${sections.length}] ${precipitationMode === 'llm' ? '🤖' : '📜'} Replay: ${actionTitle}`);
+      // 【重要】使用步骤级别的 replay 模式，如果没有则使用沉淀级别的
+      const sectionMode = section.sectionReplayMode || precipitationMode;
+      
+      setReplayStatus(`${title} [${i + 1}/${sections.length}] ${sectionMode === 'llm' ? '🤖' : '📜'} Replay: ${actionTitle}`);
+
+      // 【关键修复】获取源文档内容，用于 insert_to_summary 等操作
+      let currentDocContent = '';
+      let currentDocName = '';
+      const sectionMeta = section?.meta || {};
+      const sectionLlmScript = section?.llmScript || {};
+      const metaType = (sectionMeta.type || '').toString();
+      const sectionAction = (section?.action || '').toString();
+      const isInsertToSummary = metaType === 'insert_to_summary' || metaType === 'insert_to_summary_multi';
+      
+      // 【关键修复】"最终文档生成"不再做特殊处理，统一通过服务端 API 执行
+      // 这确保与后管端逻辑完全一致，服务端会返回 finalDocument 对象
+      
+      if (isInsertToSummary) {
+        // 从录制信息中获取源文档名称
+        const selectionInput = Array.isArray(sectionMeta.inputs) 
+          ? sectionMeta.inputs.find(x => x?.kind === 'selection') 
+          : null;
+        const recordedDocName = selectionInput?.docName || sectionMeta?.docName || sectionLlmScript?.docName || '';
+        const recordedDocId = sectionMeta?.docId || sectionLlmScript?.docId || '';
+        
+        // 从 docs 中查找源文档
+        let sourceDoc = null;
+        let searchDocs = docs;
+        
+        // 如果本地 docs 为空，先从服务端获取最新列表
+        if (!searchDocs || searchDocs.length === 0) {
+          try {
+            const docsRes = await fetch('/api/docs');
+            if (docsRes.ok) {
+              const docsData = await docsRes.json();
+              if (Array.isArray(docsData?.docs)) {
+                searchDocs = docsData.docs;
+              }
+            }
+          } catch (e) {
+            console.warn('[Replay] 获取文档列表失败:', e);
+          }
+        }
+        
+        if (recordedDocId) {
+          sourceDoc = searchDocs.find(d => d.id === recordedDocId);
+        }
+        if (!sourceDoc && recordedDocName) {
+          sourceDoc = searchDocs.find(d => d.name === recordedDocName) ||
+                      searchDocs.find(d => d.name?.includes(recordedDocName) || recordedDocName.includes(d.name));
+        }
+        
+        if (sourceDoc) {
+          currentDocContent = sourceDoc.content || '';
+          currentDocName = sourceDoc.name || '';
+          console.log('[Replay] 找到源文档:', currentDocName, '内容长度:', currentDocContent.length);
+        } else {
+          console.warn('[Replay] 未找到源文档:', recordedDocName || recordedDocId, '可用文档:', searchDocs.map(d => d.name).join(', '));
+        }
+      }
 
       try {
         // 调用统一的服务端 Replay API
+        // 【修复】传递步骤级别的 mode，确保与后台一致
         const res = await fetch('/api/replay/execute-section', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sceneId,
-            section,
-            mode: precipitationMode,
-            replayDirPath
+            section: { ...section, stepIndex: i },  // 【新增】传递步骤索引
+            mode: sectionMode,  // 【修复】使用步骤级别的模式
+            replayDirPath,
+            // 【关键修复】传递源文档内容，与后台端保持一致
+            currentDocContent,
+            currentDocName
           })
         });
 
@@ -571,7 +737,8 @@ function MultiDocWorkbench({ onSwitch }) {
             action: actionName,
             status: result.status || 'done',
             reason: result.reason || '',
-            replayMode: result.replayMode || precipitationMode
+            replayMode: result.replayMode || sectionMode,  // 【修复】使用步骤级别的模式
+            finalDocument: result.finalDocument || null
           });
           
           // 如果有更新的模板，同步到前端
@@ -582,6 +749,36 @@ function MultiDocWorkbench({ onSwitch }) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ template: result.template })
             });
+          }
+          
+          // 【新增】如果是最终文档生成，显示预览弹窗
+          if (result.finalDocument?.text) {
+            setFinalDocumentPreview(result.finalDocument);
+            setShowDocPreviewModal(true);
+          }
+          
+          // 【新增】上传文档类型的 section 执行成功后，立即刷新文档列表
+          const sectionMeta = section.meta || {};
+          const sectionType = sectionMeta.type || section.llmScript?.type || '';
+          const sectionAction = section.action || '';
+          const isAddDocSection = sectionType === 'add_doc' || 
+            sectionType === 'upload_doc' ||
+            sectionAction.includes('上传') ||
+            sectionAction.includes('add_doc');
+          
+          if ((result.status || 'done') === 'done' && isAddDocSection) {
+            console.log(`[Replay] 上传文档步骤完成，刷新文档列表`);
+            try {
+              const docsRes = await fetch('/api/docs');
+              if (docsRes.ok) {
+                const docsData = await docsRes.json();
+                if (Array.isArray(docsData?.docs)) {
+                  setDocs(docsData.docs);
+                }
+              }
+            } catch (e) {
+              console.warn('[Replay] 刷新文档列表失败:', e);
+            }
           }
         } else {
           results.push({
@@ -2093,6 +2290,9 @@ ${specialRequirements || '无'}`;
   // 4. 调用大模型生成智能反馈（如不可用则使用结构化消息）
   // =====================================================
   const handleAppButtonClick = async (btn) => {
+    // 【新增】记录开始时间，用于耗时统计
+    const startTime = Date.now();
+    
     const groupIds = Array.isArray(btn.groupIds) ? btn.groupIds.filter(Boolean) : [];
 
     if (!groupIds.length) {
@@ -2218,33 +2418,23 @@ ${specialRequirements || '无'}`;
       }
 
       // =====================================================
-      // 3. 按沉淀集逐个执行，实时报告进度
+      // 3. 在前端逐个执行沉淀（与后管端 batchReplaySelectedDeposits 完全一致）
+      // 确保调用路径和后管端完全相同：前端 -> /api/replay/execute-section
       // =====================================================
       
-      // 统计总数
-      let totalRecords = 0;
-      let totalSections = 0;
-      for (const group of targetGroups) {
-        const groupRecordIds = group.depositIds || group.recordIds || [];
-        const groupRecords = allRecords.filter(r => groupRecordIds.includes(r.id));
-        totalRecords += groupRecords.length;
-        totalSections += groupRecords.reduce((sum, r) => sum + (r.sections?.length || 0), 0);
-      }
-      executionDetails.totalSteps = totalSections;
-
       // 显示执行计划
       const groupNamesStr = targetGroups.map(g => `「${g.name || '未命名沉淀集'}」`).join('、');
-      appendAssistantMessage(`📋 **开始执行「${btn.label}」**\n\n涉及沉淀集：${groupNamesStr}\n共 ${totalRecords} 个沉淀，${totalSections} 个步骤\n\n---`);
-
-      // 按沉淀集逐个执行
+      const totalDeposits = targetGroups.reduce((sum, g) => sum + (g.depositIds || g.recordIds || []).length, 0);
+      appendAssistantMessage(`📋 **开始执行「${btn.label}」**\n\n涉及沉淀集：${groupNamesStr}\n共 ${totalDeposits} 个沉淀\n\n开始逐个执行... ⏳`);
+      
+      // 【核心逻辑】按沉淀集 -> 沉淀 -> section 顺序逐个执行
+      // 与后管端 batchReplaySelectedDeposits 完全相同的调用方式
       let groupIndex = 0;
       for (const group of targetGroups) {
         groupIndex++;
         const groupName = group.name || '未命名沉淀集';
         const groupRecordIds = group.depositIds || group.recordIds || [];
         const groupRecords = allRecords.filter(r => groupRecordIds.includes(r.id));
-        
-        executionDetails.groupNames.push(groupName);
         
         // 显示当前沉淀集
         appendAssistantMessage(`\n📂 **沉淀集 ${groupIndex}/${targetGroups.length}：「${groupName}」**（${groupRecords.length} 个沉淀）`);
@@ -2259,6 +2449,7 @@ ${specialRequirements || '无'}`;
         
         // 逐个执行该沉淀集中的沉淀
         let recordIndex = 0;
+        
         for (const record of groupRecords) {
           recordIndex++;
           const recordName = record.name || record.title || '未命名沉淀';
@@ -2271,14 +2462,17 @@ ${specialRequirements || '无'}`;
           // 显示当前执行的沉淀
           setReplayStatus(`${groupName} > ${recordName} [${recordIndex}/${groupRecords.length}]`);
           
+          // 【实时同步】开始执行沉淀时立即显示
+          appendAssistantMessage(`\n  ${modeIcon} **开始执行沉淀 ${recordIndex}：「${recordName}」** (${modeName}, ${sections.length} 步骤) ⏳`);
+          
           // 执行所有 sections 并收集结果
           const replayResult = await replaySections(sections, recordName, { 
             precipitationMode, 
             structuredScript 
           });
           
-          // 生成执行报告
-          let recordReport = `\n  ${modeIcon} **沉淀 ${recordIndex}：「${recordName}」** (${modeName})\n`;
+          // 【实时同步】执行完成后显示结果
+          let recordReport = `     `;
           
           // 记录执行结果
           const recordDetail = {
@@ -2299,14 +2493,14 @@ ${specialRequirements || '无'}`;
             
             // 生成状态摘要
             if (failCount === 0 && skipCount === 0) {
-              recordReport += `     ✅ 全部完成（${doneCount}/${sections.length} 步骤）\n`;
+              recordReport += `✅ 完成！（${doneCount}/${sections.length} 步骤成功）`;
             } else if (doneCount > 0) {
-              recordReport += `     ⚠️ 部分完成（✅${doneCount} ❌${failCount} ⏭️${skipCount}）\n`;
+              recordReport += `⚠️ 部分完成（✅${doneCount} ❌${failCount} ⏭️${skipCount}）`;
             } else if (skipCount > 0 && failCount === 0) {
               // 全部跳过（通常是因为找不到文档或目标）
-              recordReport += `     ⏭️ 全部跳过（${skipCount}/${sections.length} 步骤跳过，可能缺少所需文档）\n`;
+              recordReport += `⏭️ 全部跳过（${skipCount}/${sections.length} 步骤，可能缺少所需文档）`;
             } else {
-              recordReport += `     ❌ 执行失败（${failCount + skipCount}/${sections.length} 步骤失败）\n`;
+              recordReport += `❌ 执行失败（${failCount + skipCount}/${sections.length} 步骤失败）`;
             }
             
             // 记录成功的步骤
@@ -2323,24 +2517,28 @@ ${specialRequirements || '无'}`;
               recordDetail.results.push({ action: r.action, status: 'done', reason: r.reason });
             });
             
-            // 记录失败或跳过的步骤，并添加到报告（包含详细原因）
-            replayResult.results.filter(r => r.status === 'fail' || r.status === 'pass' || r.status === 'skipped').forEach(r => {
-              const statusIcon = (r.status === 'pass' || r.status === 'skipped') ? '⏭️' : '❌';
-              recordReport += `     ${statusIcon} ${r.action}: ${r.reason}\n`;
-              executionDetails.failedSteps.push({
-                type: r.action,
-                record: recordName,
-                group: groupName,
-                status: (r.status === 'pass' || r.status === 'skipped') ? 'skipped' : (precipitationMode === 'llm' ? 'partial_fail' : 'fail'),
-                reason: r.reason,
-                replayMode: r.replayMode || executionMode,
-                replayStatus: r.replayStatus || r.status
+            // 记录失败或跳过的步骤
+            const failedOrSkipped = replayResult.results.filter(r => r.status === 'fail' || r.status === 'pass' || r.status === 'skipped');
+            if (failedOrSkipped.length > 0) {
+              recordReport += '\n';
+              failedOrSkipped.forEach(r => {
+                const statusIcon = (r.status === 'pass' || r.status === 'skipped') ? '⏭️' : '❌';
+                recordReport += `       ${statusIcon} ${r.action}: ${r.reason}\n`;
+                executionDetails.failedSteps.push({
+                  type: r.action,
+                  record: recordName,
+                  group: groupName,
+                  status: (r.status === 'pass' || r.status === 'skipped') ? 'skipped' : (precipitationMode === 'llm' ? 'partial_fail' : 'fail'),
+                  reason: r.reason,
+                  replayMode: r.replayMode || executionMode,
+                  replayStatus: r.replayStatus || r.status
+                });
+                recordDetail.results.push({ action: r.action, status: r.status, reason: r.reason });
               });
-              recordDetail.results.push({ action: r.action, status: r.status, reason: r.reason });
-            });
+            }
           } else {
             // 如果没有返回结果
-            recordReport += `     ✅ 已执行（${sections.length} 步骤）\n`;
+            recordReport += `✅ 已执行（${sections.length} 步骤）`;
             executionDetails.completedSteps += sections.length;
             sections.forEach(s => {
               const meta = extractReplayMeta(s.content || '') || {};
@@ -2358,11 +2556,41 @@ ${specialRequirements || '无'}`;
           
           groupDetail.records.push(recordDetail);
           
-          // 输出单个沉淀的执行报告
+          // 【实时同步】输出执行完成报告
           appendAssistantMessage(recordReport);
         }
         
         executionDetails.groupDetails.push(groupDetail);
+        executionDetails.groupNames.push(groupName);
+        
+        // 【关键】更新沉淀的 replay 状态到服务端（用于后管端显示）
+        for (const record of groupRecords) {
+          const recordResults = groupDetail.records.find(r => r.title === (record.name || record.title))?.results || [];
+          const hasFail = recordResults.some(r => r.status === 'fail');
+          const allDone = recordResults.every(r => r.status === 'done');
+          const hasPass = recordResults.some(r => r.status === 'pass' || r.status === 'skipped');
+          
+          const statusValue = hasFail 
+            ? 'fail' 
+            : (allDone ? 'script_done' : (hasPass ? 'pass' : 'partial'));
+          const errorMsg = hasFail ? '部分操作失败' : '';
+          
+          try {
+            // 【修复】使用正确的 API 路径（records 复数形式）
+            await fetch(`/api/precipitation/records/${record.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                lastReplayStatus: statusValue,
+                lastReplayMode: 'script',
+                lastReplayTime: Date.now(),
+                lastReplayError: errorMsg
+              })
+            });
+          } catch (e) {
+            console.warn('[Replay] 更新沉淀状态失败:', record.id, e);
+          }
+        }
       }
 
       // =====================================================
@@ -2400,6 +2628,25 @@ ${specialRequirements || '无'}`;
       console.error('Replay 执行失败:', error);
       appendAssistantMessage(`\n❌ **执行出错**\n\n「${btn.label}」执行过程中遇到问题：${error.message || '未知错误'}\n\n💡 建议您稍后重试，或联系管理员检查系统配置。`);
     } finally {
+      // 【新增】计算并显示耗时统计
+      const endTime = Date.now();
+      const elapsedMs = endTime - startTime;
+      const elapsedSec = (elapsedMs / 1000).toFixed(1);
+      
+      // 格式化耗时显示
+      let timeDisplay;
+      if (elapsedMs < 1000) {
+        timeDisplay = `${elapsedMs} 毫秒`;
+      } else if (elapsedMs < 60000) {
+        timeDisplay = `${elapsedSec} 秒`;
+      } else {
+        const minutes = Math.floor(elapsedMs / 60000);
+        const seconds = ((elapsedMs % 60000) / 1000).toFixed(0);
+        timeDisplay = `${minutes} 分 ${seconds} 秒`;
+      }
+      
+      appendAssistantMessage(`\n⏱️ **耗时统计：${timeDisplay}**`);
+      
       setIsReplaying(false);
       setReplayStatus('');
     }
@@ -4830,6 +5077,26 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
 
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
 
+                    {/* 最终文档生成按钮 */}
+                    <button
+                      onClick={openFinalPreview}
+                      className="primary"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: 'white',
+                        border: 'none',
+                        boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)',
+                        cursor: 'pointer'
+                      }}>
+                      📄 最终文档生成
+                    </button>
 
                     <button
 
@@ -5479,6 +5746,18 @@ ${successSteps.length > 0 ? `【成功执行的操作】\n${[...new Set(successS
 
 
       }
+
+      {/* 最终文档预览弹窗 */}
+      <DocumentPreviewModal
+        isOpen={showDocPreviewModal}
+        onClose={() => {
+          setShowDocPreviewModal(false);
+          setFinalDocumentPreview(null);
+        }}
+        sections={finalDocumentPreview?.sections || []}
+        docName="最终文档预览"
+        previewText={finalDocumentPreview?.text || null}
+      />
 
 
         </div>);
